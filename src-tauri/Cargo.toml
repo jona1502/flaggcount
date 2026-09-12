@@ -1,0 +1,16 @@
+[package]
+name = "flagcount"
+version = "0.1.0"
+description = "Zählt rote Flaggen im TikTok-Live-Chat"
+authors = ["jona1502"]
+edition = "2021"
+
+[lib]
+name = "flagcount_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
