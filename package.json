@@ -11,7 +11,7 @@
     "build:sidecar": "node scripts/build-sidecar.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p sidecar/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p sidecar/tsconfig.json && tsc --noEmit -p shared/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
