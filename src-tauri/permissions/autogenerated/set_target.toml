@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-target"
+description = "Enables the set_target command without any pre-configured scope."
+commands.allow = ["set_target"]
+
+[[permission]]
+identifier = "deny-set-target"
+description = "Denies the set_target command without any pre-configured scope."
+commands.deny = ["set_target"]

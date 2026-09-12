@@ -1,7 +1,8 @@
 import { createInterface } from 'node:readline';
+import { SidecarApp } from './app';
 import { parseCommand, serializeEvent, type SidecarEvent } from './protocol';
+import { createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
-import { TikTokLiveService } from './tiktok/TikTokLiveService';
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -11,34 +12,36 @@ function send(event: SidecarEvent): void {
   writeStdout(serializeEvent(event));
 }
 
-const service = new TikTokLiveService(createTikTokConnection, {
-  onStatus: (state) => send({ type: 'status', ...state }),
-  onChat: (message) => send({ type: 'chat', message }),
-  onError: (error) => send({ type: 'error', ...error })
+async function main(): Promise<void> {
+  const app = new SidecarApp(createTikTokConnection, send);
+
+  // Fresh secret per app start, shared with Tauri only over the private stdout pipe.
+  const token = createSessionToken();
+  const server = await startLocalServer({ token, getState: () => app.getState() });
+
+  const commands = createInterface({ input: process.stdin });
+
+  commands.on('line', (line) => {
+    const command = parseCommand(line);
+    if (!command) {
+      console.error('Ignoring invalid command');
+      return;
+    }
+    app.handleCommand(command).catch((error: unknown) => {
+      console.error('Command failed:', error instanceof Error ? error.message : error);
+    });
+  });
+
+  // The sidecar only lives as long as the Tauri app keeps its stdin open.
+  commands.on('close', () => {
+    void Promise.allSettled([app.shutdown(), server.close()]).finally(() => process.exit(0));
+  });
+
+  send({ type: 'ready', port: server.port, token });
+  await app.handleCommand({ type: 'getState' });
+}
+
+main().catch((error: unknown) => {
+  console.error('Sidecar failed to start:', error instanceof Error ? error.message : error);
+  process.exit(1);
 });
-
-const commands = createInterface({ input: process.stdin });
-
-commands.on('line', (line) => {
-  const command = parseCommand(line);
-  if (!command) {
-    console.error('Ignoring invalid command');
-    return;
-  }
-
-  switch (command.type) {
-    case 'connect':
-      void service.connect(command.username);
-      break;
-    case 'disconnect':
-      void service.disconnect();
-      break;
-  }
-});
-
-// The sidecar only lives as long as the Tauri app keeps its stdin open.
-commands.on('close', () => {
-  void service.disconnect().finally(() => process.exit(0));
-});
-
-send({ type: 'ready' });

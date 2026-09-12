@@ -1,25 +1,14 @@
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
+import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
+import type { VoteSnapshot } from '../../shared/voting';
 
-export type ConnectionState = {
-  status: ConnectionStatus;
-  username: string | null;
-};
+export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
+export type ConnectionErrorCode = AppErrorCode;
+export type ConnectionError = AppError;
 
-export type ConnectionErrorCode =
-  | 'invalid-username'
-  | 'user-offline'
-  | 'user-not-found'
-  | 'rate-limited'
-  | 'network'
-  | 'stream-ended'
-  | 'unknown';
-
-export type ConnectionError = {
-  code: ConnectionErrorCode;
-  message: string;
-};
-
-/** Stable, library-independent representation of a TikTok chat comment. */
+/**
+ * Stable, library-independent representation of a TikTok chat comment.
+ * Internal to the sidecar: chat content is never sent to Tauri or the UI.
+ */
 export type ChatMessage = {
   messageId: string;
   /** Stable TikTok user id; falls back to `unique:<handle>` if TikTok omits it. */
@@ -31,14 +20,19 @@ export type ChatMessage = {
 };
 
 /** Commands sent by Tauri to the sidecar, one JSON object per stdin line. */
-export type SidecarCommand = { type: 'connect'; username: string } | { type: 'disconnect' };
+export type SidecarCommand =
+  | { type: 'connect'; username: string }
+  | { type: 'disconnect' }
+  | { type: 'reset' }
+  | { type: 'setTarget'; target: number }
+  | { type: 'getState' };
 
 /** Events sent by the sidecar to Tauri, one JSON object per stdout line. */
 export type SidecarEvent =
-  | { type: 'ready' }
-  | ({ type: 'status' } & ConnectionState)
-  | { type: 'chat'; message: ChatMessage }
-  | ({ type: 'error' } & ConnectionError);
+  | { type: 'ready'; port: number; token: string }
+  | { type: 'status'; connection: ConnectionState }
+  | { type: 'votes'; votes: VoteSnapshot }
+  | { type: 'error'; error: AppError };
 
 export function parseCommand(line: string): SidecarCommand | null {
   let value: unknown;
@@ -55,8 +49,12 @@ export function parseCommand(line: string): SidecarCommand | null {
   switch (record['type']) {
     case 'connect':
       return typeof record['username'] === 'string' ? { type: 'connect', username: record['username'] } : null;
+    case 'setTarget':
+      return typeof record['target'] === 'number' ? { type: 'setTarget', target: record['target'] } : null;
     case 'disconnect':
-      return { type: 'disconnect' };
+    case 'reset':
+    case 'getState':
+      return { type: record['type'] };
     default:
       return null;
   }

@@ -3,5 +3,14 @@
   "identifier": "default",
   "description": "Minimale Rechte für das Hauptfenster",
   "windows": ["main"],
-  "permissions": ["core:app:allow-version"]
+  "permissions": [
+    "core:app:allow-version",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-get-state",
+    "allow-connect",
+    "allow-disconnect",
+    "allow-reset-votes",
+    "allow-set-target"
+  ]
 }
