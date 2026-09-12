@@ -19,6 +19,8 @@ export const flagcountApi = {
     listen<AppError>(APP_ERROR_EVENT, (event) => handler(event.payload))
 };
 
+export type FlagCountApi = typeof flagcountApi;
+
 export function isAppError(value: unknown): value is AppError {
   if (typeof value !== 'object' || value === null) {
     return false;

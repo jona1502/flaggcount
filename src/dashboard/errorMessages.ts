@@ -1,0 +1,19 @@
+import type { AppErrorCode } from '../../shared/appState';
+
+export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
+  'invalid-username':
+    'Bitte gib einen gültigen TikTok-Benutzernamen ein (2–24 Zeichen: Buchstaben, Zahlen, Punkt oder Unterstrich).',
+  'user-offline': 'Dieser Nutzer ist gerade nicht live. Starte den Livestream und versuche es erneut.',
+  'user-not-found': 'Dieser TikTok-Nutzer wurde nicht gefunden. Bitte prüfe den Benutzernamen.',
+  'rate-limited': 'TikTok hat zu viele Verbindungsversuche erkannt. Bitte warte einen Moment und versuche es erneut.',
+  network: 'Keine Verbindung zu TikTok möglich. Bitte prüfe deine Internetverbindung.',
+  'stream-ended': 'Der Livestream wurde beendet.',
+  'invalid-target': 'Das Stimmenziel muss eine ganze Zahl zwischen 1 und 100.000 sein.',
+  'sidecar-unavailable': 'Der Verbindungsdienst läuft nicht. Bitte starte FlagCount neu.',
+  unknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.'
+};
+
+/** German, user-facing text for an error code; unknown codes get a generic message. */
+export function getErrorMessage(code: string): string {
+  return Object.hasOwn(ERROR_MESSAGES, code) ? ERROR_MESSAGES[code as AppErrorCode] : ERROR_MESSAGES.unknown;
+}

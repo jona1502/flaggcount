@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
+import { useFlagCount } from './api/useFlagCount';
+import { Dashboard } from './dashboard/Dashboard';
 
 export function App(): React.JSX.Element {
+  const flagCount = useFlagCount();
   const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,12 +15,13 @@ export function App(): React.JSX.Element {
   }, []);
 
   return (
-    <main className="app">
-      <h1>
-        <span aria-hidden="true">🚩</span> FlagCount
-      </h1>
-      <p>Zählt rote Flaggen im TikTok-Live-Chat.</p>
-      {version && <p className="version">Version {version}</p>}
-    </main>
+    <Dashboard
+      state={flagCount.state}
+      error={flagCount.error}
+      pending={flagCount.pending}
+      actions={flagCount.actions}
+      onDismissError={flagCount.dismissError}
+      version={version}
+    />
   );
 }
