@@ -38,6 +38,14 @@ export class SidecarApp {
     return { connection: this.live.getState(), votes: this.voting.getSnapshot() };
   }
 
+  getVotes(): VoteSnapshot {
+    return this.voting.getSnapshot();
+  }
+
+  subscribeVotes(listener: (votes: VoteSnapshot) => void): () => void {
+    return this.voting.subscribe(listener);
+  }
+
   async handleCommand(command: SidecarCommand): Promise<void> {
     switch (command.type) {
       case 'connect':

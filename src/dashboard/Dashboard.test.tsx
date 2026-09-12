@@ -15,7 +15,8 @@ afterEach(() => {
 const baseState: AppState = {
   sidecarRunning: true,
   connection: { status: 'disconnected', username: null },
-  votes: { count: 0, target: 10, roundId: 'r1', targetReached: false }
+  votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
+  overlayUrl: 'http://127.0.0.1:3847/overlay'
 };
 
 type RenderOptions = {
@@ -32,6 +33,7 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     setTarget: vi.fn(async (_target: number) => undefined)
   } satisfies FlagCountActions;
   const onDismissError = vi.fn();
+  const onCopyText = vi.fn(async (_text: string) => undefined);
 
   render(
     <Dashboard
@@ -40,11 +42,12 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
       pending={pending}
       actions={actions}
       onDismissError={onDismissError}
+      onCopyText={onCopyText}
       version="0.1.0"
     />
   );
 
-  return { actions, onDismissError, user: userEvent.setup() };
+  return { actions, onDismissError, onCopyText, user: userEvent.setup() };
 }
 
 const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
+import { flagcountApi } from './api/flagcount';
 import { useFlagCount } from './api/useFlagCount';
 import { Dashboard } from './dashboard/Dashboard';
 
@@ -21,6 +22,7 @@ export function App(): React.JSX.Element {
       pending={flagCount.pending}
       actions={flagCount.actions}
       onDismissError={flagCount.dismissError}
+      onCopyText={flagcountApi.copyText}
       version={version}
     />
   );

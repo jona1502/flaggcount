@@ -90,6 +90,20 @@ describe('SidecarApp', () => {
     expect(app.getState().votes.target).toBe(25);
   });
 
+  it('lets the overlay subscribe to vote updates', async () => {
+    const { app, chat } = createApp();
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+    const received: number[] = [];
+
+    const unsubscribe = app.subscribeVotes((votes) => received.push(votes.count));
+    chat('1', '🚩');
+    unsubscribe();
+    chat('2', '🚩');
+
+    expect(received).toEqual([1]);
+    expect(app.getVotes().count).toBe(2);
+  });
+
   it('emits the full state on request', async () => {
     const { app, events } = createApp();
 

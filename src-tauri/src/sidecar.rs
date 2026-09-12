@@ -89,6 +89,12 @@ pub struct AppState {
     pub sidecar_running: bool,
     pub connection: ConnectionState,
     pub votes: VoteSnapshot,
+    pub overlay_url: Option<String>,
+}
+
+/// URL of the OBS browser source served by the sidecar.
+pub fn overlay_url(port: u16) -> String {
+    format!("http://127.0.0.1:{port}/overlay")
 }
 
 /// Events emitted by the sidecar. Deliberately not `Debug`: `Ready` carries the session token.
@@ -121,7 +127,8 @@ pub fn apply_event(
     match event {
         SidecarEvent::Ready { port, token } => {
             *session = Some(SidecarSession { port, token });
-            StateUpdate::None
+            state.overlay_url = Some(overlay_url(port));
+            StateUpdate::State
         }
         SidecarEvent::Status { connection } => {
             state.connection = connection;
@@ -256,6 +263,7 @@ impl Sidecar {
             inner.child = None;
             inner.session = None;
             inner.state.sidecar_running = false;
+            inner.state.overlay_url = None;
             inner.state.connection.status = ConnectionStatus::Disconnected;
             (inner.state.clone(), !inner.stopping)
         };
@@ -319,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn stores_the_session_without_exposing_it_in_the_state() {
+    fn publishes_the_overlay_url_but_keeps_the_token_private() {
         let mut state = AppState::default();
         let mut session = None;
 
@@ -329,9 +337,13 @@ mod tests {
             parse(r#"{"type":"ready","port":4321,"token":"secret"}"#),
         );
 
-        assert!(matches!(update, StateUpdate::None));
+        assert!(matches!(update, StateUpdate::State));
         let session = session.expect("session stored");
         assert_eq!((session.port, session.token.as_str()), (4321, "secret"));
+        assert_eq!(
+            state.overlay_url.as_deref(),
+            Some("http://127.0.0.1:4321/overlay")
+        );
         assert!(!serde_json::to_string(&state).unwrap().contains("secret"));
     }
 
@@ -394,7 +406,8 @@ mod tests {
             json!({
                 "sidecarRunning": false,
                 "connection": { "status": "disconnected", "username": null },
-                "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false }
+                "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
+                "overlayUrl": null
             })
         );
     }

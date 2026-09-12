@@ -28,4 +28,6 @@ export type AppState = {
   sidecarRunning: boolean;
   connection: ConnectionState;
   votes: VoteSnapshot;
+  /** URL for the OBS browser source; `null` while the sidecar is not running. */
+  overlayUrl: string | null;
 };

@@ -3,21 +3,25 @@ import type { AppState } from '../../shared/appState';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
+vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({ writeText: vi.fn() }));
 
 const { invoke } = await import('@tauri-apps/api/core');
 const { listen } = await import('@tauri-apps/api/event');
+const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
 const { APP_ERROR_EVENT, STATE_CHANGED_EVENT, flagcountApi, toAppError } = await import('./flagcount');
 
 const state: AppState = {
   sidecarRunning: true,
   connection: { status: 'connected', username: 'streamer' },
-  votes: { count: 2, target: 10, roundId: 'r1', targetReached: false }
+  votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
+  overlayUrl: 'http://127.0.0.1:3847/overlay'
 };
 
 describe('flagcountApi', () => {
   beforeEach(() => {
     vi.mocked(invoke).mockReset().mockResolvedValue(undefined);
     vi.mocked(listen).mockReset();
+    vi.mocked(writeText).mockReset().mockResolvedValue(undefined);
   });
 
   it('invokes the typed backend commands', async () => {
@@ -34,6 +38,13 @@ describe('flagcountApi', () => {
       ['reset_votes'],
       ['set_target', { target: 25 }]
     ]);
+  });
+
+  it('copies text through the clipboard plugin', async () => {
+    await flagcountApi.copyText('http://127.0.0.1:3847/overlay');
+
+    expect(writeText).toHaveBeenCalledWith('http://127.0.0.1:3847/overlay');
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it.each([

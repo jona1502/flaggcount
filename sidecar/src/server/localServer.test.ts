@@ -1,18 +1,45 @@
-import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { afterEach, describe, expect, it } from 'vitest';
-import { createSessionToken, isAuthorized, startLocalServer, type LocalServer } from './localServer';
+import { createServer, request as httpRequest, type IncomingHttpHeaders, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { VotingService, type VoteSnapshot } from '../../../shared/voting';
+import {
+  createSessionToken,
+  isAuthorized,
+  startLocalServer,
+  type LocalServer,
+  type LocalServerOptions
+} from './localServer';
 
 const TOKEN = 'a'.repeat(64);
-let server: LocalServer | null = null;
+const cleanups: (() => Promise<void>)[] = [];
 
 afterEach(async () => {
-  await server?.close();
-  server = null;
+  await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
 });
 
-async function start(): Promise<LocalServer> {
-  server = await startLocalServer({ token: TOKEN, getState: () => ({ ok: true }) });
-  return server;
+async function start(
+  overrides: Partial<LocalServerOptions> = {},
+  preferredPort = 0
+): Promise<{ server: LocalServer; voting: VotingService }> {
+  const voting = new VotingService({ target: 4, createRoundId: () => 'round-1' });
+  const server = await startLocalServer(
+    {
+      token: TOKEN,
+      getState: () => ({ ok: true }),
+      getVotes: () => voting.getSnapshot(),
+      subscribeVotes: (listener) => voting.subscribe(listener),
+      ...overrides
+    },
+    preferredPort
+  );
+  cleanups.push(() => server.close());
+  return { server, voting };
+}
+
+async function occupyPort(): Promise<{ port: number; blocker: Server }> {
+  const blocker = createServer();
+  await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve));
+  return { port: (blocker.address() as AddressInfo).port, blocker };
 }
 
 type RequestOptions = {
@@ -22,82 +49,218 @@ type RequestOptions = {
   authorization?: string | null;
 };
 
+type Response = { status: number; body: string; headers: IncomingHttpHeaders };
+
 function send(
   port: number,
   { path = '/api/state', method = 'GET', host = `127.0.0.1:${port}`, authorization = `Bearer ${TOKEN}` }: RequestOptions = {}
-): Promise<{ status: number; body: unknown; headers: IncomingHttpHeaders }> {
+): Promise<Response> {
   return new Promise((resolve, reject) => {
     const headers: Record<string, string> = { host };
     if (authorization) {
       headers['authorization'] = authorization;
     }
     const request = httpRequest({ host: '127.0.0.1', port, path, method, headers, agent: false }, (response) => {
-      let data = '';
+      let body = '';
       response.setEncoding('utf8');
-      response.on('data', (chunk: string) => (data += chunk));
-      response.on('end', () =>
-        resolve({ status: response.statusCode ?? 0, body: data ? JSON.parse(data) : null, headers: response.headers })
-      );
+      response.on('data', (chunk: string) => (body += chunk));
+      response.on('end', () => resolve({ status: response.statusCode ?? 0, body, headers: response.headers }));
     });
     request.on('error', reject);
     request.end();
   });
 }
 
+/** Reads `count` SSE vote events from the overlay stream, then disconnects. */
+function readVoteEvents(
+  port: number,
+  count: number,
+  onFirstEvent?: () => void
+): Promise<{ events: VoteSnapshot[]; headers: IncomingHttpHeaders }> {
+  return new Promise((resolve, reject) => {
+    const events: VoteSnapshot[] = [];
+    const request = httpRequest(
+      { host: '127.0.0.1', port, path: '/overlay/events', headers: { host: `127.0.0.1:${port}` }, agent: false },
+      (response) => {
+        let buffer = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => {
+          buffer += chunk;
+          let index: number;
+          while ((index = buffer.indexOf('\n\n')) >= 0) {
+            const block = buffer.slice(0, index);
+            buffer = buffer.slice(index + 2);
+            const data = block.split('\n').find((line) => line.startsWith('data: '));
+            if (!data) continue;
+
+            events.push(JSON.parse(data.slice('data: '.length)) as VoteSnapshot);
+            if (events.length === 1) onFirstEvent?.();
+            if (events.length === count) {
+              request.destroy();
+              resolve({ events, headers: response.headers });
+            }
+          }
+        });
+      }
+    );
+    request.on('error', (error) => {
+      if (events.length < count) reject(error);
+    });
+    request.end();
+  });
+}
+
 describe('startLocalServer', () => {
   it('listens on the loopback interface only', async () => {
-    const { address, port } = await start();
+    const { server } = await start();
 
-    expect(address).toBe('127.0.0.1');
-    expect(port).toBeGreaterThan(0);
+    expect(server.address).toBe('127.0.0.1');
+    expect(server.port).toBeGreaterThan(0);
   });
 
-  it('returns the state for authenticated requests', async () => {
-    const { port } = await start();
+  it('uses the preferred port when it is free', async () => {
+    const { port, blocker } = await occupyPort();
+    await new Promise<void>((resolve) => blocker.close(() => resolve()));
 
-    const response = await send(port);
+    const { server } = await start({}, port);
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true });
-    expect(response.headers['cache-control']).toBe('no-store');
+    expect(server.port).toBe(port);
   });
 
-  it('accepts localhost as host name', async () => {
-    const { port } = await start();
+  it('falls back to a free port when the preferred port is taken', async () => {
+    const { port, blocker } = await occupyPort();
+    cleanups.push(() => new Promise<void>((resolve) => blocker.close(() => resolve())));
 
-    expect((await send(port, { host: `localhost:${port}` })).status).toBe(200);
+    const { server } = await start({}, port);
+
+    expect(server.port).not.toBe(port);
+    expect((await send(server.port)).status).toBe(200);
   });
 
-  it.each([null, 'Bearer wrong', `Bearer ${TOKEN}x`, `Basic ${TOKEN}`, TOKEN])(
-    'rejects the authorization header %j',
-    async (authorization) => {
-      const { port } = await start();
+  describe('API', () => {
+    it('returns the state for authenticated requests', async () => {
+      const { server } = await start();
 
-      expect((await send(port, { authorization })).status).toBe(401);
+      const response = await send(server.port);
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body)).toEqual({ ok: true });
+      expect(response.headers['cache-control']).toBe('no-store');
+    });
+
+    it('accepts localhost as host name', async () => {
+      const { server } = await start();
+
+      expect((await send(server.port, { host: `localhost:${server.port}` })).status).toBe(200);
+    });
+
+    it.each([null, 'Bearer wrong', `Bearer ${TOKEN}x`, `Basic ${TOKEN}`, TOKEN])(
+      'rejects the authorization header %j',
+      async (authorization) => {
+        const { server } = await start();
+
+        expect((await send(server.port, { authorization })).status).toBe(401);
+      }
+    );
+
+    it('checks authentication before revealing routes', async () => {
+      const { server } = await start();
+
+      expect((await send(server.port, { path: '/unknown', authorization: null })).status).toBe(401);
+      expect((await send(server.port, { path: '/unknown' })).status).toBe(404);
+    });
+
+    it('only allows GET for the state endpoint', async () => {
+      const { server } = await start();
+
+      const response = await send(server.port, { method: 'POST' });
+
+      expect(response.status).toBe(405);
+      expect(response.headers['allow']).toBe('GET');
+    });
+  });
+
+  it.each(['/api/state', '/overlay', '/overlay/events'])(
+    'rejects foreign host headers on %s to prevent DNS rebinding',
+    async (path) => {
+      const { server } = await start();
+
+      expect((await send(server.port, { path, host: `evil.example:${server.port}` })).status).toBe(403);
+      expect((await send(server.port, { path, host: 'evil.example' })).status).toBe(403);
     }
   );
 
-  it('rejects foreign host headers to prevent DNS rebinding', async () => {
-    const { port } = await start();
+  describe('overlay', () => {
+    it('serves the overlay page without credentials and with a strict CSP', async () => {
+      const { server } = await start();
 
-    expect((await send(port, { host: `evil.example:${port}` })).status).toBe(403);
-    expect((await send(port, { host: 'evil.example' })).status).toBe(403);
-  });
+      const response = await send(server.port, { path: '/overlay', authorization: null });
 
-  it('checks authentication before revealing routes', async () => {
-    const { port } = await start();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
+      expect(response.headers['content-security-policy']).toContain("default-src 'none'");
+      expect(response.body).toContain('data-count="0"');
+      expect(response.body).toContain('data-target="4"');
+    });
 
-    expect((await send(port, { path: '/unknown', authorization: null })).status).toBe(401);
-    expect((await send(port, { path: '/unknown' })).status).toBe(404);
-  });
+    it.each([
+      ['/overlay/overlay.css', 'text/css; charset=utf-8'],
+      ['/overlay/overlay.js', 'text/javascript; charset=utf-8']
+    ])('serves %s', async (path, contentType) => {
+      const { server } = await start();
 
-  it('only allows GET for the state endpoint', async () => {
-    const { port } = await start();
+      const response = await send(server.port, { path, authorization: null });
 
-    const response = await send(port, { method: 'POST' });
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toBe(contentType);
+      expect(response.headers['x-content-type-options']).toBe('nosniff');
+    });
 
-    expect(response.status).toBe(405);
-    expect(response.headers['allow']).toBe('GET');
+    it('streams the current votes and every update', async () => {
+      const { server, voting } = await start();
+
+      const { events, headers } = await readVoteEvents(server.port, 2, () => voting.handleComment('viewer', '🚩'));
+
+      expect(headers['content-type']).toBe('text/event-stream; charset=utf-8');
+      expect(events).toEqual([
+        { count: 0, target: 4, roundId: 'round-1', targetReached: false },
+        { count: 1, target: 4, roundId: 'round-1', targetReached: false }
+      ]);
+    });
+
+    it('stops pushing updates to closed overlay connections', async () => {
+      const voting = new VotingService();
+      let subscribers = 0;
+      const { server } = await start({
+        getVotes: () => voting.getSnapshot(),
+        subscribeVotes: (listener) => {
+          subscribers++;
+          const unsubscribe = voting.subscribe(listener);
+          return () => {
+            subscribers--;
+            unsubscribe();
+          };
+        }
+      });
+
+      await readVoteEvents(server.port, 1);
+
+      await vi.waitFor(() => expect(subscribers).toBe(0));
+    });
+
+    it('only allows GET on overlay routes', async () => {
+      const { server } = await start();
+
+      const response = await send(server.port, { path: '/overlay', method: 'POST', authorization: null });
+
+      expect(response.status).toBe(405);
+    });
+
+    it('answers unknown overlay paths with 404', async () => {
+      const { server } = await start();
+
+      expect((await send(server.port, { path: '/overlay/secret', authorization: null })).status).toBe(404);
+    });
   });
 });
 

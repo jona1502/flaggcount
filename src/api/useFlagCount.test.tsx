@@ -10,7 +10,8 @@ afterEach(cleanup);
 const initialState: AppState = {
   sidecarRunning: true,
   connection: { status: 'disconnected', username: null },
-  votes: { count: 0, target: 100, roundId: 'r1', targetReached: false }
+  votes: { count: 0, target: 100, roundId: 'r1', targetReached: false },
+  overlayUrl: 'http://127.0.0.1:3847/overlay'
 };
 
 const connectedState: AppState = {
@@ -37,6 +38,7 @@ function createFakeApi() {
     disconnect: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
+    copyText: vi.fn(async (_text: string) => undefined),
     onStateChanged: vi.fn(async (handler: (state: AppState) => void): Promise<() => void> => {
       stateHandler = handler;
       return unlistenState;

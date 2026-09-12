@@ -2,6 +2,7 @@ import type { AppError, AppState } from '../../shared/appState';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
+import { OverlayPanel } from './OverlayPanel';
 import { VotesPanel } from './VotesPanel';
 
 type DashboardProps = {
@@ -10,10 +11,19 @@ type DashboardProps = {
   pending: boolean;
   actions: FlagCountActions;
   onDismissError: () => void;
+  onCopyText: (text: string) => Promise<void>;
   version?: string | null;
 };
 
-export function Dashboard({ state, error, pending, actions, onDismissError, version }: DashboardProps): React.JSX.Element {
+export function Dashboard({
+  state,
+  error,
+  pending,
+  actions,
+  onDismissError,
+  onCopyText,
+  version
+}: DashboardProps): React.JSX.Element {
   return (
     <main className="app">
       <header className="app-header">
@@ -42,6 +52,7 @@ export function Dashboard({ state, error, pending, actions, onDismissError, vers
             onSetTarget={(target) => void actions.setTarget(target)}
             onReset={() => void actions.resetVotes()}
           />
+          <OverlayPanel overlayUrl={state.overlayUrl} onCopy={onCopyText} />
         </>
       )}
     </main>

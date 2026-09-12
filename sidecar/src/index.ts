@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
 import { parseCommand, serializeEvent, type SidecarEvent } from './protocol';
-import { createSessionToken, startLocalServer } from './server/localServer';
+import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
 
 // stdout is reserved for protocol events; route all console output to stderr.
@@ -17,7 +17,18 @@ async function main(): Promise<void> {
 
   // Fresh secret per app start, shared with Tauri only over the private stdout pipe.
   const token = createSessionToken();
-  const server = await startLocalServer({ token, getState: () => app.getState() });
+  const server = await startLocalServer(
+    {
+      token,
+      getState: () => app.getState(),
+      getVotes: () => app.getVotes(),
+      subscribeVotes: (listener) => app.subscribeVotes(listener)
+    },
+    DEFAULT_OVERLAY_PORT
+  );
+  if (server.port !== DEFAULT_OVERLAY_PORT) {
+    console.error(`Port ${DEFAULT_OVERLAY_PORT} is in use; the overlay uses port ${server.port} instead`);
+  }
 
   const commands = createInterface({ input: process.stdin });
 

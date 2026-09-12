@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { AppError, AppState } from '../../shared/appState';
 
 export const STATE_CHANGED_EVENT = 'state-changed';
@@ -12,6 +13,7 @@ export const flagcountApi = {
   disconnect: (): Promise<void> => invoke('disconnect'),
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
+  copyText: (text: string): Promise<void> => writeText(text),
 
   onStateChanged: (handler: (state: AppState) => void): Promise<UnlistenFn> =>
     listen<AppState>(STATE_CHANGED_EVENT, (event) => handler(event.payload)),
