@@ -98,10 +98,12 @@ export function ConnectionPanel({
           </p>
         )}
       </form>
-      <p className="status" data-status={status.key} role="status">
-        <span className="status-dot" aria-hidden="true" />
-        {status.text}
-      </p>
+      {status.key !== 'disconnected' && (
+        <p className="status" data-status={status.key} role="status">
+          <span className="status-dot" aria-hidden="true" />
+          {status.text}
+        </p>
+      )}
     </section>
   );
 }

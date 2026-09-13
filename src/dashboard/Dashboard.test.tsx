@@ -69,7 +69,7 @@ describe('Dashboard', () => {
       await user.click(button('Verbinden'));
 
       expect(actions.connect).toHaveBeenCalledWith('@streamer');
-      expect(screen.getByRole('status').textContent).toBe('Nicht verbunden');
+      expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('asks for a username before connecting', async () => {
@@ -87,6 +87,7 @@ describe('Dashboard', () => {
       });
 
       expect(screen.getByRole('status').textContent).toBe('Verbunden mit @streamer');
+      expect(screen.getByRole('status').getAttribute('data-status')).toBe('connected');
       expect((screen.getByLabelText('TikTok-Benutzername') as HTMLInputElement).disabled).toBe(true);
 
       await user.click(button('Trennen'));

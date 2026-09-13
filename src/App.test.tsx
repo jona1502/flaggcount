@@ -70,7 +70,7 @@ describe('App with the Tauri backend', () => {
 
     expect(commands()).toContain('get_state');
     expect(screen.getByText('Version 0.1.0')).toBeTruthy();
-    expect(screen.getByRole('status').textContent).toBe('Nicht verbunden');
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('sends every dashboard action as the matching Tauri command', async () => {
