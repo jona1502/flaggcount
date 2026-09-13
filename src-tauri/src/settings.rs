@@ -142,7 +142,7 @@ fn is_hex_color(value: &str) -> bool {
         && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-fn is_valid_id(value: &str) -> bool {
+pub fn is_valid_id(value: &str) -> bool {
     (1..=MAX_ID_LENGTH).contains(&value.len())
         && value
             .bytes()

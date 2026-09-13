@@ -13,9 +13,15 @@ export const flagcountApi = {
   getState: (): Promise<AppState> => invoke<AppState>('get_state'),
   connect: (username: string): Promise<void> => invoke('connect', { username }),
   disconnect: (): Promise<void> => invoke('disconnect'),
-  addManualVote: (): Promise<void> => invoke('add_manual_vote'),
-  removeManualVote: (): Promise<void> => invoke('remove_manual_vote'),
-  resetVotes: (): Promise<void> => invoke('reset_votes'),
+  // Without ids the first counter is meant, exactly as before parallel counters existed.
+  addManualVote: (counterId?: string, optionId?: string): Promise<void> =>
+    counterId === undefined ? invoke('add_manual_vote') : invoke('add_manual_vote', { counterId, optionId: optionId ?? null }),
+  removeManualVote: (counterId?: string, optionId?: string): Promise<void> =>
+    counterId === undefined
+      ? invoke('remove_manual_vote')
+      : invoke('remove_manual_vote', { counterId, optionId: optionId ?? null }),
+  resetVotes: (counterId?: string): Promise<void> =>
+    counterId === undefined ? invoke('reset_votes') : invoke('reset_votes', { counterId }),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
   createProfile: (name: string): Promise<string> => invoke<string>('create_profile', { name }),

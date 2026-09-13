@@ -1601,3 +1601,124 @@ input[readonly] {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Live board for polls and parallel counters */
+.counters-board {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+}
+
+.counters-board h2 {
+  margin: 0;
+}
+
+.counter-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.live-counter {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.live-counter > .button,
+.live-counter > .reset-confirm {
+  justify-self: start;
+}
+
+.live-counter-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-counter-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.live-total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+
+.live-total strong {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-total span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.live-options {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-option {
+  display: grid;
+  gap: 4px;
+}
+
+.live-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-option-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.live-option-count {
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.option-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.option-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.option-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.live-option-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.live-option-actions .button {
+  min-width: 44px;
+}

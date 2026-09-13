@@ -203,3 +203,47 @@ describe('Counters in the Tauri app', () => {
     expect(saved?.counters.map((counter) => counter.name)).toEqual(['Flaggen-Runde']);
   });
 });
+
+describe('Parallel counters in the Tauri app', () => {
+  it('corrects a poll option and resets one counter from the live board', async () => {
+    const user = await renderApp();
+
+    await act(() =>
+      emit('state-changed', {
+        ...backendState,
+        counters: [
+          {
+            counterId: 'red-flags',
+            name: 'Rote Flaggen',
+            mode: 'single',
+            options: [{ optionId: 'red-flag', label: 'Rote Flagge', count: 2 }],
+            totalCount: 2,
+            target: 10,
+            targetReached: false,
+            roundId: 'r1'
+          },
+          {
+            counterId: 'teams',
+            name: 'Team-Wahl',
+            mode: 'poll',
+            options: [
+              { optionId: 'red', label: 'Rot', count: 1 },
+              { optionId: 'blue', label: 'Blau', count: 0 }
+            ],
+            totalCount: 1,
+            target: null,
+            targetReached: false,
+            roundId: 'r2'
+          }
+        ]
+      } satisfies AppState)
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Stimme für Blau hinzufügen' }));
+    await user.click(screen.getByRole('button', { name: 'Team-Wahl zurücksetzen' }));
+    await user.click(screen.getByRole('button', { name: 'Ja, zurücksetzen' }));
+
+    expect(payloadOf('add_manual_vote')).toEqual({ counterId: 'teams', optionId: 'blue' });
+    expect(payloadOf('reset_votes')).toEqual({ counterId: 'teams' });
+  });
+});

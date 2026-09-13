@@ -83,19 +83,45 @@ pub fn disconnect(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::Disconnect)
 }
 
-#[tauri::command]
-pub fn add_manual_vote(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
-    sidecar.send(&SidecarCommand::AddManualVote)
+/// Counter and option ids come from the UI; the sidecar ignores ids it does not know.
+fn validated_id(id: Option<String>) -> Result<Option<String>, AppError> {
+    match id {
+        Some(id) if !settings::is_valid_id(&id) => {
+            Err(AppError::new("invalid-counters", "Unknown counter or option"))
+        }
+        id => Ok(id),
+    }
 }
 
 #[tauri::command]
-pub fn remove_manual_vote(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
-    sidecar.send(&SidecarCommand::RemoveManualVote)
+pub fn add_manual_vote(
+    sidecar: State<'_, Sidecar>,
+    counter_id: Option<String>,
+    option_id: Option<String>,
+) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::AddManualVote {
+        counter_id: validated_id(counter_id)?,
+        option_id: validated_id(option_id)?,
+    })
 }
 
 #[tauri::command]
-pub fn reset_votes(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
-    sidecar.send(&SidecarCommand::Reset)
+pub fn remove_manual_vote(
+    sidecar: State<'_, Sidecar>,
+    counter_id: Option<String>,
+    option_id: Option<String>,
+) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::RemoveManualVote {
+        counter_id: validated_id(counter_id)?,
+        option_id: validated_id(option_id)?,
+    })
+}
+
+#[tauri::command]
+pub fn reset_votes(sidecar: State<'_, Sidecar>, counter_id: Option<String>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::Reset {
+        counter_id: validated_id(counter_id)?,
+    })
 }
 
 #[tauri::command]
@@ -197,7 +223,7 @@ pub fn save_counters<R: Runtime>(
 /// Switching the running profile ends the running rounds, which the UI confirms beforehand.
 fn run_other_profile(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
     send_counters(sidecar, settings)?;
-    ignore_unavailable(sidecar.send(&SidecarCommand::Reset))
+    ignore_unavailable(sidecar.send(&SidecarCommand::Reset { counter_id: None }))
 }
 
 #[tauri::command]

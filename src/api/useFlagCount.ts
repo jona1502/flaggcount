@@ -8,9 +8,10 @@ import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
 export type FlagCountActions = {
   connect: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  addManualVote: () => Promise<void>;
-  removeManualVote: () => Promise<void>;
-  resetVotes: () => Promise<void>;
+  addManualVote: (counterId?: string, optionId?: string) => Promise<void>;
+  removeManualVote: (counterId?: string, optionId?: string) => Promise<void>;
+  /** Without a counter id every round starts over. */
+  resetVotes: (counterId?: string) => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
   createProfile: (name: string) => Promise<void>;
@@ -106,9 +107,9 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
     () => ({
       connect: (username) => run(() => api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
-      addManualVote: () => run(() => api.addManualVote()),
-      removeManualVote: () => run(() => api.removeManualVote()),
-      resetVotes: () => run(() => api.resetVotes()),
+      addManualVote: (counterId, optionId) => run(() => api.addManualVote(counterId, optionId)),
+      removeManualVote: (counterId, optionId) => run(() => api.removeManualVote(counterId, optionId)),
+      resetVotes: (counterId) => run(() => api.resetVotes(counterId)),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
       createProfile: (name) =>

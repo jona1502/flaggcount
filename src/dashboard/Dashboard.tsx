@@ -7,6 +7,7 @@ import { LicensePanel } from '../pro/LicensePanel';
 import { CounterEditor } from '../profiles/CounterEditor';
 import { ProfilesPanel } from '../profiles/ProfilesPanel';
 import { ConnectionPanel } from './ConnectionPanel';
+import { CountersBoard } from './CountersBoard';
 import { ErrorBanner } from './ErrorBanner';
 import { OverlayPanel } from './OverlayPanel';
 import { VotesPanel } from './VotesPanel';
@@ -110,6 +111,8 @@ export function Dashboard({
       );
     }
     const counter = running.counters[0] ?? primaryCounter(appState.settings);
+    // The single red flag counter keeps its familiar one-click panel; polls and parallel counters get the board.
+    const showBoard = appState.counters.length > 1 || appState.counters.some((snapshot) => snapshot.mode === 'poll');
     return (
       <div
         className="dashboard-grid"
@@ -123,14 +126,25 @@ export function Dashboard({
           onConnect={(username) => void actions.connect(username)}
           onDisconnect={() => void actions.disconnect()}
         />
-        <VotesPanel
-          votes={appState.votes}
-          disabled={!appState.sidecarRunning || pending}
-          onAddManualVote={() => void actions.addManualVote()}
-          onRemoveManualVote={() => void actions.removeManualVote()}
-          onSetTarget={(target) => void actions.setTarget(target)}
-          onReset={() => void actions.resetVotes()}
-        />
+        {showBoard ? (
+          <CountersBoard
+            counters={appState.counters}
+            definitions={running.counters}
+            disabled={!appState.sidecarRunning || pending}
+            onAddVote={(counterId, optionId) => void actions.addManualVote(counterId, optionId)}
+            onRemoveVote={(counterId, optionId) => void actions.removeManualVote(counterId, optionId)}
+            onReset={(counterId) => void actions.resetVotes(counterId)}
+          />
+        ) : (
+          <VotesPanel
+            votes={appState.votes}
+            disabled={!appState.sidecarRunning || pending}
+            onAddManualVote={() => void actions.addManualVote()}
+            onRemoveManualVote={() => void actions.removeManualVote()}
+            onSetTarget={(target) => void actions.setTarget(target)}
+            onReset={() => void actions.resetVotes()}
+          />
+        )}
         <OverlayPanel
           overlayUrl={appState.overlayUrl}
           publicOverlayUrl={appState.publicOverlayUrl}

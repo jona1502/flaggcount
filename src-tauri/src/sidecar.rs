@@ -39,9 +39,27 @@ const MAX_LOG_MESSAGE_CHARS: usize = 300;
 pub enum SidecarCommand {
     Connect { username: String },
     Disconnect,
-    AddManualVote,
-    RemoveManualVote,
-    Reset,
+    /// Without ids the vote goes to the first counter; single counters need no option id.
+    #[serde(rename_all = "camelCase")]
+    AddManualVote {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        option_id: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    RemoveManualVote {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        option_id: Option<String>,
+    },
+    /// Without a counter id every round starts over.
+    #[serde(rename_all = "camelCase")]
+    Reset {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+    },
     /// The counters of the active profile; running rounds of counters that keep their id continue.
     ConfigureCounters { counters: Vec<CounterDefinition> },
     /// The stored license, sent after every start. The secret only travels over the private stdin pipe.
@@ -718,9 +736,34 @@ mod tests {
                 json!({ "type": "connect", "username": "streamer" }),
             ),
             (SidecarCommand::Disconnect, json!({ "type": "disconnect" })),
-            (SidecarCommand::AddManualVote, json!({ "type": "addManualVote" })),
-            (SidecarCommand::RemoveManualVote, json!({ "type": "removeManualVote" })),
-            (SidecarCommand::Reset, json!({ "type": "reset" })),
+            (
+                SidecarCommand::AddManualVote {
+                    counter_id: None,
+                    option_id: None,
+                },
+                json!({ "type": "addManualVote" }),
+            ),
+            (
+                SidecarCommand::AddManualVote {
+                    counter_id: Some("teams".into()),
+                    option_id: Some("blue".into()),
+                },
+                json!({ "type": "addManualVote", "counterId": "teams", "optionId": "blue" }),
+            ),
+            (
+                SidecarCommand::RemoveManualVote {
+                    counter_id: None,
+                    option_id: None,
+                },
+                json!({ "type": "removeManualVote" }),
+            ),
+            (SidecarCommand::Reset { counter_id: None }, json!({ "type": "reset" })),
+            (
+                SidecarCommand::Reset {
+                    counter_id: Some("teams".into()),
+                },
+                json!({ "type": "reset", "counterId": "teams" }),
+            ),
             (
                 SidecarCommand::ConfigureCounters {
                     counters: vec![CounterDefinition::red_flags(25, OverlaySettings::default())],

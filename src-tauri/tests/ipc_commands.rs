@@ -257,3 +257,23 @@ fn saves_counters_the_free_plan_allows_and_refuses_pro_counters() {
     assert_eq!(error_code(invoke(&app, "save_counters", json!({ "counters": [] }))), "invalid-counters");
     assert_eq!(app.saved.lock().unwrap().len(), 1);
 }
+
+#[test]
+fn targets_manual_votes_and_resets_only_with_valid_ids() {
+    let app = create_app();
+
+    for (cmd, args) in [
+        ("add_manual_vote", json!({ "counterId": "mit leerzeichen" })),
+        ("remove_manual_vote", json!({ "counterId": "teams", "optionId": "../blue" })),
+        ("reset_votes", json!({ "counterId": "" })),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "invalid-counters", "{cmd}");
+    }
+    for (cmd, args) in [
+        ("add_manual_vote", json!({ "counterId": "teams", "optionId": "blue" })),
+        ("remove_manual_vote", json!({ "counterId": "teams", "optionId": "blue" })),
+        ("reset_votes", json!({ "counterId": "teams" })),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");
+    }
+}
