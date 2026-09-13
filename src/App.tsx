@@ -3,9 +3,17 @@ import { getVersion } from '@tauri-apps/api/app';
 import { flagcountApi } from './api/flagcount';
 import { useFlagCount } from './api/useFlagCount';
 import { Dashboard } from './dashboard/Dashboard';
+import { updaterClient, type UpdaterClient } from './updater/updaterClient';
+import { useUpdater } from './updater/useUpdater';
 
-export function App(): React.JSX.Element {
+type AppProps = {
+  updateClient?: UpdaterClient;
+  autoCheckUpdates?: boolean;
+};
+
+export function App({ updateClient = updaterClient, autoCheckUpdates }: AppProps = {}): React.JSX.Element {
   const flagCount = useFlagCount();
+  const updater = useUpdater({ client: updateClient, autoCheck: autoCheckUpdates });
   const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +32,7 @@ export function App(): React.JSX.Element {
       onDismissError={flagCount.dismissError}
       onCopyText={flagcountApi.copyText}
       version={version}
+      updater={updater}
     />
   );
 }

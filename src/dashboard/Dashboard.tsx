@@ -4,6 +4,8 @@ import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
 import { OverlayPanel } from './OverlayPanel';
 import { VotesPanel } from './VotesPanel';
+import { UpdateNotice } from '../updater/UpdateNotice';
+import type { UpdaterController } from '../updater/useUpdater';
 
 type DashboardProps = {
   state: AppState | null;
@@ -13,6 +15,7 @@ type DashboardProps = {
   onDismissError: () => void;
   onCopyText: (text: string) => Promise<void>;
   version?: string | null;
+  updater?: UpdaterController;
 };
 
 export function Dashboard({
@@ -22,7 +25,8 @@ export function Dashboard({
   actions,
   onDismissError,
   onCopyText,
-  version
+  version,
+  updater
 }: DashboardProps): React.JSX.Element {
   return (
     <main className="app">
@@ -30,8 +34,24 @@ export function Dashboard({
         <h1>
           <span aria-hidden="true">🚩</span> FlagCount
         </h1>
-        {version && <span className="version">Version {version}</span>}
+        {(version || updater) && (
+          <div className="version-actions">
+            {version && <span className="version">Version {version}</span>}
+            {updater && (
+              <button
+                type="button"
+                className="text-button"
+                disabled={updater.status === 'checking' || updater.status === 'downloading'}
+                onClick={() => void updater.checkForUpdates()}
+              >
+                Nach Updates suchen
+              </button>
+            )}
+          </div>
+        )}
       </header>
+
+      {updater && <UpdateNotice updater={updater} />}
 
       <ErrorBanner error={error} onDismiss={onDismissError} />
 

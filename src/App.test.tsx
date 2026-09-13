@@ -73,6 +73,15 @@ describe('App with the Tauri backend', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('checks for updates on demand', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Nach Updates suchen' }));
+
+    expect(commands()).toContain('plugin:updater|check');
+    expect(await screen.findByText('FlagCount ist aktuell.')).toBeTruthy();
+  });
+
   it('sends every dashboard action as the matching Tauri command', async () => {
     const user = await renderApp();
 
