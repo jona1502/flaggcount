@@ -30,7 +30,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1NkE0ODU3N0IzOURDMTIKUldRUzNEbDdWMGhxWlNUU0NZdVNNZEd0aktyV0c0VkU5c3VJUjF2SEU0WjJ1TVk1NUpVZ3BZcnUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwNEYxRkM1OThDODA1OTQKUldTVUJjaVl4UjlQb0xKRFJsU1grZVR4Qzh4ekJvZ0pJSTFHbVgwMFQ5VWxQVTVOcEhBbFl5VHIK",
       "endpoints": [
         "https://github.com/jona1502/flaggcount/releases/latest/download/latest.json"
       ],

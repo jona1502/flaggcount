@@ -8,16 +8,17 @@ Der öffentliche Tauri-Updater-Schlüssel steht in `src-tauri/tauri.conf.json`. 
 C:\Users\muhr9\.tauri\flagcount.key
 ```
 
-Der private Schlüssel hat kein Passwort. Er muss an einem zweiten sicheren Ort gesichert werden. Geht er verloren, können bereits installierte Versionen keine neuen Updates mehr verifizieren.
+Der private Schlüssel ist mit einem Passwort geschützt. Schlüsseldatei und Passwort müssen getrennt an einem zweiten sicheren Ort gesichert werden (Passwort z. B. im Passwortmanager, nicht als Textdatei neben dem Schlüssel). Geht eines von beiden verloren, können bereits installierte Versionen keine neuen Updates mehr verifizieren.
 
 Für lokale signierte Builds:
 
 ```powershell
 $env:TAURI_SIGNING_PRIVATE_KEY = 'C:\Users\muhr9\.tauri\flagcount.key'
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Read-Host 'Signierpasswort' -MaskInput
 npm run package:windows
 ```
 
-Für GitHub Actions muss der vollständige Inhalt der privaten Schlüsseldatei als Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` hinterlegt werden. Ein Passwort-Secret ist für diesen Schlüssel nicht erforderlich.
+Für GitHub Actions muss der vollständige Inhalt der privaten Schlüsseldatei als Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` und das Passwort als Repository-Secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` hinterlegt werden.
 
 Private Schlüssel und öffentliche Schlüsseldateien sind über `.gitignore` vor versehentlichem Einchecken geschützt. Der bereits konfigurierte öffentliche Schlüssel in `tauri.conf.json` darf veröffentlicht werden.
 
@@ -35,7 +36,8 @@ Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-An
 
 1. Den Inhalt von `C:\Users\muhr9\.tauri\flagcount.key` kopieren.
 2. Im Repository unter **Settings → Secrets and variables → Actions** ein Repository-Secret namens `TAURI_SIGNING_PRIVATE_KEY` anlegen.
-3. Sicherstellen, dass GitHub Actions Releases schreiben darf. Der Workflow fordert dafür ausschließlich `contents: write` an.
+3. Ein weiteres Repository-Secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` mit dem Schlüsselpasswort anlegen.
+4. Sicherstellen, dass GitHub Actions Releases schreiben darf. Der Workflow fordert dafür ausschließlich `contents: write` an.
 
 Der Workflow `.github/workflows/release.yml` läuft bei Tags mit dem Präfix `app-v` sowie manuell. Er führt Typecheck und Tests aus, baut den Windows-NSIS-Installer, signiert das Update und veröffentlicht `latest.json`, Installer und Signatur als GitHub Release.
 
