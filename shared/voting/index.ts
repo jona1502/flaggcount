@@ -15,10 +15,20 @@ export {
   type TriggerMatcher
 } from './triggers';
 export {
+  VotingEngine,
+  createRandomRoundId,
+  toVoteSnapshot,
+  type CommentResult,
+  type CounterSnapshot,
+  type CounterVoteResult,
+  type CountersListener,
+  type OptionSnapshot,
+  type VotingEngineOptions
+} from './VotingEngine';
+export {
   VotingService,
   type VoteListener,
   type VoteResult,
   type VoteSnapshot,
-  type VoteState,
   type VotingServiceOptions
 } from './VotingService';
