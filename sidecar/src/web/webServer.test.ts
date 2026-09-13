@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AppError } from '../../../shared/appState';
+import { isCorrectPassword } from './session';
 import { WebController } from './webController';
-import { isAuthorizedPassword, startWebServer, type WebServerOptions } from './webServer';
+import { startWebServer, type WebServerOptions } from './webServer';
 
 const PASSWORD = 'correct-horse-battery';
-const AUTH = `Basic ${Buffer.from(`admin:${PASSWORD}`).toString('base64')}`;
 const cleanups: (() => Promise<unknown> | void)[] = [];
 
 afterEach(async () => {
@@ -60,19 +60,25 @@ function send(
   });
 }
 
-const json = (body: unknown, extra: Record<string, string> = {}) => ({
+const post = (body: unknown, headers: Record<string, string> = {}) => ({
   method: 'POST',
-  headers: { authorization: AUTH, 'content-type': 'application/json', ...extra },
+  headers: { 'content-type': 'application/json', ...headers },
   body: JSON.stringify(body)
 });
 
-describe('isAuthorizedPassword', () => {
-  it('accepts the password with any user name and rejects everything else', () => {
-    expect(isAuthorizedPassword(AUTH, PASSWORD)).toBe(true);
-    expect(isAuthorizedPassword(`Basic ${Buffer.from(`:${PASSWORD}`).toString('base64')}`, PASSWORD)).toBe(true);
-    expect(isAuthorizedPassword(`Basic ${Buffer.from('admin:wrong').toString('base64')}`, PASSWORD)).toBe(false);
-    expect(isAuthorizedPassword(`Bearer ${PASSWORD}`, PASSWORD)).toBe(false);
-    expect(isAuthorizedPassword(undefined, PASSWORD)).toBe(false);
+/** Signs in and returns the `name=value` pair of the session cookie. */
+async function signIn(port: number): Promise<string> {
+  const response = await send(port, '/api/login', post({ password: PASSWORD }));
+  expect(response.status).toBe(204);
+  return response.headers['set-cookie']?.[0]?.split(';')[0] ?? '';
+}
+
+describe('isCorrectPassword', () => {
+  it('accepts only the exact password', () => {
+    expect(isCorrectPassword(PASSWORD, PASSWORD)).toBe(true);
+    expect(isCorrectPassword('wrong', PASSWORD)).toBe(false);
+    expect(isCorrectPassword('', PASSWORD)).toBe(false);
+    expect(isCorrectPassword(undefined, PASSWORD)).toBe(false);
   });
 });
 
@@ -86,38 +92,79 @@ describe('startWebServer', () => {
     expect(overlay.body).toContain('FlagCount Overlay');
   });
 
-  it('asks for the password before the dashboard and the API', async () => {
+  it('serves the dashboard shell without a session, but not the API', async () => {
     const { server } = await start();
 
-    for (const path of ['/', '/api/state']) {
-      const response = await send(server.port, path);
-      expect(response.status).toBe(401);
-      expect(response.headers['www-authenticate']).toContain('Basic');
-    }
-  });
-
-  it('serves the dashboard and its assets after login, but no files outside the web root', async () => {
-    const { server } = await start();
-    const headers = { authorization: AUTH };
-
-    const page = await send(server.port, '/', { headers });
+    const page = await send(server.port, '/');
     expect(page.status).toBe(200);
     expect(page.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(JSON.parse((await send(server.port, '/api/session')).body)).toEqual({ authenticated: false });
 
-    const asset = await send(server.port, '/assets/app.js', { headers });
+    for (const path of ['/api/state', '/api/events']) {
+      const response = await send(server.port, path);
+      expect(response.status).toBe(401);
+      expect(response.headers['www-authenticate']).toBeUndefined();
+    }
+    expect((await send(server.port, '/api/reset', post({}))).status).toBe(401);
+  });
+
+  it('serves assets, but no files outside the web root', async () => {
+    const { server } = await start();
+
+    const asset = await send(server.port, '/assets/app.js');
     expect(asset.headers['cache-control']).toContain('private');
+    expect((await send(server.port, '/%2e%2e/package.json')).status).toBe(404);
+  });
 
-    expect((await send(server.port, '/%2e%2e/package.json', { headers })).status).toBe(404);
+  it('signs in with the password and keeps the session in a secure cookie', async () => {
+    const { server } = await start();
+
+    expect((await send(server.port, '/api/login', post({ password: 'wrong-password' }))).status).toBe(401);
+
+    const response = await send(server.port, '/api/login', post({ password: PASSWORD }));
+    expect(response.status).toBe(204);
+    const setCookie = response.headers['set-cookie']?.[0] ?? '';
+    expect(setCookie).toMatch(/^flagcount_session=/);
+    for (const attribute of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/']) {
+      expect(setCookie).toContain(attribute);
+    }
+
+    const headers = { cookie: setCookie.split(';')[0] ?? '' };
+    expect(JSON.parse((await send(server.port, '/api/session', { headers })).body)).toEqual({ authenticated: true });
+    expect((await send(server.port, '/api/state', { headers })).status).toBe(200);
+  });
+
+  it('rejects tampered and expired sessions', async () => {
+    let clock = 1_000_000;
+    const { server } = await start({ now: () => clock, sessionMaxAgeMs: 60_000 });
+    const cookie = await signIn(server.port);
+    const tampered = `${cookie.slice(0, -1)}${cookie.endsWith('A') ? 'B' : 'A'}`;
+
+    expect((await send(server.port, '/api/state', { headers: { cookie: tampered } })).status).toBe(401);
+    expect((await send(server.port, '/api/state', { headers: { cookie } })).status).toBe(200);
+
+    clock += 60_001;
+    expect((await send(server.port, '/api/state', { headers: { cookie } })).status).toBe(401);
+  });
+
+  it('signs out by clearing the session cookie', async () => {
+    const { server } = await start();
+    const cookie = await signIn(server.port);
+
+    const response = await send(server.port, '/api/logout', post({}, { cookie }));
+    expect(response.status).toBe(204);
+    expect(response.headers['set-cookie']?.[0]).toContain('Max-Age=0');
   });
 
   it('returns the dashboard state and applies commands', async () => {
     const { server, saved } = await start();
+    const cookie = await signIn(server.port);
 
-    expect((await send(server.port, '/api/target', json({ target: 25 }))).status).toBe(204);
-    expect((await send(server.port, '/api/connect', json({ username: '@Streamer' }))).status).toBe(204);
-    expect((await send(server.port, '/api/manual-vote', json({}))).status).toBe(204);
+    expect((await send(server.port, '/api/target', post({ target: 25 }, { cookie }))).status).toBe(204);
+    expect((await send(server.port, '/api/connect', post({ username: '@Streamer' }, { cookie }))).status).toBe(204);
+    expect((await send(server.port, '/api/manual-vote', post({}, { cookie }))).status).toBe(204);
 
-    const state = JSON.parse((await send(server.port, '/api/state', { headers: { authorization: AUTH } })).body);
+    const state = JSON.parse((await send(server.port, '/api/state', { headers: { cookie } })).body);
     expect(state.votes.target).toBe(25);
     expect(state.votes.count).toBe(1);
     expect(state.settings).toMatchObject({ username: 'streamer', target: 25 });
@@ -126,34 +173,37 @@ describe('startWebServer', () => {
 
   it('rejects invalid input with an app error', async () => {
     const { server } = await start();
+    const cookie = await signIn(server.port);
 
-    const response = await send(server.port, '/api/target', json({ target: 0 }));
+    const response = await send(server.port, '/api/target', post({ target: 0 }, { cookie }));
     expect(response.status).toBe(400);
     expect((JSON.parse(response.body) as AppError).code).toBe('invalid-target');
   });
 
-  it('blocks commands that are not same-origin JSON', async () => {
+  it('blocks requests that are not same-origin JSON', async () => {
     const { server } = await start();
+    const cookie = await signIn(server.port);
 
     const form = await send(server.port, '/api/reset', {
       method: 'POST',
-      headers: { authorization: AUTH, 'content-type': 'application/x-www-form-urlencoded' },
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
       body: ''
     });
     expect(form.status).toBe(403);
 
-    const crossSite = await send(server.port, '/api/reset', json({}, { origin: 'https://evil.example' }));
-    expect(crossSite.status).toBe(403);
+    const evil = { origin: 'https://evil.example' };
+    expect((await send(server.port, '/api/reset', post({}, { cookie, ...evil }))).status).toBe(403);
+    expect((await send(server.port, '/api/login', post({ password: PASSWORD }, evil))).status).toBe(403);
   });
 
   it('locks out an address after repeated wrong passwords', async () => {
     const { server } = await start({ maxFailedLogins: 2 });
-    const wrong = { headers: { authorization: `Basic ${Buffer.from('admin:nope').toString('base64')}` } };
+    const wrong = post({ password: 'nope-nope-nope' });
 
-    expect((await send(server.port, '/', wrong)).status).toBe(401);
-    expect((await send(server.port, '/', wrong)).status).toBe(401);
-    const locked = await send(server.port, '/', { headers: { authorization: AUTH } });
+    expect((await send(server.port, '/api/login', wrong)).status).toBe(401);
+    const locked = await send(server.port, '/api/login', wrong);
     expect(locked.status).toBe(429);
     expect(locked.headers['retry-after']).toBeDefined();
+    expect((await send(server.port, '/api/login', post({ password: PASSWORD }))).status).toBe(429);
   });
 });

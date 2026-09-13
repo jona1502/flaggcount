@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -6,6 +5,15 @@ import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_MS,
+  SessionSigner,
+  clearedSessionCookie,
+  isCorrectPassword,
+  readCookie,
+  sessionCookie
+} from './session';
 
 export type CommandResult = Promise<AppError | null>;
 
@@ -32,6 +40,7 @@ export type WebServerOptions = {
   heartbeatMs?: number;
   maxFailedLogins?: number;
   lockoutMs?: number;
+  sessionMaxAgeMs?: number;
   now?: () => number;
   onError?: (error: unknown) => void;
 };
@@ -65,24 +74,6 @@ const CONTENT_TYPES: Record<string, string> = {
   '.woff2': 'font/woff2'
 };
 
-function digest(value: string): Buffer {
-  return createHash('sha256').update(value).digest();
-}
-
-/** Checks HTTP Basic credentials. The user name is ignored; only the password counts. */
-export function isAuthorizedPassword(header: string | undefined, password: string): boolean {
-  if (!header?.startsWith('Basic ')) {
-    return false;
-  }
-  const decoded = Buffer.from(header.slice('Basic '.length), 'base64').toString('utf8');
-  const separator = decoded.indexOf(':');
-  if (separator < 0) {
-    return false;
-  }
-  // Fixed-length digests keep the comparison constant-time for any input length.
-  return timingSafeEqual(digest(decoded.slice(separator + 1)), digest(password));
-}
-
 /** The visitor's address as reported by Cloudflare or nginx, falling back to the socket. */
 function clientAddress(request: IncomingMessage): string {
   const cloudflare = request.headers['cf-connecting-ip'];
@@ -97,8 +88,8 @@ function clientAddress(request: IncomingMessage): string {
 }
 
 /**
- * Browsers attach Basic credentials to cross-site requests too. A JSON body cannot be sent
- * cross-site without a CORS preflight, which this server never grants; the Origin check is a second line.
+ * The session cookie is SameSite=Strict, so other sites cannot use it. A JSON body cannot be sent
+ * cross-site without a CORS preflight, which this server never grants; the Origin check is a third line.
  */
 function isSameOriginJson(request: IncomingMessage): boolean {
   const contentType = request.headers['content-type'] ?? '';
@@ -146,6 +137,34 @@ function field(body: unknown, key: string): unknown {
   return typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[key] : undefined;
 }
 
+function methodNotAllowed(response: ServerResponse, allow: string): void {
+  response.setHeader('Allow', allow);
+  sendJson(response, 405, { error: 'method-not-allowed' });
+}
+
+function sendNoContent(response: ServerResponse, headers: Record<string, string> = {}): void {
+  response.writeHead(204, { ...BASE_HEADERS, ...headers });
+  response.end();
+}
+
+/** Accepts only same-origin JSON POSTs; otherwise sends the error response and returns `null`. */
+async function acceptPost(request: IncomingMessage, response: ServerResponse): Promise<{ body: unknown } | null> {
+  if (request.method !== 'POST') {
+    methodNotAllowed(response, 'POST');
+    return null;
+  }
+  if (!isSameOriginJson(request)) {
+    sendJson(response, 403, { error: 'forbidden' });
+    return null;
+  }
+  try {
+    return { body: await readJsonBody(request) };
+  } catch {
+    sendJson(response, 400, { code: 'unknown', message: 'Invalid request body' } satisfies AppError);
+    return null;
+  }
+}
+
 /** Locks out an address after repeated wrong passwords. */
 class LoginLimiter {
   private readonly failures = new Map<string, { count: number; resetAt: number }>();
@@ -186,18 +205,21 @@ class LoginLimiter {
 }
 
 /**
- * Serves the web version of FlagCount: the public OBS overlay, and behind a password the
- * browser dashboard with its API and live state stream. Meant to run behind nginx and Cloudflare.
+ * Serves the web version of FlagCount: the public OBS overlay, the browser dashboard, and behind a
+ * session login its API and live state stream. Meant to run behind nginx and Cloudflare.
  */
 export async function startWebServer(options: WebServerOptions): Promise<WebServer> {
   const { backend, password } = options;
   const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS;
   const webRoot = options.webRoot === null ? null : resolve(options.webRoot);
+  const now = options.now ?? Date.now;
+  const sessionMaxAgeMs = options.sessionMaxAgeMs ?? SESSION_MAX_AGE_MS;
   const overlay = createOverlayHandler(backend, heartbeatMs);
+  const sessions = new SessionSigner(password, now, sessionMaxAgeMs);
   const limiter = new LoginLimiter(
     options.maxFailedLogins ?? DEFAULT_MAX_FAILED_LOGINS,
     options.lockoutMs ?? DEFAULT_LOCKOUT_MS,
-    options.now ?? Date.now
+    now
   );
 
   const commands = new Map<string, (body: unknown) => CommandResult>([
@@ -208,6 +230,37 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     ['/api/target', (body) => backend.setTarget(field(body, 'target'))],
     ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))]
   ]);
+
+  const isSignedIn = (request: IncomingMessage): boolean =>
+    sessions.verify(readCookie(request.headers.cookie, SESSION_COOKIE));
+
+  const tooManyAttempts = (response: ServerResponse, retryAfter: number): void => {
+    sendJson(response, 429, { error: 'too-many-attempts' }, { 'Retry-After': String(retryAfter) });
+  };
+
+  const login = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    const client = clientAddress(request);
+    const retryAfter = limiter.retryAfterSeconds(client);
+    if (retryAfter !== null) {
+      tooManyAttempts(response, retryAfter);
+      return;
+    }
+    const accepted = await acceptPost(request, response);
+    if (!accepted) return;
+
+    if (!isCorrectPassword(field(accepted.body, 'password'), password)) {
+      limiter.recordFailure(client);
+      const lockedFor = limiter.retryAfterSeconds(client);
+      if (lockedFor !== null) {
+        tooManyAttempts(response, lockedFor);
+      } else {
+        sendJson(response, 401, { error: 'invalid-password' });
+      }
+      return;
+    }
+    limiter.recordSuccess(client);
+    sendNoContent(response, { 'Set-Cookie': sessionCookie(sessions.create(), sessionMaxAgeMs) });
+  };
 
   const streamState = (request: IncomingMessage, response: ServerResponse): void => {
     openEventStream(response);
@@ -225,10 +278,34 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   };
 
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    switch (pathname) {
+      case '/api/session':
+        if (request.method !== 'GET') {
+          methodNotAllowed(response, 'GET');
+        } else {
+          sendJson(response, 200, { authenticated: isSignedIn(request) });
+        }
+        return;
+      case '/api/login':
+        await login(request, response);
+        return;
+      case '/api/logout':
+        // Works without a valid session too, so an expired cookie can always be cleared.
+        if (await acceptPost(request, response)) {
+          sendNoContent(response, { 'Set-Cookie': clearedSessionCookie() });
+        }
+        return;
+    }
+
+    if (!isSignedIn(request)) {
+      // Deliberately no WWW-Authenticate header: the browser must not show its own login dialog.
+      sendJson(response, 401, { error: 'unauthorized' });
+      return;
+    }
+
     if (pathname === '/api/state' || pathname === '/api/events') {
       if (request.method !== 'GET') {
-        response.setHeader('Allow', 'GET');
-        sendJson(response, 405, { error: 'method-not-allowed' });
+        methodNotAllowed(response, 'GET');
       } else if (pathname === '/api/state') {
         sendJson(response, 200, backend.getState());
       } else {
@@ -242,37 +319,20 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       sendJson(response, 404, { error: 'not-found' });
       return;
     }
-    if (request.method !== 'POST') {
-      response.setHeader('Allow', 'POST');
-      sendJson(response, 405, { error: 'method-not-allowed' });
-      return;
-    }
-    if (!isSameOriginJson(request)) {
-      sendJson(response, 403, { error: 'forbidden' });
-      return;
-    }
+    const accepted = await acceptPost(request, response);
+    if (!accepted) return;
 
-    let body: unknown;
-    try {
-      body = await readJsonBody(request);
-    } catch {
-      sendJson(response, 400, { code: 'unknown', message: 'Invalid request body' } satisfies AppError);
-      return;
-    }
-
-    const error = await command(body);
+    const error = await command(accepted.body);
     if (error) {
       sendJson(response, 400, error);
     } else {
-      response.writeHead(204, BASE_HEADERS);
-      response.end();
+      sendNoContent(response);
     }
   };
 
   const serveStatic = async (root: string, pathname: string, request: IncomingMessage, response: ServerResponse) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      response.setHeader('Allow', 'GET, HEAD');
-      sendJson(response, 405, { error: 'method-not-allowed' });
+      methodNotAllowed(response, 'GET, HEAD');
       return;
     }
 
@@ -315,24 +375,10 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       return;
     }
 
-    const client = clientAddress(request);
-    const retryAfter = limiter.retryAfterSeconds(client);
-    if (retryAfter !== null) {
-      sendJson(response, 429, { error: 'too-many-attempts' }, { 'Retry-After': String(retryAfter) });
-      return;
-    }
-    const authorization = request.headers.authorization;
-    if (!isAuthorizedPassword(authorization, password)) {
-      // The browser's first request carries no credentials; only wrong passwords count.
-      if (authorization) limiter.recordFailure(client);
-      sendJson(response, 401, { error: 'unauthorized' }, { 'WWW-Authenticate': 'Basic realm="FlagCount", charset="UTF-8"' });
-      return;
-    }
-    limiter.recordSuccess(client);
-
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       await handleApi(pathname, request, response);
     } else if (webRoot) {
+      // The dashboard bundle contains no data; it shows the login screen until the API accepts a session.
       await serveStatic(webRoot, pathname, request, response);
     } else {
       sendJson(response, 404, { error: 'not-found' });

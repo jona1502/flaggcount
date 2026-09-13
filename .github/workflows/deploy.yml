@@ -105,5 +105,5 @@ jobs:
 
             docker image prune -f
 
-            # "/" verlangt das Dashboard-Passwort, deshalb der oeffentliche Health-Endpunkt.
+            # /healthz braucht keine Anmeldung und prueft nur, ob der Server antwortet.
             curl -fsS -o /dev/null -w 'origin: %{http_code}\n' http://127.0.0.1:3016/healthz
