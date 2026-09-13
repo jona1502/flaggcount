@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AppError } from '../../../shared/appState';
+import { channelIdForKey } from '../relay/relayChannel';
+import { RelayChannels } from './relayChannels';
 import { isCorrectPassword } from './session';
 import { WebController } from './webController';
 import { startWebServer, type WebServerOptions } from './webServer';
@@ -63,6 +65,51 @@ function send(
 const post = (body: unknown, headers: Record<string, string> = {}) => ({
   method: 'POST',
   headers: { 'content-type': 'application/json', ...headers },
+  body: JSON.stringify(body)
+});
+
+type Stream = { status: number; waitFor: (text: string) => Promise<void>; close: () => void };
+
+/** Opens an event stream and lets the test wait for text to arrive on it. */
+function openStream(port: number, path: string): Promise<Stream> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({ host: '127.0.0.1', port, path, agent: false }, (response) => {
+      let received = '';
+      let waiters: { text: string; done: () => void }[] = [];
+      response.setEncoding('utf8');
+      response.on('data', (chunk: string) => {
+        received += chunk;
+        const ready = waiters.filter((waiter) => received.includes(waiter.text));
+        waiters = waiters.filter((waiter) => !received.includes(waiter.text));
+        for (const waiter of ready) waiter.done();
+      });
+      resolve({
+        status: response.statusCode ?? 0,
+        waitFor: (text) =>
+          new Promise((done) => {
+            if (received.includes(text)) done();
+            else waiters.push({ text, done });
+          }),
+        close: () => request.destroy()
+      });
+    });
+    request.on('error', (error) => {
+      if (!request.destroyed) reject(error);
+    });
+    request.end();
+  });
+}
+
+const RELAY_KEY = 'a'.repeat(43);
+const RELAY_CHANNEL = channelIdForKey(RELAY_KEY);
+const RELAY_UPDATE = {
+  votes: { count: 7, target: 20, roundId: 'r1', targetReached: false },
+  overlay: { showBackground: false, showProgress: true }
+};
+
+const relayPut = (body: unknown, key = RELAY_KEY) => ({
+  method: 'PUT',
+  headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
   body: JSON.stringify(body)
 });
 
@@ -141,6 +188,50 @@ describe('startWebServer', () => {
     expect(download.status).toBe(302);
     expect(download.headers.location).toBe('https://example.test/releases');
     expect(JSON.parse((await send(server.port, '/api/release')).body)).toEqual({ release: null });
+  });
+
+  it('mirrors a desktop app to its public online overlay', async () => {
+    const relay = new RelayChannels();
+    const { server } = await start({ relay });
+
+    const waiting = await send(server.port, `/o/${RELAY_CHANNEL}`);
+    expect(waiting.status).toBe(200);
+    expect(waiting.body).toContain('data-count="0"');
+
+    expect((await send(server.port, `/api/relay/${RELAY_CHANNEL}`, relayPut(RELAY_UPDATE))).status).toBe(204);
+    expect(relay.get(RELAY_CHANNEL)).toEqual(RELAY_UPDATE);
+
+    const page = await send(server.port, `/o/${RELAY_CHANNEL}`);
+    expect(page.body).toContain('data-count="7"');
+    expect(page.body).toContain('data-background="false"');
+    expect(page.body).toContain(`data-events="/o/${RELAY_CHANNEL}/events"`);
+    expect(page.headers['content-security-policy']).toContain("script-src 'self'");
+  });
+
+  it('streams relay updates to open overlays', async () => {
+    const relay = new RelayChannels();
+    const { server } = await start({ relay });
+    const stream = await openStream(server.port, `/o/${RELAY_CHANNEL}/events`);
+    cleanups.push(() => stream.close());
+    expect(stream.status).toBe(200);
+
+    await send(server.port, `/api/relay/${RELAY_CHANNEL}`, relayPut(RELAY_UPDATE));
+
+    await stream.waitFor('"count":7');
+    await stream.waitFor('"showBackground":false');
+  });
+
+  it('accepts relay updates only with the key of the channel', async () => {
+    const relay = new RelayChannels();
+    const { server } = await start({ relay });
+    const path = `/api/relay/${RELAY_CHANNEL}`;
+
+    expect((await send(server.port, path, relayPut(RELAY_UPDATE, 'b'.repeat(43)))).status).toBe(401);
+    expect((await send(server.port, path, { ...relayPut(RELAY_UPDATE), headers: {} })).status).toBe(401);
+    expect((await send(server.port, '/api/relay/not-a-channel', relayPut(RELAY_UPDATE))).status).toBe(404);
+    expect((await send(server.port, path, { method: 'POST' })).status).toBe(405);
+    expect((await send(server.port, path, relayPut({ votes: { count: -1 }, overlay: {} }))).status).toBe(400);
+    expect(relay.get(RELAY_CHANNEL)).toBeNull();
   });
 
   it('serves assets, but no files outside the web root', async () => {

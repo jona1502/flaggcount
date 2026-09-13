@@ -5,7 +5,21 @@ import type { VoteSnapshot } from '../../../shared/voting';
 export const OVERLAY_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 
-export function renderOverlayPage(votes: VoteSnapshot, overlay: OverlaySettings = DEFAULT_OVERLAY_SETTINGS): string {
+export type OverlayPageOptions = {
+  /** Event stream of this overlay; the online overlays of the web server each have their own. */
+  eventsUrl?: string;
+};
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function renderOverlayPage(
+  votes: VoteSnapshot,
+  overlay: OverlaySettings = DEFAULT_OVERLAY_SETTINGS,
+  options: OverlayPageOptions = {}
+): string {
+  const eventsUrl = escapeAttribute(options.eventsUrl ?? '/overlay/events');
   const count = Math.max(0, Math.trunc(votes.count));
   const target = Math.max(1, Math.trunc(votes.target));
   const reached = votes.targetReached ? 'true' : 'false';
@@ -22,7 +36,7 @@ export function renderOverlayPage(votes: VoteSnapshot, overlay: OverlaySettings 
 <script src="/overlay/overlay.js" defer></script>
 </head>
 <body>
-<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" data-connected="true">
+<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" data-events="${eventsUrl}" data-connected="true">
 <div class="headline"><span class="flag" aria-hidden="true">🚩</span><span class="count" id="count">${count}</span><span class="separator">/</span><span class="target" id="target">${target}</span></div>
 <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
 </div>
@@ -128,7 +142,7 @@ export const OVERLAY_SCRIPT = `(function () {
   });
 
   // EventSource reconnects on its own after the app or the connection restarts.
-  var source = new EventSource('/overlay/events');
+  var source = new EventSource(root.dataset.events || '/overlay/events');
   source.addEventListener('votes', function (event) {
     try {
       render(JSON.parse(event.data));

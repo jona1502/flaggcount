@@ -3,9 +3,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
+import type { VoteSnapshot } from '../../../shared/voting';
+import { OVERLAY_CSP, renderOverlayPage } from '../overlay/overlayAssets';
+import { parseOverlaySettings } from '../protocol';
+import { channelIdForKey, isChannelId, isRelayKey, parseVoteSnapshot, relayOverlayPath } from '../relay/relayChannel';
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
 import type { ReleaseInfo } from './latestRelease';
+import type { RelayChannels } from './relayChannels';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_MS,
@@ -40,6 +46,8 @@ export type WebServerOptions = {
   latestRelease?: () => Promise<ReleaseInfo | null>;
   /** Where `/download` points while no release is known. */
   releasesUrl?: string;
+  /** Online overlays mirrored from desktop apps, served at `/o/<channel>`. */
+  relay?: RelayChannels;
   host?: string;
   port?: number;
   heartbeatMs?: number;
@@ -60,6 +68,9 @@ const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
 const APP_ENTRY = '/web.html';
+const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
+/** Shown by an online overlay until its app publishes for the first time. */
+const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
 /** Client-side routes of the web app: the landing page and the dashboard. */
 const APP_ROUTES = new Set(['/', '/dashboard', '/dashboard/']);
 
@@ -138,6 +149,10 @@ function readJsonBody(request: IncomingMessage): Promise<unknown> {
     });
     request.on('error', reject);
   });
+}
+
+function bearerToken(header: string | undefined): string | null {
+  return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
 }
 
 function field(body: unknown, key: string): unknown {
@@ -285,7 +300,101 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     });
   };
 
+  /** Desktop apps publish their state here; the key in the Authorization header must match the channel. */
+  const publishRelay = async (channelId: string, request: IncomingMessage, response: ServerResponse) => {
+    const relay = options.relay;
+    if (!relay || !isChannelId(channelId)) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    if (request.method !== 'PUT') {
+      methodNotAllowed(response, 'PUT');
+      return;
+    }
+    const key = bearerToken(request.headers.authorization);
+    if (!isRelayKey(key) || channelIdForKey(key) !== channelId) {
+      sendJson(response, 401, { error: 'unauthorized' });
+      return;
+    }
+
+    let body: unknown;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid-update' });
+      return;
+    }
+    const votes = parseVoteSnapshot(field(body, 'votes'));
+    const overlay = parseOverlaySettings(field(body, 'overlay'));
+    if (!votes || !overlay) {
+      sendJson(response, 400, { error: 'invalid-update' });
+      return;
+    }
+
+    switch (relay.publish(channelId, { votes, overlay })) {
+      case 'ok':
+        sendNoContent(response);
+        return;
+      case 'rate-limited':
+        sendJson(response, 429, { error: 'too-many-updates' }, { 'Retry-After': '10' });
+        return;
+      case 'full':
+        sendJson(response, 503, { error: 'relay-full' });
+    }
+  };
+
+  /** Public overlay page and event stream of one desktop app, e.g. for TikTok LIVE Studio. */
+  const serveRelayOverlay = (
+    relay: RelayChannels,
+    channelId: string,
+    events: boolean,
+    request: IncomingMessage,
+    response: ServerResponse
+  ): void => {
+    if (!isChannelId(channelId)) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    if (request.method !== 'GET') {
+      methodNotAllowed(response, 'GET');
+      return;
+    }
+
+    const current = relay.get(channelId);
+    if (!events) {
+      const page = renderOverlayPage(current?.votes ?? WAITING_VOTES, current?.overlay ?? DEFAULT_OVERLAY_SETTINGS, {
+        eventsUrl: `${relayOverlayPath(channelId)}/events`
+      });
+      send(response, 200, 'text/html; charset=utf-8', page, { 'Content-Security-Policy': OVERLAY_CSP });
+      return;
+    }
+
+    const unsubscribe = relay.subscribe(channelId, (update) => {
+      writeEvent(response, 'settings', update.overlay);
+      writeEvent(response, 'votes', update.votes);
+    });
+    if (!unsubscribe) {
+      sendJson(response, 503, { error: 'too-many-viewers' });
+      return;
+    }
+    openEventStream(response);
+    if (current) {
+      writeEvent(response, 'settings', current.overlay);
+      writeEvent(response, 'votes', current.votes);
+    }
+    const stopHeartbeat = keepAlive(response, heartbeatMs);
+    request.on('close', () => {
+      stopHeartbeat();
+      unsubscribe();
+    });
+  };
+
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    if (pathname.startsWith('/api/relay/')) {
+      await publishRelay(pathname.slice('/api/relay/'.length), request, response);
+      return;
+    }
+
     switch (pathname) {
       case '/api/release':
         if (request.method !== 'GET') {
@@ -402,6 +511,11 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     // The overlay only shows the vote count and must load in OBS without a login.
     if (isOverlayPath(pathname)) {
       overlay(pathname, request, response);
+      return;
+    }
+    const relayOverlay = RELAY_OVERLAY_PATH.exec(pathname);
+    if (relayOverlay && options.relay) {
+      serveRelayOverlay(options.relay, relayOverlay[1] ?? '', Boolean(relayOverlay[2]), request, response);
       return;
     }
     // Stable link to the newest installer, whose file name contains the version.

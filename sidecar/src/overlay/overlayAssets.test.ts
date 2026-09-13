@@ -35,8 +35,8 @@ const votes = (count: number, target: number, targetReached = count >= target): 
   targetReached
 });
 
-function mountOverlay(initial: VoteSnapshot): FakeEventSource {
-  const page = new DOMParser().parseFromString(renderOverlayPage(initial), 'text/html');
+function mountOverlay(initial: VoteSnapshot, eventsUrl?: string): FakeEventSource {
+  const page = new DOMParser().parseFromString(renderOverlayPage(initial, undefined, { eventsUrl }), 'text/html');
   document.body.innerHTML = page.body.innerHTML;
   vi.stubGlobal('EventSource', FakeEventSource);
   new Function(OVERLAY_SCRIPT)();
@@ -71,6 +71,13 @@ describe('overlay page', () => {
     const source = mountOverlay(votes(0, 10));
 
     expect(source.url).toBe('/overlay/events');
+  });
+
+  it('subscribes to the event stream of an online overlay', () => {
+    const source = mountOverlay(votes(0, 10), '/o/abc/events');
+
+    expect(source.url).toBe('/o/abc/events');
+    expect(renderOverlayPage(votes(0, 10), undefined, { eventsUrl: '"><script>' })).not.toContain('"><script>');
   });
 
   it('updates immediately when votes change', () => {

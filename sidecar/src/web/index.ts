@@ -3,6 +3,7 @@ import { describeError } from '../logging';
 import type { LogLevel } from '../protocol';
 import { createTikTokConnectionFactory } from '../tiktok/tiktokConnection';
 import { createLatestRelease } from './latestRelease';
+import { RelayChannels } from './relayChannels';
 import { SettingsStore } from './settingsStore';
 import { WebController } from './webController';
 import { startWebServer } from './webServer';
@@ -45,6 +46,7 @@ async function main(): Promise<void> {
     webRoot,
     latestRelease: createLatestRelease({ repo: releaseRepo }),
     releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
+    relay: new RelayChannels(),
     host,
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`)
