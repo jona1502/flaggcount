@@ -1,4 +1,5 @@
 fn main() {
+    rebuild_changed_dev_sidecar();
     embed_test_manifest();
 
     // Declaring the app commands generates `allow-<command>` permissions, so every
@@ -15,6 +16,27 @@ fn main() {
         ]),
     ))
     .expect("failed to run tauri-build");
+}
+
+/// `beforeDevCommand` builds the sidecar once. During a running `tauri dev` session,
+/// changes outside `src-tauri` need to rebuild it as part of Cargo's next cycle too.
+fn rebuild_changed_dev_sidecar() {
+    println!("cargo:rerun-if-changed=../sidecar/src");
+    println!("cargo:rerun-if-changed=../shared");
+    println!("cargo:rerun-if-changed=../scripts/build-sidecar.mjs");
+    println!("cargo:rerun-if-changed=../package-lock.json");
+
+    if std::env::var("PROFILE").as_deref() != Ok("debug")
+        || !std::path::Path::new("binaries").exists()
+    {
+        return;
+    }
+
+    let status = std::process::Command::new("node")
+        .args(["../scripts/build-sidecar.mjs", "--if-needed"])
+        .status()
+        .expect("failed to start the sidecar build");
+    assert!(status.success(), "failed to rebuild the development sidecar");
 }
 
 /// tauri-build embeds the Common Controls v6 manifest only into the app binary. Integration

@@ -93,6 +93,9 @@ describe('sidecar process', () => {
     sidecar.send('{"type":"setTarget","target":7}');
     await vi.waitFor(() => expect(sidecar.lastOf('votes')?.votes.target).toBe(7), waitOptions);
 
+    sidecar.send('{"type":"addManualVote"}');
+    await vi.waitFor(() => expect(sidecar.lastOf('votes')?.votes.count).toBe(1), waitOptions);
+
     sidecar.send('{"type":"reset"}');
     await vi.waitFor(() => expect(sidecar.lastOf('votes')?.votes.roundId).not.toBe(firstRound), waitOptions);
 
