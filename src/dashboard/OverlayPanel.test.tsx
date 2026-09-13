@@ -9,6 +9,7 @@ import { Dashboard } from './Dashboard';
 import { OverlayPanel } from './OverlayPanel';
 
 const OVERLAY_URL = 'http://127.0.0.1:3847/overlay';
+const PUBLIC_OVERLAY_URL = 'https://overlay.muhrindustries.com/o/abcdefghijklmnopqrstuv';
 
 afterEach(() => {
   cleanup();
@@ -18,6 +19,7 @@ afterEach(() => {
 function renderPanel(overrides: Partial<ComponentProps<typeof OverlayPanel>> = {}) {
   const props: ComponentProps<typeof OverlayPanel> = {
     overlayUrl: OVERLAY_URL,
+    publicOverlayUrl: null,
     settings: { showBackground: true, showProgress: true },
     disabled: false,
     onCopy: vi.fn(async (_text: string) => undefined),
@@ -37,6 +39,22 @@ describe('OverlayPanel', () => {
     expect((screen.getByLabelText('Als Browser- oder Link-Quelle hinzufügen') as HTMLInputElement).value).toBe(
       OVERLAY_URL
     );
+  });
+
+  it('offers the online URL for TikTok LIVE Studio before the local one', async () => {
+    const { onCopy } = renderPanel({ publicOverlayUrl: PUBLIC_OVERLAY_URL });
+
+    const fields = screen.getAllByRole('textbox') as HTMLInputElement[];
+    expect(fields.map((field) => field.value)).toEqual([PUBLIC_OVERLAY_URL, OVERLAY_URL]);
+    expect(screen.getByLabelText('Online-URL für TikTok LIVE Studio und OBS')).toBe(fields[0]);
+    expect(screen.getByLabelText('Lokale URL (nur für OBS auf diesem PC)')).toBe(fields[1]);
+
+    const [copyOnline] = screen.getAllByRole('button', { name: 'URL kopieren' });
+    await userEvent.setup().click(copyOnline as HTMLElement);
+
+    expect(onCopy).toHaveBeenCalledWith(PUBLIC_OVERLAY_URL);
+    expect(screen.getAllByRole('button', { name: 'Kopiert!' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'URL kopieren' })).toHaveLength(1);
   });
 
   it('copies the URL and confirms it', async () => {
@@ -110,6 +128,7 @@ describe('OverlayPanel', () => {
       connection: { status: 'disconnected', username: null },
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
       overlayUrl: OVERLAY_URL,
+      publicOverlayUrl: null,
       settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
     };
     const actions = {

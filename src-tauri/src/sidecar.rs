@@ -10,6 +10,8 @@ use crate::settings::{OverlaySettings, Settings, DEFAULT_TARGET};
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
+/// Tells the sidecar where to keep its files, such as the key of the online overlay.
+pub const DATA_DIR_ENV: &str = "FLAGCOUNT_DATA_DIR";
 /// The only window that receives app events.
 pub const MAIN_WINDOW: &str = "main";
 pub const STATE_CHANGED_EVENT: &str = "state-changed";
@@ -110,6 +112,8 @@ pub struct AppState {
     pub connection: ConnectionState,
     pub votes: VoteSnapshot,
     pub overlay_url: Option<String>,
+    /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
+    pub public_overlay_url: Option<String>,
     pub settings: Settings,
 }
 
@@ -130,7 +134,12 @@ pub enum LogLevel {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SidecarEvent {
-    Ready { port: u16, token: String },
+    Ready {
+        port: u16,
+        token: String,
+        #[serde(default, rename = "publicOverlayUrl")]
+        public_overlay_url: Option<String>,
+    },
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
     Error { error: AppError },
@@ -156,9 +165,14 @@ pub fn apply_event(
     event: SidecarEvent,
 ) -> StateUpdate {
     match event {
-        SidecarEvent::Ready { port, token } => {
+        SidecarEvent::Ready {
+            port,
+            token,
+            public_overlay_url,
+        } => {
             *session = Some(SidecarSession { port, token });
             state.overlay_url = Some(overlay_url(port));
+            state.public_overlay_url = public_overlay_url.filter(|url| url.starts_with("https://"));
             StateUpdate::State
         }
         SidecarEvent::Status { connection } => {
@@ -276,6 +290,10 @@ impl Sidecar {
             let (mut events, child) = app
                 .shell()
                 .sidecar(SIDECAR_NAME)
+                .map(|command| match app.path().app_data_dir() {
+                    Ok(dir) => command.env(DATA_DIR_ENV, dir),
+                    Err(_) => command,
+                })
                 .and_then(|command| command.spawn())
                 .map_err(|_| AppError::sidecar_unavailable())?;
 
@@ -414,6 +432,7 @@ impl Sidecar {
             inner.session = None;
             inner.state.sidecar_running = false;
             inner.state.overlay_url = None;
+            inner.state.public_overlay_url = None;
             inner.state.connection.status = ConnectionStatus::Disconnected;
             inner.state.connection.reconnect = None;
             if inner.stopping {
@@ -547,7 +566,9 @@ mod tests {
         let update = apply_event(
             &mut state,
             &mut session,
-            parse(r#"{"type":"ready","port":4321,"token":"secret"}"#),
+            parse(
+                r#"{"type":"ready","port":4321,"token":"secret","publicOverlayUrl":"https://overlay.example/o/abc"}"#,
+            ),
         );
 
         assert!(matches!(update, StateUpdate::State));
@@ -557,7 +578,31 @@ mod tests {
             state.overlay_url.as_deref(),
             Some("http://127.0.0.1:4321/overlay")
         );
+        assert_eq!(
+            state.public_overlay_url.as_deref(),
+            Some("https://overlay.example/o/abc")
+        );
         assert!(!serde_json::to_string(&state).unwrap().contains("secret"));
+    }
+
+    #[test]
+    fn accepts_only_https_online_overlay_urls() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        apply_event(
+            &mut state,
+            &mut session,
+            parse(r#"{"type":"ready","port":1,"token":"t","publicOverlayUrl":"http://overlay.example/o/abc"}"#),
+        );
+        assert_eq!(state.public_overlay_url, None);
+
+        apply_event(
+            &mut state,
+            &mut session,
+            parse(r#"{"type":"ready","port":1,"token":"t"}"#),
+        );
+        assert_eq!(state.public_overlay_url, None);
     }
 
     #[test]
@@ -661,6 +706,7 @@ mod tests {
                 "connection": { "status": "disconnected", "username": null },
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
                 "overlayUrl": null,
+                "publicOverlayUrl": null,
                 "settings": {
                     "username": "",
                     "target": 100,

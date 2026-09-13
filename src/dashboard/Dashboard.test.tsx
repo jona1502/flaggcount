@@ -17,6 +17,7 @@ const baseState: AppState = {
   connection: { status: 'disconnected', username: null },
   votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
+  publicOverlayUrl: null,
   settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
 };
 

@@ -47,6 +47,8 @@ export class WebController {
       votes,
       // The browser knows its public origin better than the server behind the proxy.
       overlayUrl: null,
+      // The web version's own /overlay is already public.
+      publicOverlayUrl: null,
       settings: { ...this.settings, overlay: { ...this.settings.overlay } }
     };
   }

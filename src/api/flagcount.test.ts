@@ -15,6 +15,7 @@ const state: AppState = {
   connection: { status: 'connected', username: 'streamer' },
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
+  publicOverlayUrl: null,
   settings: { username: 'streamer', target: 10, overlay: { showBackground: true, showProgress: true } }
 };
 

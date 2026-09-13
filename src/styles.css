@@ -318,6 +318,11 @@ input[readonly] {
   color: var(--muted);
 }
 
+.overlay-links {
+  display: grid;
+  gap: 14px;
+}
+
 .overlay-options {
   display: grid;
   gap: 8px;

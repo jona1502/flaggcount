@@ -40,5 +40,7 @@ export type AppState = {
   votes: VoteSnapshot;
   /** URL for a streaming browser/link source; `null` while the sidecar is not running. */
   overlayUrl: string | null;
+  /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */
+  publicOverlayUrl: string | null;
   settings: Settings;
 };

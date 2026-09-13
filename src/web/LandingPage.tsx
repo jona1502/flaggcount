@@ -121,7 +121,7 @@ export function LandingPage(): React.JSX.Element {
             </li>
             <li className="step">
               <h3>Overlay in OBS einfügen</h3>
-              <p>Kopier den Overlay-Link aus der App und füge ihn in OBS als Browserquelle hinzu.</p>
+              <p>Kopier die Online-URL aus der App und füge sie in TikTok LIVE Studio als Link-Quelle oder in OBS als Browserquelle hinzu.</p>
             </li>
           </ol>
         </section>

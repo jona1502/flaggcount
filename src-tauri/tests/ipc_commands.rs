@@ -73,6 +73,7 @@ fn returns_the_initial_state() {
             "connection": { "status": "disconnected", "username": null },
             "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
             "overlayUrl": null,
+            "publicOverlayUrl": null,
             "settings": {
                 "username": "",
                 "target": 100,

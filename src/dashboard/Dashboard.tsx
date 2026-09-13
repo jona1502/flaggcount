@@ -84,6 +84,7 @@ export function Dashboard({
           />
           <OverlayPanel
             overlayUrl={state.overlayUrl}
+            publicOverlayUrl={state.publicOverlayUrl}
             settings={state.settings.overlay}
             disabled={pending}
             onCopy={onCopyText}
