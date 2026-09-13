@@ -131,6 +131,38 @@ describe('isCorrectPassword', () => {
 });
 
 describe('startWebServer', () => {
+  it('subscribes and unsubscribes waitlist contacts with explicit consent', async () => {
+    const subscriptions: unknown[][] = [];
+    const removals: unknown[] = [];
+    const { server } = await start({
+      waitlist: {
+        subscribe: async (email, consent) => {
+          subscriptions.push([email, consent]);
+          return consent === true ? 'ok' : 'consent-required';
+        },
+        unsubscribe: async (email) => {
+          removals.push(email);
+          return 'ok';
+        }
+      }
+    });
+
+    expect(
+      (await send(server.port, '/api/v1/waitlist', post({ email: 'person@example.com', consent: false }))).status
+    ).toBe(400);
+    expect(
+      (await send(server.port, '/api/v1/waitlist', post({ email: 'person@example.com', consent: true }))).status
+    ).toBe(204);
+    expect(
+      (await send(server.port, '/api/v1/waitlist/unsubscribe', post({ email: 'person@example.com' }))).status
+    ).toBe(204);
+    expect(subscriptions).toEqual([
+      ['person@example.com', false],
+      ['person@example.com', true]
+    ]);
+    expect(removals).toEqual(['person@example.com']);
+  });
+
   it('accepts only aggregate telemetry without requiring a dashboard session', async () => {
     const received: unknown[] = [];
     const { server } = await start({ onTelemetry: (event) => received.push(event) });

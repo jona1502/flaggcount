@@ -7,6 +7,7 @@ import { RelayChannels } from './relayChannels';
 import { SettingsStore } from './settingsStore';
 import { WebController } from './webController';
 import { startWebServer } from './webServer';
+import { WaitlistStore } from './waitlistStore';
 
 // Entry point of the web version (Docker). Configuration comes from the environment, see .env.example.
 const MIN_PASSWORD_LENGTH = 12;
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
   const releaseRepo = process.env['RELEASE_REPO'] || 'jona1502/flaggcount';
 
   const store = new SettingsStore(join(dataDir, 'settings.json'));
+  const waitlist = new WaitlistStore(join(dataDir, 'pro-waitlist.json'));
   const controller = new WebController(createTikTokConnectionFactory({ signApiKey }), await store.load(), store, log);
   await controller.start();
 
@@ -47,6 +49,7 @@ async function main(): Promise<void> {
     latestRelease: createLatestRelease({ repo: releaseRepo }),
     releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
     relay: new RelayChannels(),
+    waitlist,
     host,
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`),

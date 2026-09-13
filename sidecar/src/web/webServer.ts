@@ -13,6 +13,7 @@ import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } 
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
 import type { ReleaseInfo } from './latestRelease';
 import type { RelayChannels } from './relayChannels';
+import type { WaitlistResult } from './waitlistStore';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_MS,
@@ -62,6 +63,11 @@ export type WebServerOptions = {
   /** Receives an already validated, aggregate-only event. */
   onTelemetry?: (event: TelemetryEnvelope) => void;
   maxTelemetryEventsPerMinute?: number;
+  waitlist?: {
+    subscribe: (email: unknown, consent: unknown) => Promise<WaitlistResult>;
+    unsubscribe: (email: unknown) => Promise<WaitlistResult>;
+  };
+  maxWaitlistRequestsPerMinute?: number;
 };
 
 export type WebServer = {
@@ -74,6 +80,7 @@ const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
 const DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE = 60;
+const DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE = 10;
 const APP_ENTRY = '/web.html';
 const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
 /** Shown by an online overlay until its app publishes for the first time. */
@@ -234,7 +241,7 @@ class LoginLimiter {
 }
 
 /** An ephemeral address-based limiter; addresses are never included in telemetry or persisted. */
-class TelemetryLimiter {
+class FixedWindowLimiter {
   private readonly clients = new Map<string, { count: number; resetAt: number }>();
 
   constructor(private readonly maximum: number, private readonly now: () => number) {}
@@ -270,8 +277,12 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     options.lockoutMs ?? DEFAULT_LOCKOUT_MS,
     now
   );
-  const telemetryLimiter = new TelemetryLimiter(
+  const telemetryLimiter = new FixedWindowLimiter(
     options.maxTelemetryEventsPerMinute ?? DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE,
+    now
+  );
+  const waitlistLimiter = new FixedWindowLimiter(
+    options.maxWaitlistRequestsPerMinute ?? DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE,
     now
   );
 
@@ -289,6 +300,39 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     }
     options.onTelemetry?.(event);
     sendNoContent(response);
+  };
+
+  const updateWaitlist = async (
+    unsubscribe: boolean,
+    request: IncomingMessage,
+    response: ServerResponse
+  ): Promise<void> => {
+    const accepted = await acceptPost(request, response);
+    if (!accepted) return;
+    if (!options.waitlist) {
+      sendJson(response, 503, { error: 'waitlist-unavailable' });
+      return;
+    }
+    if (!waitlistLimiter.accepts(clientAddress(request))) {
+      sendJson(response, 429, { error: 'too-many-requests' }, { 'Retry-After': '60' });
+      return;
+    }
+    const result = unsubscribe
+      ? await options.waitlist.unsubscribe(field(accepted.body, 'email'))
+      : await options.waitlist.subscribe(field(accepted.body, 'email'), field(accepted.body, 'consent'));
+    switch (result) {
+      case 'ok':
+        sendNoContent(response);
+        return;
+      case 'invalid-email':
+        sendJson(response, 400, { error: 'invalid-email' });
+        return;
+      case 'consent-required':
+        sendJson(response, 400, { error: 'consent-required' });
+        return;
+      case 'full':
+        sendJson(response, 503, { error: 'waitlist-full' });
+    }
   };
 
   const commands = new Map<string, (body: unknown) => CommandResult>([
@@ -440,6 +484,10 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
     if (pathname === '/api/v1/analytics/events') {
       await receiveTelemetry(request, response);
+      return;
+    }
+    if (pathname === '/api/v1/waitlist' || pathname === '/api/v1/waitlist/unsubscribe') {
+      await updateWaitlist(pathname.endsWith('/unsubscribe'), request, response);
       return;
     }
     if (pathname.startsWith('/api/relay/')) {

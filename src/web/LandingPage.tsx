@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import appIcon from '../../src-tauri/icons/128x128@2x.png';
 import { Icon } from './Icon';
+import { ProPreview } from './ProPreview';
 
 type Release = {
   version: string;
@@ -52,9 +53,12 @@ export function LandingPage(): React.JSX.Element {
           <img src={appIcon} alt="" width={28} height={28} />
           FlagCount
         </a>
-        <a className="nav-link" href="/dashboard">
-          Web-Dashboard
-        </a>
+        <div className="landing-nav-links">
+          <a className="nav-link" href="#pro">Pro</a>
+          <a className="nav-link" href="/dashboard">
+            Web-Dashboard
+          </a>
+        </div>
       </header>
 
       <main className="landing-inner">
@@ -120,6 +124,7 @@ export function LandingPage(): React.JSX.Element {
             </li>
           </ol>
         </section>
+        <ProPreview />
       </main>
 
       <footer className="landing-inner landing-footer">
