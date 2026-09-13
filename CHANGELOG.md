@@ -32,3 +32,7 @@
 - Manuelles Hinzufügen von Flaggen ermöglicht, auch ohne aktive TikTok-Verbindung.
 - Verbindungsstatus vereinfacht und erfolgreichen Verbindungen einen grünen Leuchteffekt gegeben.
 - „OBS-Overlay“ in „Streaming-Overlay“ umbenannt.
+# Unreleased
+
+- FlagCount Pro: öffentliche Preis-/Checkout-Seite, priorisierter Support und Betriebs-Runbook.
+- Pro-Overlays unterstützen Themes, Branding, aggregierte Historie und sicheren CSV-Export.
