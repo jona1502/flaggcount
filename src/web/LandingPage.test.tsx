@@ -8,7 +8,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const downloadLinks = () => screen.getAllByRole('link', { name: 'Für Windows herunterladen' });
+const downloadLink = () => screen.getByRole('link', { name: 'Für Windows herunterladen' });
 
 describe('LandingPage', () => {
   it('links the download to the newest installer and shows its version', async () => {
@@ -20,8 +20,8 @@ describe('LandingPage', () => {
 
     render(<LandingPage />);
 
-    expect(downloadLinks().map((link) => link.getAttribute('href'))).toEqual(['/download', '/download']);
-    expect(await screen.findAllByText('Version 0.2.0 · 26,5 MB · Windows 10 & 11')).toHaveLength(2);
+    expect(downloadLink().getAttribute('href')).toBe('/download');
+    expect(await screen.findByText('Version 0.2.0 · 26,5 MB · Windows 10 & 11')).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith('/api/release');
   });
 
@@ -35,8 +35,8 @@ describe('LandingPage', () => {
 
     render(<LandingPage />);
 
-    expect(downloadLinks()).toHaveLength(2);
-    expect(await screen.findAllByText('Kostenlos · Windows 10 & 11')).toHaveLength(2);
+    expect(downloadLink()).toBeTruthy();
+    expect(await screen.findByText('Kostenlos · Windows 10 & 11')).toBeTruthy();
   });
 
   it('links to the password-protected dashboard', () => {
@@ -44,6 +44,6 @@ describe('LandingPage', () => {
 
     render(<LandingPage />);
 
-    expect(screen.getAllByRole('link', { name: 'Web-Dashboard' })[0]?.getAttribute('href')).toBe('/dashboard');
+    expect(screen.getByRole('link', { name: 'Web-Dashboard' }).getAttribute('href')).toBe('/dashboard');
   });
 });
