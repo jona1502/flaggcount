@@ -75,6 +75,9 @@ export function LicensePanel({
   const disabled = !available || pending;
   const error = license.lastError && license.lastError !== 'installation-limit' ? LICENSE_ERROR_MESSAGES[license.lastError] : null;
   const showInstallations = license.lastError === 'installation-limit' && license.installations.length > 0;
+  const supportHref = `mailto:support@flagcount.app?subject=${encodeURIComponent('FlagCount Pro Support')}&body=${encodeURIComponent(
+    `Hallo FlagCount-Team,\n\nBitte helft mir bei folgendem Anliegen:\n\n\nLizenzreferenz: ${license.reference ?? 'keine'}\nPlan: ${license.plan}\nStatus: ${license.status}\n\nIch habe keine Logs angehängt.`
+  )}`;
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -104,6 +107,11 @@ export function LicensePanel({
           <p className="hint">Die Lizenz wird erneut bestätigt, sobald FlagCount den Lizenzserver erreicht.</p>
         )}
       </div>
+
+      <p className="license-support">
+        <a className="button secondary" href={supportHref}>Priorisierten Support kontaktieren</a>
+        <span className="hint">Die E-Mail enthält nur Status und Lizenzreferenz; Logs werden nicht automatisch gesendet.</span>
+      </p>
 
       {error && (
         <p className="field-error" role="alert">

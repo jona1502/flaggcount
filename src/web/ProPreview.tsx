@@ -20,17 +20,6 @@ export function ProPreview(): React.JSX.Element {
   const [prices, setPrices] = useState<Price[]>([]);
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
 
-  const loadPrices = async (): Promise<void> => {
-    try {
-      const response = await fetch('/api/v1/billing/prices');
-      if (!response.ok) return;
-      const data = (await response.json()) as { prices?: Price[] };
-      setPrices((data.prices ?? []).filter((price) => price.plan === 'monthly' || price.plan === 'yearly'));
-    } catch {
-      // Public preview remains usable when billing is not configured.
-    }
-  };
-
   const checkout = async (plan: 'monthly' | 'yearly'): Promise<void> => {
     setCheckoutPlan(plan);
     try {
