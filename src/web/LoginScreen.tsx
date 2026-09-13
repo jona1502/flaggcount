@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { Icon } from './Icon';
 import { login } from './webAuth';
 
 type LoginScreenProps = {
@@ -24,22 +25,6 @@ const PROBLEM_MESSAGES: Record<Problem['kind'], string> = {
 export function formatWait(milliseconds: number): string {
   const total = Math.max(1, Math.ceil(milliseconds / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-}
-
-function Icon({ children }: { children: ReactNode }): React.JSX.Element {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
 }
 
 export function LoginScreen({ sessionExpired = false, onSignedIn }: LoginScreenProps): React.JSX.Element {
