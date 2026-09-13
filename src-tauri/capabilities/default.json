@@ -17,6 +17,7 @@
     "allow-reset-votes",
     "allow-set-target",
     "allow-set-overlay-settings",
+    "allow-set-telemetry-enabled",
     "allow-create-profile",
     "allow-duplicate-profile",
     "allow-rename-profile",

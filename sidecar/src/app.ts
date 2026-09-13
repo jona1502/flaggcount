@@ -4,6 +4,7 @@ import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
 import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
+import { TELEMETRY_ERROR_CODES, voteCountBucket, type TelemetryErrorCode, type TelemetryEvent } from '../../shared/analytics';
 import type { LicenseManager } from './license/licenseManager';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLiveService';
@@ -24,6 +25,8 @@ export type SidecarAppOptions = {
   entitlements?: Entitlements;
   /** Manages FlagCount Pro on the desktop; the web version runs without it. */
   license?: LicenseManager;
+  onTelemetry?: (event: TelemetryEvent) => void;
+  onTelemetryEnabled?: (enabled: boolean) => void;
 };
 
 /** Wires the TikTok connection to the voting logic and reports sanitized updates. */
@@ -38,6 +41,8 @@ export class SidecarApp {
   private readonly voteListeners = new Set<(votes: VoteSnapshot) => void>();
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
   private lastVotes: string;
+  private readonly onTelemetry: (event: TelemetryEvent) => void;
+  private readonly onTelemetryEnabled: (enabled: boolean) => void;
 
   constructor(
     createConnection: LiveConnectionFactory,
@@ -46,6 +51,8 @@ export class SidecarApp {
   ) {
     this.entitlements = options.entitlements ?? FREE_ENTITLEMENTS;
     this.license = options.license ?? null;
+    this.onTelemetry = options.onTelemetry ?? (() => undefined);
+    this.onTelemetryEnabled = options.onTelemetryEnabled ?? (() => undefined);
     this.requested = options.counters ?? [createRedFlagCounter()];
     this.definitions = effectiveCounters(this.requested, this.entitlements);
     this.engine = new VotingEngine(this.definitions, { createRoundId: options.createRoundId });
@@ -56,11 +63,20 @@ export class SidecarApp {
     });
 
     this.live = new TikTokLiveService(createConnection, {
-      onStatus: (connection) => send({ type: 'status', connection }),
+      onStatus: (connection) => {
+        send({ type: 'status', connection });
+        if (connection.status === 'connected') this.onTelemetry({ version: 1, name: 'connection_succeeded' });
+      },
       onChat: (message) => {
         this.engine.handleComment(message.userId, message.comment);
       },
-      onError: (error) => send({ type: 'error', error }),
+      onError: (error) => {
+        send({ type: 'error', error });
+        const code = TELEMETRY_ERROR_CODES.includes(error.code as TelemetryErrorCode)
+          ? (error.code as TelemetryErrorCode)
+          : 'unknown';
+        this.onTelemetry({ version: 1, name: 'error', code });
+      },
       onLog: (level, message) => send({ type: 'log', level, message })
     });
   }
@@ -142,6 +158,11 @@ export class SidecarApp {
         break;
       }
       case 'reset':
+        for (const snapshot of this.engine.getSnapshots()) {
+          if ((!command.counterId || command.counterId === snapshot.counterId) && snapshot.totalCount > 0) {
+            this.onTelemetry({ version: 1, name: 'round_completed', voteCountBucket: voteCountBucket(snapshot.totalCount) });
+          }
+        }
         this.engine.reset(command.counterId);
         break;
       case 'configureCounters':
@@ -161,6 +182,9 @@ export class SidecarApp {
         break;
       case 'openCustomerPortal':
         await this.license?.openCustomerPortal();
+        break;
+      case 'setTelemetryEnabled':
+        this.onTelemetryEnabled(command.enabled);
         break;
       case 'getState': {
         const state = this.getState();

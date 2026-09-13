@@ -129,6 +129,7 @@ export function migrateSettingsV1(settings: SettingsV1, now: string): Settings {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: settings.username,
     activeProfileId: DEFAULT_PROFILE_ID,
+    telemetryEnabled: settings.telemetryEnabled === true,
     profiles: [
       {
         id: DEFAULT_PROFILE_ID,
@@ -228,11 +229,10 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
     return null;
   }
   const activeProfileId = record['activeProfileId'];
-  const telemetryEnabled = record['telemetryEnabled'] === true ? true : undefined;
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: parseUsername(record['username']),
-    ...(telemetryEnabled === undefined ? {} : { telemetryEnabled }),
+    telemetryEnabled: record['telemetryEnabled'] === true,
     activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
       ? (activeProfileId as string)
       : (profiles[0] as StreamProfile).id,

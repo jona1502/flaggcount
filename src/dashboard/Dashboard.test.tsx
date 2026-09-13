@@ -41,6 +41,7 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async () => undefined),
+    setTelemetryEnabled: vi.fn(async () => undefined),
     activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
     refreshLicense: vi.fn(async () => undefined),
     deactivateLicense: vi.fn(async () => undefined),

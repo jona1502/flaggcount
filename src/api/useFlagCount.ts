@@ -14,6 +14,7 @@ export type FlagCountActions = {
   resetVotes: (counterId?: string) => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  setTelemetryEnabled: (enabled: boolean) => Promise<void>;
   createProfile: (name: string) => Promise<void>;
   duplicateProfile: (profileId: string) => Promise<void>;
   renameProfile: (profileId: string, name: string) => Promise<void>;
@@ -112,6 +113,7 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       resetVotes: (counterId) => run(() => api.resetVotes(counterId)),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
+      setTelemetryEnabled: (enabled) => run(() => api.setTelemetryEnabled(enabled)),
       createProfile: (name) =>
         run(async () => {
           await api.createProfile(name);

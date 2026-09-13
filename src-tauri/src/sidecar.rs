@@ -78,6 +78,7 @@ pub enum SidecarCommand {
     RefreshLicense,
     DeactivateLicense,
     OpenCustomerPortal,
+    SetTelemetryEnabled { enabled: bool },
     GetState,
 }
 
@@ -306,6 +307,9 @@ pub fn startup_commands(
     reconnect_to: Option<&str>,
 ) -> Vec<SidecarCommand> {
     let mut commands: Vec<SidecarCommand> = configure_counters(settings, license_state).into_iter().collect();
+    commands.push(SidecarCommand::SetTelemetryEnabled {
+        enabled: settings.telemetry_enabled,
+    });
     commands.push(SidecarCommand::ConfigureLicense {
         installation_id: license.installation_id.clone(),
         credentials: license.credentials.clone(),
@@ -1084,6 +1088,7 @@ mod tests {
                 SidecarCommand::ConfigureCounters {
                     counters: vec![CounterDefinition::red_flags(25, overlay)],
                 },
+                SidecarCommand::SetTelemetryEnabled { enabled: false },
                 SidecarCommand::ConfigureLicense {
                     installation_id: "inst-0123456789abcdef".into(),
                     credentials: None,

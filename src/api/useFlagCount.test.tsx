@@ -48,6 +48,7 @@ function createFakeApi() {
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
+    setTelemetryEnabled: vi.fn(async (_enabled: boolean) => undefined),
     activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
     refreshLicense: vi.fn(async () => undefined),
     deactivateLicense: vi.fn(async () => undefined),

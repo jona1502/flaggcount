@@ -10,6 +10,9 @@ import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
+import { AnalyticsClient } from './analytics';
+
+declare const __FLAGCOUNT_VERSION__: string;
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -60,6 +63,9 @@ async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
 }
 
 async function main(): Promise<void> {
+  const serviceUrl = process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL;
+  const appVersion = typeof __FLAGCOUNT_VERSION__ === 'string' ? __FLAGCOUNT_VERSION__ : '0.0.0';
+  const analytics = new AnalyticsClient({ baseUrl: serviceUrl, appVersion });
   // The license service runs on the same FlagCount server as the online overlay.
   const license = new LicenseManager({
     send,
@@ -68,7 +74,11 @@ async function main(): Promise<void> {
     onEntitlements: (entitlements) => app.setEntitlements(entitlements),
     log
   });
-  const app = new SidecarApp(createTikTokConnection, send, { license });
+  const app = new SidecarApp(createTikTokConnection, send, {
+    license,
+    onTelemetry: (event) => analytics.track(event),
+    onTelemetryEnabled: (enabled) => analytics.setEnabled(enabled)
+  });
 
   // Fresh secret per app start, shared with Tauri only over the private stdout pipe.
   const token = createSessionToken();
@@ -79,7 +89,8 @@ async function main(): Promise<void> {
       getVotes: () => app.getVotes(),
       subscribeVotes: (listener) => app.subscribeVotes(listener),
       getOverlaySettings: () => app.getOverlaySettings(),
-      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener)
+      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
+      onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' })
     },
     DEFAULT_OVERLAY_PORT
   );

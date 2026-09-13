@@ -48,6 +48,7 @@ export type SidecarCommand =
   | { type: 'refreshLicense' }
   | { type: 'deactivateLicense' }
   | { type: 'openCustomerPortal' }
+  | { type: 'setTelemetryEnabled'; enabled: boolean }
   | { type: 'getState' };
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -146,6 +147,8 @@ export function parseCommand(line: string): SidecarCommand | null {
         ? { type: 'activateLicense', code, replaceInstallationId }
         : null;
     }
+    case 'setTelemetryEnabled':
+      return typeof record['enabled'] === 'boolean' ? { type: 'setTelemetryEnabled', enabled: record['enabled'] } : null;
     case 'disconnect':
     case 'refreshLicense':
     case 'deactivateLicense':

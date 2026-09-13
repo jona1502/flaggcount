@@ -24,6 +24,7 @@ export const flagcountApi = {
     counterId === undefined ? invoke('reset_votes') : invoke('reset_votes', { counterId }),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
+  setTelemetryEnabled: (enabled: boolean): Promise<void> => invoke('set_telemetry_enabled', { enabled }),
   createProfile: (name: string): Promise<string> => invoke<string>('create_profile', { name }),
   duplicateProfile: (profileId: string): Promise<string> => invoke<string>('duplicate_profile', { profileId }),
   renameProfile: (profileId: string, name: string): Promise<void> => invoke('rename_profile', { profileId, name }),

@@ -295,6 +295,17 @@ pub fn open_customer_portal(sidecar: State<'_, Sidecar>) -> Result<(), AppError>
     sidecar.send(&SidecarCommand::OpenCustomerPortal)
 }
 
+#[tauri::command]
+pub fn set_telemetry_enabled<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    enabled: bool,
+) -> Result<(), AppError> {
+    saver.save(&sidecar.update_settings(&app, |settings| settings.telemetry_enabled = enabled));
+    sidecar.send(&SidecarCommand::SetTelemetryEnabled { enabled })
+}
+
 /// Prices, terms and checkout live on the website, so they are always shown before a purchase.
 #[tauri::command]
 pub fn open_pro_page<R: Runtime>(app: AppHandle<R>) -> Result<(), AppError> {
