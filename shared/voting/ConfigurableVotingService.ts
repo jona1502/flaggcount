@@ -1,6 +1,6 @@
-import type { CounterDefinition, Trigger } from '../profiles';
+import { RED_FLAG_COUNTER_ID, type CounterDefinition } from '../profiles';
 import type { VoteSnapshot } from './VotingService';
-import { DEFAULT_COUNTER_ID } from '../profiles';
+import type { Trigger } from './triggers';
 
 export type OptionSnapshot = { optionId: string; label: string; count: number };
 export type CounterSnapshot = {
@@ -22,7 +22,7 @@ export type ConfigurableVotingServiceOptions = { createRoundId?: () => string };
 /** Adapts the existing free snapshot while consumers migrate to the multi-counter protocol. */
 export function counterSnapshotFromLegacy(votes: VoteSnapshot): CounterSnapshot {
   return {
-    counterId: DEFAULT_COUNTER_ID,
+    counterId: RED_FLAG_COUNTER_ID,
     name: 'Rote Flaggen',
     mode: 'single',
     options: [{ optionId: 'red-flags', label: 'Rote Flaggen', count: votes.count }],

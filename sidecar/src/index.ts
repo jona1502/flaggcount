@@ -1,15 +1,15 @@
 import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
+import { LicenseManager } from './license/licenseManager';
+import { licensePublicKeys } from './license/publicKeys';
+import { createEntitlementVerifier } from './license/signature';
 import { describeError } from './logging';
-import { parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
+import { PROTOCOL_VERSION, parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
 import { startOverlayRelay, type OverlayRelay } from './relay/overlayRelay';
 import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
-import { AnalyticsClient } from './analytics';
-
-declare const __FLAGCOUNT_VERSION__: string;
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -60,15 +60,15 @@ async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
 }
 
 async function main(): Promise<void> {
-  const relayUrl = process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL;
-  const appVersion = typeof __FLAGCOUNT_VERSION__ === 'string'
-    ? __FLAGCOUNT_VERSION__
-    : process.env['npm_package_version'] ?? '0.0.0';
-  const analytics = new AnalyticsClient({ baseUrl: relayUrl, appVersion });
-  const app = new SidecarApp(createTikTokConnection, send, {
-    onTelemetry: (event) => analytics.track(event),
-    onTelemetryEnabled: (enabled) => analytics.setEnabled(enabled)
+  // The license service runs on the same FlagCount server as the online overlay.
+  const license = new LicenseManager({
+    send,
+    baseUrl: process.env['FLAGCOUNT_LICENSE_URL'] || DEFAULT_RELAY_URL,
+    verify: createEntitlementVerifier(licensePublicKeys()),
+    onEntitlements: (entitlements) => app.setEntitlements(entitlements),
+    log
   });
+  const app = new SidecarApp(createTikTokConnection, send, { license });
 
   // Fresh secret per app start, shared with Tauri only over the private stdout pipe.
   const token = createSessionToken();
@@ -79,8 +79,7 @@ async function main(): Promise<void> {
       getVotes: () => app.getVotes(),
       subscribeVotes: (listener) => app.subscribeVotes(listener),
       getOverlaySettings: () => app.getOverlaySettings(),
-      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
-      onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' })
+      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener)
     },
     DEFAULT_OVERLAY_PORT
   );
@@ -108,7 +107,7 @@ async function main(): Promise<void> {
     void Promise.allSettled([app.shutdown(), server.close()]).finally(() => process.exit(0));
   });
 
-  send({ type: 'ready', port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
+  send({ type: 'ready', protocolVersion: PROTOCOL_VERSION, port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
   await app.handleCommand({ type: 'getState' });
 }
 

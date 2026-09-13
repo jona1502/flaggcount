@@ -33,6 +33,7 @@ export function App({ updateClient = updaterClient, autoCheckUpdates }: AppProps
       onCopyText={flagcountApi.copyText}
       version={version}
       updater={updater}
+      proAvailable
     />
   );
 }

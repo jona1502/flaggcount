@@ -6,7 +6,17 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-use crate::settings::{OverlaySettings, Settings, DEFAULT_TARGET};
+use serde_json::Value;
+
+use crate::license::{
+    is_allowed_external_url, LicenseCredentials, LicenseState, LicenseVault, StoredLicense,
+};
+use crate::entitlements::profile_limit;
+use crate::profiles::effective_profile;
+use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
+
+/// Line protocol version this app speaks; the sidecar reports its own on `ready`.
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -29,12 +39,45 @@ const MAX_LOG_MESSAGE_CHARS: usize = 300;
 pub enum SidecarCommand {
     Connect { username: String },
     Disconnect,
-    AddManualVote,
-    RemoveManualVote,
-    Reset,
-    SetTarget { target: u32 },
-    SetOverlaySettings { overlay: OverlaySettings },
-    SetTelemetryEnabled { enabled: bool },
+    /// Without ids the vote goes to the first counter; single counters need no option id.
+    #[serde(rename_all = "camelCase")]
+    AddManualVote {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        option_id: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    RemoveManualVote {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        option_id: Option<String>,
+    },
+    /// Without a counter id every round starts over.
+    #[serde(rename_all = "camelCase")]
+    Reset {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        counter_id: Option<String>,
+    },
+    /// The counters of the active profile; running rounds of counters that keep their id continue.
+    ConfigureCounters { counters: Vec<CounterDefinition> },
+    /// The stored license, sent after every start. The secret only travels over the private stdin pipe.
+    #[serde(rename_all = "camelCase")]
+    ConfigureLicense {
+        installation_id: String,
+        credentials: Option<LicenseCredentials>,
+        entitlement: Option<Value>,
+    },
+    #[serde(rename_all = "camelCase")]
+    ActivateLicense {
+        code: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        replace_installation_id: Option<String>,
+    },
+    RefreshLicense,
+    DeactivateLicense,
+    OpenCustomerPortal,
     GetState,
 }
 
@@ -73,11 +116,15 @@ pub struct VoteSnapshot {
     pub target_reached: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CounterMode {
-    Single,
-    Poll,
+impl Default for VoteSnapshot {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            target: DEFAULT_TARGET,
+            round_id: String::new(),
+            target_reached: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,6 +135,7 @@ pub struct OptionSnapshot {
     pub count: u32,
 }
 
+/// Aggregated counts of one counter; the sidecar never sends viewer identities.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CounterSnapshot {
@@ -99,34 +147,6 @@ pub struct CounterSnapshot {
     pub target: Option<u32>,
     pub target_reached: bool,
     pub round_id: String,
-}
-
-fn counter_snapshot_from_legacy(votes: &VoteSnapshot) -> CounterSnapshot {
-    CounterSnapshot {
-        counter_id: "red-flags".into(),
-        name: "Rote Flaggen".into(),
-        mode: CounterMode::Single,
-        options: vec![OptionSnapshot {
-            option_id: "red-flags".into(),
-            label: "Rote Flaggen".into(),
-            count: votes.count,
-        }],
-        total_count: votes.count,
-        target: Some(votes.target),
-        target_reached: votes.target_reached,
-        round_id: votes.round_id.clone(),
-    }
-}
-
-impl Default for VoteSnapshot {
-    fn default() -> Self {
-        Self {
-            count: 0,
-            target: DEFAULT_TARGET,
-            round_id: String::new(),
-            target_reached: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,12 +177,15 @@ impl AppError {
 pub struct AppState {
     pub sidecar_running: bool,
     pub connection: ConnectionState,
+    /// The first counter in the single-count format of 0.2.
     pub votes: VoteSnapshot,
     pub counters: Vec<CounterSnapshot>,
     pub overlay_url: Option<String>,
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
     pub settings: Settings,
+    /// Plan and license status; never the activation code or secret.
+    pub license: LicenseState,
 }
 
 /// URL of the streaming browser/link source served by the sidecar.
@@ -183,17 +206,23 @@ pub enum LogLevel {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SidecarEvent {
     Ready {
+        #[serde(default, rename = "protocolVersion")]
+        protocol_version: Option<u32>,
         port: u16,
         token: String,
         #[serde(default, rename = "publicOverlayUrl")]
         public_overlay_url: Option<String>,
     },
     Status { connection: ConnectionState },
-    Votes {
-        votes: VoteSnapshot,
-        #[serde(default)]
-        counters: Vec<CounterSnapshot>,
+    Votes { votes: VoteSnapshot },
+    Counters { counters: Vec<CounterSnapshot> },
+    License { license: LicenseState },
+    /// Credentials and entitlement to store on this computer; `None` removes them.
+    LicenseCredentials {
+        credentials: Option<LicenseCredentials>,
+        entitlement: Option<Value>,
     },
+    OpenUrl { url: String },
     Error { error: AppError },
     Log { level: LogLevel, message: String },
 }
@@ -208,6 +237,8 @@ pub enum StateUpdate {
     State,
     Error(AppError),
     Log(LogLevel, String),
+    Credentials(Option<LicenseCredentials>, Option<Value>),
+    OpenUrl(String),
     None,
 }
 
@@ -218,10 +249,16 @@ pub fn apply_event(
 ) -> StateUpdate {
     match event {
         SidecarEvent::Ready {
+            protocol_version,
             port,
             token,
             public_overlay_url,
         } => {
+            if protocol_version != Some(PROTOCOL_VERSION) {
+                log::warn!(
+                    "the sidecar speaks protocol version {protocol_version:?}, expected {PROTOCOL_VERSION}"
+                );
+            }
             *session = Some(SidecarSession { port, token });
             state.overlay_url = Some(overlay_url(port));
             state.public_overlay_url = public_overlay_url.filter(|url| url.starts_with("https://"));
@@ -231,15 +268,23 @@ pub fn apply_event(
             state.connection = connection;
             StateUpdate::State
         }
-        SidecarEvent::Votes { votes, counters } => {
-            state.counters = if counters.is_empty() {
-                vec![counter_snapshot_from_legacy(&votes)]
-            } else {
-                counters
-            };
+        SidecarEvent::Votes { votes } => {
             state.votes = votes;
             StateUpdate::State
         }
+        SidecarEvent::Counters { counters } => {
+            state.counters = counters;
+            StateUpdate::State
+        }
+        SidecarEvent::License { license } => {
+            state.license = license;
+            StateUpdate::State
+        }
+        SidecarEvent::LicenseCredentials {
+            credentials,
+            entitlement,
+        } => StateUpdate::Credentials(credentials, entitlement),
+        SidecarEvent::OpenUrl { url } => StateUpdate::OpenUrl(url),
         SidecarEvent::Error { error } => StateUpdate::Error(error),
         SidecarEvent::Log { level, message } => {
             StateUpdate::Log(level, message.chars().take(MAX_LOG_MESSAGE_CHARS).collect())
@@ -254,24 +299,45 @@ pub fn restart_delay(attempt: u32) -> Duration {
 
 /// Commands that bring a freshly started sidecar in line with the saved settings, and, after
 /// a crash, back to the stream the user was connected to.
-pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<SidecarCommand> {
-    let mut commands = vec![
-        SidecarCommand::SetTarget {
-            target: settings.target,
-        },
-        SidecarCommand::SetOverlaySettings {
-            overlay: settings.overlay.clone(),
-        },
-        SidecarCommand::SetTelemetryEnabled {
-            enabled: settings.telemetry_enabled,
-        },
-    ];
+pub fn startup_commands(
+    settings: &Settings,
+    license_state: &LicenseState,
+    license: &StoredLicense,
+    reconnect_to: Option<&str>,
+) -> Vec<SidecarCommand> {
+    let mut commands: Vec<SidecarCommand> = configure_counters(settings, license_state).into_iter().collect();
+    commands.push(SidecarCommand::ConfigureLicense {
+        installation_id: license.installation_id.clone(),
+        credentials: license.credentials.clone(),
+        entitlement: license.entitlement.clone(),
+    });
     if let Some(username) = reconnect_to {
         commands.push(SidecarCommand::Connect {
             username: username.to_string(),
         });
     }
     commands
+}
+
+/// Sends the counters of the profile the plan allows: the active one, or the first after a downgrade.
+pub fn configure_counters(settings: &Settings, license: &LicenseState) -> Option<SidecarCommand> {
+    effective_profile(settings, license).map(|profile| SidecarCommand::ConfigureCounters {
+        counters: profile.counters.clone(),
+    })
+}
+
+/// Becoming Pro runs the chosen profile at once. Losing Pro waits for the next change or start, so a
+/// running stream keeps its counters.
+pub fn counters_after_license_change(
+    settings: &Settings,
+    before: &LicenseState,
+    after: &LicenseState,
+) -> Option<SidecarCommand> {
+    let previous = effective_profile(settings, before).map(|profile| profile.id.as_str());
+    let current = effective_profile(settings, after).map(|profile| profile.id.as_str());
+    (previous != current && profile_limit(after) > profile_limit(before))
+        .then(|| configure_counters(settings, after))
+        .flatten()
 }
 
 /// The stream the user wants to be connected to, so a restarted sidecar can resume it.
@@ -295,6 +361,7 @@ struct Inner {
     child: Option<CommandChild>,
     session: Option<SidecarSession>,
     state: AppState,
+    license: StoredLicense,
     desired: DesiredConnection,
     stopping: bool,
     started_at: Option<Instant>,
@@ -306,6 +373,8 @@ enum Outcome {
     State(AppState),
     Error(AppError),
     Log(LogLevel, String),
+    SaveLicense(StoredLicense),
+    OpenUrl(String),
     Nothing,
 }
 
@@ -321,6 +390,30 @@ impl Sidecar {
         if let Ok(mut inner) = self.inner.lock() {
             inner.state.settings = settings;
         }
+    }
+
+    /// Uses the stored license for every sidecar start.
+    pub fn init_license(&self, license: StoredLicense) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.license = license;
+        }
+    }
+
+    /// Applies a change that may be refused, e.g. by the plan's limits. On an error nothing changes.
+    pub fn try_update_settings<R: Runtime, T>(
+        &self,
+        app: &AppHandle<R>,
+        change: impl FnOnce(&mut Settings, &LicenseState) -> Result<T, AppError>,
+    ) -> Result<(T, Settings), AppError> {
+        let (value, state) = {
+            let mut inner = self.lock()?;
+            let mut settings = inner.state.settings.clone();
+            let value = change(&mut settings, &inner.state.license)?;
+            inner.state.settings = settings;
+            (value, inner.state.clone())
+        };
+        emit_state(app, &state);
+        Ok((value, state.settings))
     }
 
     /// Changes the settings, notifies the UI and returns the result for saving.
@@ -436,6 +529,8 @@ impl Sidecar {
             };
             let inner = &mut *guard;
             let is_ready = matches!(event, SidecarEvent::Ready { .. });
+            let license_before =
+                matches!(event, SidecarEvent::License { .. }).then(|| inner.state.license.clone());
 
             if let SidecarEvent::Status { connection } = &event {
                 // Once a connection has been closed for good, a restart must not reopen it.
@@ -450,19 +545,29 @@ impl Sidecar {
                 StateUpdate::State => Outcome::State(inner.state.clone()),
                 StateUpdate::Error(error) => Outcome::Error(error),
                 StateUpdate::Log(level, message) => Outcome::Log(level, message),
+                StateUpdate::Credentials(credentials, entitlement) => {
+                    inner.license.credentials = credentials;
+                    inner.license.entitlement = entitlement;
+                    Outcome::SaveLicense(inner.license.clone())
+                }
+                StateUpdate::OpenUrl(url) => Outcome::OpenUrl(url),
                 StateUpdate::None => Outcome::Nothing,
             };
-            let startup = if is_ready {
+            let follow_up = license_before.and_then(|before| {
+                counters_after_license_change(&inner.state.settings, &before, &inner.state.license)
+            });
+            let mut startup = if is_ready {
                 let reconnect = std::mem::take(&mut inner.restore_pending);
                 let reconnect_to = if reconnect {
                     inner.desired.username.as_deref()
                 } else {
                     None
                 };
-                startup_commands(&inner.state.settings, reconnect_to)
+                startup_commands(&inner.state.settings, &inner.state.license, &inner.license, reconnect_to)
             } else {
                 Vec::new()
             };
+            startup.extend(follow_up);
             (outcome, startup)
         };
 
@@ -473,6 +578,12 @@ impl Sidecar {
                 emit_error(app, &error);
             }
             Outcome::Log(level, message) => log_sidecar_message(level, &message),
+            Outcome::SaveLicense(license) => self.save_license(app, &license),
+            Outcome::OpenUrl(url) => {
+                if let Err(error) = open_external(app, &url) {
+                    emit_error(app, &error);
+                }
+            }
             Outcome::Nothing => {}
         }
 
@@ -545,11 +656,43 @@ impl Sidecar {
         }
     }
 
+    /// Pro keeps working for this session if storing fails; the UI shows why it will not survive a restart.
+    fn save_license<R: Runtime>(&self, app: &AppHandle<R>, license: &StoredLicense) {
+        let saved = app
+            .try_state::<LicenseVault>()
+            .map_or(Err(()), |vault| vault.save(license));
+        if saved.is_ok() {
+            return;
+        }
+        log::warn!("could not store the license on this computer");
+        let state = match self.inner.lock() {
+            Ok(mut inner) => {
+                inner.state.license.last_error = Some("secret-storage".into());
+                inner.state.clone()
+            }
+            Err(_) => return,
+        };
+        emit_state(app, &state);
+    }
+
     fn lock(&self) -> Result<MutexGuard<'_, Inner>, AppError> {
         self.inner
             .lock()
             .map_err(|_| AppError::new("unknown", "sidecar state is poisoned"))
     }
+}
+
+/// Opens a FlagCount or Paddle page in the default browser; anything else is refused.
+#[allow(deprecated)]
+pub fn open_external<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<(), AppError> {
+    if !is_allowed_external_url(url) {
+        log::warn!("refused to open a link to an unexpected site");
+        return Err(AppError::new("unknown", "This link cannot be opened"));
+    }
+    app.shell().open(url, None).map_err(|_| {
+        log::warn!("could not open the browser");
+        AppError::new("unknown", "The browser could not be opened")
+    })
 }
 
 /// The sidecar only sends sanitized messages built from fixed templates and error codes.
@@ -576,6 +719,7 @@ fn emit_error<R: Runtime>(app: &AppHandle<R>, error: &AppError) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::OverlaySettings;
     use serde_json::json;
 
     fn parse(line: &str) -> SidecarEvent {
@@ -592,40 +736,100 @@ mod tests {
                 json!({ "type": "connect", "username": "streamer" }),
             ),
             (SidecarCommand::Disconnect, json!({ "type": "disconnect" })),
-            (SidecarCommand::AddManualVote, json!({ "type": "addManualVote" })),
-            (SidecarCommand::RemoveManualVote, json!({ "type": "removeManualVote" })),
-            (SidecarCommand::Reset, json!({ "type": "reset" })),
             (
-                SidecarCommand::SetTarget { target: 25 },
-                json!({ "type": "setTarget", "target": 25 }),
+                SidecarCommand::AddManualVote {
+                    counter_id: None,
+                    option_id: None,
+                },
+                json!({ "type": "addManualVote" }),
             ),
             (
-                SidecarCommand::SetOverlaySettings {
-                    overlay: OverlaySettings {
-                        show_background: false,
-                        ..OverlaySettings::default()
-                    },
+                SidecarCommand::AddManualVote {
+                    counter_id: Some("teams".into()),
+                    option_id: Some("blue".into()),
+                },
+                json!({ "type": "addManualVote", "counterId": "teams", "optionId": "blue" }),
+            ),
+            (
+                SidecarCommand::RemoveManualVote {
+                    counter_id: None,
+                    option_id: None,
+                },
+                json!({ "type": "removeManualVote" }),
+            ),
+            (SidecarCommand::Reset { counter_id: None }, json!({ "type": "reset" })),
+            (
+                SidecarCommand::Reset {
+                    counter_id: Some("teams".into()),
+                },
+                json!({ "type": "reset", "counterId": "teams" }),
+            ),
+            (
+                SidecarCommand::ConfigureCounters {
+                    counters: vec![CounterDefinition::red_flags(25, OverlaySettings::default())],
                 },
                 json!({
-                    "type": "setOverlaySettings",
-                    "overlay": {
-                        "showBackground": false,
-                        "showProgress": true,
-                        "accentColor": "#e82634",
-                        "textColor": "#ffffff",
-                        "backgroundColor": "#0c0c10",
-                        "backgroundOpacity": 80,
-                        "position": "center",
-                        "size": 92,
-                        "flagAnimation": "none",
-                        "targetEffect": "none"
-                    }
+                    "type": "configureCounters",
+                    "counters": [{
+                        "id": "red-flags",
+                        "name": "Rote Flaggen",
+                        "mode": "single",
+                        "target": 25,
+                        "options": [{
+                            "id": "red-flag",
+                            "label": "Rote Flagge",
+                            "triggers": [{ "kind": "emoji", "value": "\u{1F6A9}", "match": "contains" }],
+                            "accentColor": "#e82634"
+                        }],
+                        "withdrawalTriggers": [{ "kind": "emoji", "value": "\u{1F3F3}\u{FE0F}", "match": "contains" }],
+                        "overlay": {
+                            "showBackground": true,
+                            "showProgress": true,
+                            "accentColor": "#e82634",
+                            "textColor": "#ffffff",
+                            "backgroundColor": "#0c0c10",
+                            "backgroundOpacity": 80,
+                            "position": "center",
+                            "size": 92,
+                            "flagAnimation": "none",
+                            "targetEffect": "none"
+                        }
+                    }]
                 }),
             ),
             (
-                SidecarCommand::SetTelemetryEnabled { enabled: true },
-                json!({ "type": "setTelemetryEnabled", "enabled": true }),
+                SidecarCommand::ConfigureLicense {
+                    installation_id: "inst-0123456789abcdef".into(),
+                    credentials: Some(LicenseCredentials {
+                        license_id: "license-1".into(),
+                        secret: "secret".into(),
+                    }),
+                    entitlement: None,
+                },
+                json!({
+                    "type": "configureLicense",
+                    "installationId": "inst-0123456789abcdef",
+                    "credentials": { "licenseId": "license-1", "secret": "secret" },
+                    "entitlement": null
+                }),
             ),
+            (
+                SidecarCommand::ActivateLicense {
+                    code: "FC-1".into(),
+                    replace_installation_id: None,
+                },
+                json!({ "type": "activateLicense", "code": "FC-1" }),
+            ),
+            (
+                SidecarCommand::ActivateLicense {
+                    code: "FC-1".into(),
+                    replace_installation_id: Some("inst-fedcba9876543210".into()),
+                },
+                json!({ "type": "activateLicense", "code": "FC-1", "replaceInstallationId": "inst-fedcba9876543210" }),
+            ),
+            (SidecarCommand::RefreshLicense, json!({ "type": "refreshLicense" })),
+            (SidecarCommand::DeactivateLicense, json!({ "type": "deactivateLicense" })),
+            (SidecarCommand::OpenCustomerPortal, json!({ "type": "openCustomerPortal" })),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
         ];
 
@@ -643,7 +847,7 @@ mod tests {
             &mut state,
             &mut session,
             parse(
-                r#"{"type":"ready","port":4321,"token":"secret","publicOverlayUrl":"https://overlay.example/o/abc"}"#,
+                r#"{"type":"ready","protocolVersion":2,"port":4321,"token":"secret","publicOverlayUrl":"https://overlay.example/o/abc"}"#,
             ),
         );
 
@@ -709,22 +913,63 @@ mod tests {
         );
         assert_eq!(state.votes.count, 3);
         assert_eq!(state.votes.round_id, "r1");
-        assert_eq!(state.counters, vec![counter_snapshot_from_legacy(&state.votes)]);
     }
 
     #[test]
-    fn accepts_multiple_sanitized_counter_snapshots() {
+    fn passes_the_license_status_on_but_keeps_its_secret_out_of_the_ui_state() {
         let mut state = AppState::default();
         let mut session = None;
-        apply_event(
+
+        let status = apply_event(
             &mut state,
             &mut session,
-            parse(r#"{"type":"votes","votes":{"count":1,"target":5,"roundId":"r1","targetReached":false},"counters":[{"counterId":"a","name":"A/B","mode":"poll","options":[{"optionId":"yes","label":"Ja","count":1},{"optionId":"no","label":"Nein","count":0}],"totalCount":1,"target":null,"targetReached":false,"roundId":"ra"}]}"#),
+            parse(
+                r#"{"type":"license","license":{"plan":"pro","status":"active","reference":"FC-1","expiresAt":"2026-10-13T10:00:00.000Z","refreshAfter":"2026-09-20T10:00:00.000Z","needsRefresh":false,"lastError":null,"features":["history"],"installations":[]}}"#,
+            ),
+        );
+        assert!(matches!(status, StateUpdate::State));
+        assert!(state.license.is_pro());
+
+        match apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"licenseCredentials","credentials":{"licenseId":"license-1","secret":"top-secret"},"entitlement":{"version":1}}"#,
+            ),
+        ) {
+            StateUpdate::Credentials(Some(credentials), Some(_)) => {
+                assert_eq!(credentials.license_id, "license-1")
+            }
+            _ => panic!("expected credentials"),
+        }
+        assert!(!serde_json::to_string(&state).unwrap().contains("top-secret"));
+
+        let open = apply_event(
+            &mut state,
+            &mut session,
+            parse(r#"{"type":"openUrl","url":"https://customer-portal.paddle.com/cpl_01"}"#),
+        );
+        assert!(matches!(open, StateUpdate::OpenUrl(url) if url == "https://customer-portal.paddle.com/cpl_01"));
+    }
+
+    #[test]
+    fn applies_counter_snapshots() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        let update = apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"counters","counters":[{"counterId":"poll","name":"Umfrage","mode":"poll","options":[{"optionId":"a","label":"A","count":2},{"optionId":"b","label":"B","count":1}],"totalCount":3,"target":null,"targetReached":false,"roundId":"r2"}]}"#,
+            ),
         );
 
+        assert!(matches!(update, StateUpdate::State));
         assert_eq!(state.counters.len(), 1);
         assert_eq!(state.counters[0].mode, CounterMode::Poll);
-        assert_eq!(state.counters[0].options[0].count, 1);
+        assert_eq!(state.counters[0].options[1].count, 1);
+        assert_eq!(state.counters[0].target, None);
     }
 
     #[test]
@@ -800,12 +1045,8 @@ mod tests {
                 "counters": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
-                "settings": {
-                    "username": "",
-                    "target": 100,
-                    "overlay": serde_json::to_value(OverlaySettings::default()).unwrap(),
-                    "telemetryEnabled": false
-                }
+                "settings": serde_json::to_value(Settings::default()).unwrap(),
+                "license": serde_json::to_value(LicenseState::default()).unwrap()
             })
         );
     }
@@ -822,32 +1063,62 @@ mod tests {
 
     #[test]
     fn configures_every_new_sidecar_from_the_saved_settings() {
-        let settings = Settings {
-            username: "saved".into(),
-            target: 25,
-            overlay: OverlaySettings {
-                show_background: false,
-                ..OverlaySettings::default()
-            },
-            telemetry_enabled: true,
+        let overlay = OverlaySettings {
+            show_background: false,
+            ..OverlaySettings::default()
+        };
+        let mut settings = Settings::default();
+        settings.update_primary_counter(crate::settings::EPOCH_TIMESTAMP, |counter| {
+            counter.target = Some(25);
+            counter.overlay = overlay.clone();
+        });
+
+        let license = StoredLicense {
+            installation_id: "inst-0123456789abcdef".into(),
+            ..StoredLicense::default()
         };
 
         assert_eq!(
-            startup_commands(&settings, None),
+            startup_commands(&settings, &LicenseState::default(), &license, None),
             [
-                SidecarCommand::SetTarget { target: 25 },
-                SidecarCommand::SetOverlaySettings {
-                    overlay: settings.overlay.clone()
+                SidecarCommand::ConfigureCounters {
+                    counters: vec![CounterDefinition::red_flags(25, overlay)],
                 },
-                SidecarCommand::SetTelemetryEnabled { enabled: true },
+                SidecarCommand::ConfigureLicense {
+                    installation_id: "inst-0123456789abcdef".into(),
+                    credentials: None,
+                    entitlement: None,
+                },
             ]
         );
         assert_eq!(
-            startup_commands(&settings, Some("streamer")).last(),
+            startup_commands(&settings, &LicenseState::default(), &license, Some("streamer")).last(),
             Some(&SidecarCommand::Connect {
                 username: "streamer".into()
             })
         );
+    }
+
+    #[test]
+    fn runs_the_chosen_profile_as_soon_as_pro_becomes_active_but_never_on_a_downgrade() {
+        let pro = LicenseState {
+            plan: "pro".into(),
+            status: "active".into(),
+            features: vec![crate::entitlements::MULTIPLE_PROFILES.into()],
+            ..LicenseState::default()
+        };
+        let free = LicenseState::default();
+        let mut settings = Settings::default();
+        crate::profiles::create_profile(&mut settings, &pro, "Quiz", "quiz".into(), "now").unwrap();
+        settings.profiles[1].counters[0].target = Some(7);
+        crate::profiles::switch_profile(&mut settings, &pro, "quiz").unwrap();
+
+        assert!(matches!(
+            counters_after_license_change(&settings, &free, &pro),
+            Some(SidecarCommand::ConfigureCounters { counters }) if counters[0].target == Some(7)
+        ));
+        assert_eq!(counters_after_license_change(&settings, &pro, &free), None);
+        assert_eq!(counters_after_license_change(&settings, &pro, &pro), None);
     }
 
     #[test]
@@ -857,7 +1128,7 @@ mod tests {
         desired.remember(&SidecarCommand::Connect {
             username: "streamer".into(),
         });
-        desired.remember(&SidecarCommand::SetTarget { target: 5 });
+        desired.remember(&SidecarCommand::GetState);
         assert_eq!(desired.username.as_deref(), Some("streamer"));
 
         desired.remember(&SidecarCommand::Disconnect);

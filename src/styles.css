@@ -1480,3 +1480,471 @@ input[readonly] {
     animation-duration: 1.5s;
   }
 }
+
+/* Sections */
+.app-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-tab {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-tab:hover {
+  color: #f4f4f6;
+}
+
+.app-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: #fff;
+}
+
+.plan-badge {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(62 207 142 / 0.14);
+  color: var(--success);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* FlagCount Pro */
+.license-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 680px;
+}
+
+.license-panel h2,
+.license-panel h3 {
+  margin: 0;
+}
+
+.license-panel h3 {
+  font-size: 0.92rem;
+}
+
+.license-status {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.license-status[data-plan='pro'] {
+  border-color: rgb(62 207 142 / 0.45);
+}
+
+.license-status[data-status='grace'],
+.license-status[data-status='expired'],
+.license-status[data-status='invalid'] {
+  border-color: rgb(245 165 36 / 0.5);
+}
+
+.license-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.license-panel code {
+  font-family: Consolas, 'Cascadia Mono', monospace;
+}
+
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.license-installations ul,
+.pro-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.license-installations p {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+}
+
+.license-installations li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.pro-offer {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.pro-features li {
+  display: grid;
+  gap: 2px;
+  font-size: 0.84rem;
+}
+
+.pro-features span {
+  color: var(--muted);
+}
+
+.pro-offer .button {
+  justify-self: start;
+}
+
+/* Stream profiles */
+.panel-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-heading h2 {
+  margin: 0;
+}
+
+.limit-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.profiles-panel {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.profile-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.profile-item[data-active='true'] {
+  border-color: rgb(230 45 59 / 0.55);
+}
+
+.profile-item[data-usable='false'] .profile-name strong {
+  color: var(--muted);
+}
+
+.profile-name,
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pro-tag {
+  padding: 1px 6px;
+  border: 1px solid rgb(245 165 36 / 0.6);
+  border-radius: 999px;
+  color: var(--warning);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.pro-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.pro-hint p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+/* Counter and poll editor */
+.section-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.counter-editor {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.counter-card {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.counter-card legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.counter-card > .button {
+  justify-self: start;
+}
+
+.counter-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.counter-fields select,
+.trigger-add select {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.counter-fields input[type='color'] {
+  width: 64px;
+  padding: 2px;
+}
+
+.option-list {
+  display: grid;
+  gap: 10px;
+}
+
+.option-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.option-card > .button,
+.option-list > .button {
+  justify-self: start;
+}
+
+.trigger-list {
+  display: grid;
+  gap: 6px;
+}
+
+.trigger-title {
+  color: #d8d8de;
+  font-size: 0.8rem;
+}
+
+.trigger-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trigger-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.84rem;
+}
+
+.trigger-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trigger-add input {
+  flex: 1 1 140px;
+}
+
+.problem-list,
+.plain-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.plain-list {
+  flex: 1;
+  font-size: 0.84rem;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Live board for polls and parallel counters */
+.counters-board {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+}
+
+.counters-board h2 {
+  margin: 0;
+}
+
+.counter-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.live-counter {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.live-counter > .button,
+.live-counter > .reset-confirm {
+  justify-self: start;
+}
+
+.live-counter-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-counter-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.live-total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+
+.live-total strong {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-total span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.live-options {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-option {
+  display: grid;
+  gap: 4px;
+}
+
+.live-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-option-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.live-option-count {
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.option-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.option-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.option-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.live-option-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.live-option-actions .button {
+  min-width: 44px;
+}

@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FREE_LICENSE_STATE } from '../../shared/licensing';
+import { migrateSettingsV1 } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppState } from '../../shared/appState';
 import type { FlagCountActions } from '../api/useFlagCount';
@@ -130,8 +132,10 @@ describe('OverlayPanel', () => {
       connection: { status: 'disconnected', username: null },
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
       overlayUrl: OVERLAY_URL,
+      counters: [],
+      license: FREE_LICENSE_STATE,
       publicOverlayUrl: null,
-      settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
+      settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
     };
     const actions = {
       connect: vi.fn(async (_username: string) => undefined),
@@ -141,7 +145,17 @@ describe('OverlayPanel', () => {
       resetVotes: vi.fn(async () => undefined),
       setTarget: vi.fn(async (_target: number) => undefined),
       setOverlaySettings: vi.fn(async () => undefined),
-      setTelemetryEnabled: vi.fn(async () => undefined)
+      activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
+      refreshLicense: vi.fn(async () => undefined),
+      deactivateLicense: vi.fn(async () => undefined),
+      openCustomerPortal: vi.fn(async () => undefined),
+      openProPage: vi.fn(async () => undefined),
+      createProfile: vi.fn(async (_name: string) => undefined),
+      duplicateProfile: vi.fn(async (_profileId: string) => undefined),
+      renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
+      deleteProfile: vi.fn(async (_profileId: string) => undefined),
+      switchProfile: vi.fn(async (_profileId: string) => undefined),
+      saveCounters: vi.fn(async () => undefined)
     } satisfies FlagCountActions;
     const onCopyText = vi.fn(async (_text: string) => undefined);
     const user = userEvent.setup();

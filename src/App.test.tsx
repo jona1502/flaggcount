@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { FREE_LICENSE_STATE } from '../shared/licensing';
+import { migrateSettingsV1 } from '../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../shared/settings';
 import type { AppState } from '../shared/appState';
 import { App } from './App';
@@ -16,8 +18,10 @@ const backendState: AppState = {
   connection: { status: 'disconnected', username: null },
   votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
   overlayUrl: OVERLAY_URL,
+  counters: [],
+  license: FREE_LICENSE_STATE,
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
+  settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
 
 type Call = { cmd: string; payload: Record<string, unknown> | undefined };
@@ -153,5 +157,93 @@ describe('App with the Tauri backend', () => {
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain(ERROR_MESSAGES['sidecar-unavailable']);
+  });
+});
+
+describe('FlagCount Pro in the Tauri app', () => {
+  it('activates a license and opens the Pro page from the Pro section', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Pro' }));
+    await user.type(screen.getByLabelText('Aktivierungscode'), ' FC-7K2QM-9XH4D-PZ1RT-W8C3N ');
+    await user.click(screen.getByRole('button', { name: 'Aktivieren' }));
+    await user.click(screen.getByRole('button', { name: 'Preise & Pro ansehen' }));
+
+    expect(payloadOf('activate_license')).toEqual({ code: 'FC-7K2QM-9XH4D-PZ1RT-W8C3N', replaceInstallationId: null });
+    expect(commands()).toContain('open_pro_page');
+  });
+});
+
+describe('Stream profiles in the Tauri app', () => {
+  it('renames the profile from the Profile section', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Standard umbenennen' }));
+    const input = screen.getByLabelText('Neuer Name für Standard');
+    await user.clear(input);
+    await user.type(input, 'Hauptprofil');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(payloadOf('rename_profile')).toEqual({ profileId: 'default', name: 'Hauptprofil' });
+  });
+});
+
+describe('Counters in the Tauri app', () => {
+  it('saves the renamed counter of the running profile', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    const name = screen.getByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Flaggen-Runde');
+    await user.click(screen.getByRole('button', { name: 'Zähler speichern' }));
+
+    const saved = payloadOf('save_counters') as { counters: { name: string }[] } | undefined;
+    expect(saved?.counters.map((counter) => counter.name)).toEqual(['Flaggen-Runde']);
+  });
+});
+
+describe('Parallel counters in the Tauri app', () => {
+  it('corrects a poll option and resets one counter from the live board', async () => {
+    const user = await renderApp();
+
+    await act(() =>
+      emit('state-changed', {
+        ...backendState,
+        counters: [
+          {
+            counterId: 'red-flags',
+            name: 'Rote Flaggen',
+            mode: 'single',
+            options: [{ optionId: 'red-flag', label: 'Rote Flagge', count: 2 }],
+            totalCount: 2,
+            target: 10,
+            targetReached: false,
+            roundId: 'r1'
+          },
+          {
+            counterId: 'teams',
+            name: 'Team-Wahl',
+            mode: 'poll',
+            options: [
+              { optionId: 'red', label: 'Rot', count: 1 },
+              { optionId: 'blue', label: 'Blau', count: 0 }
+            ],
+            totalCount: 1,
+            target: null,
+            targetReached: false,
+            roundId: 'r2'
+          }
+        ]
+      } satisfies AppState)
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Stimme für Blau hinzufügen' }));
+    await user.click(screen.getByRole('button', { name: 'Team-Wahl zurücksetzen' }));
+    await user.click(screen.getByRole('button', { name: 'Ja, zurücksetzen' }));
+
+    expect(payloadOf('add_manual_vote')).toEqual({ counterId: 'teams', optionId: 'blue' });
+    expect(payloadOf('reset_votes')).toEqual({ counterId: 'teams' });
   });
 });

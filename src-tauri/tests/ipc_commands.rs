@@ -3,7 +3,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use flagcount_lib::settings::{Settings, SettingsSaver};
+use flagcount_lib::license::LicenseState;
+use flagcount_lib::settings::{CounterDefinition, OverlaySettings, Settings, SettingsSaver};
 use flagcount_lib::with_commands;
 use serde_json::{json, Value};
 use tauri::ipc::{CallbackFn, InvokeBody};
@@ -60,6 +61,10 @@ fn error_code(result: Result<Value, Value>) -> String {
         .to_string()
 }
 
+fn primary_counter(settings: &Value) -> &Value {
+    &settings["profiles"][0]["counters"][0]
+}
+
 #[test]
 fn returns_the_initial_state() {
     let app = create_app();
@@ -75,23 +80,8 @@ fn returns_the_initial_state() {
             "counters": [],
             "overlayUrl": null,
             "publicOverlayUrl": null,
-            "settings": {
-                "username": "",
-                "target": 100,
-                "overlay": {
-                    "showBackground": true,
-                    "showProgress": true,
-                    "accentColor": "#e82634",
-                    "textColor": "#ffffff",
-                    "backgroundColor": "#0c0c10",
-                    "backgroundOpacity": 80,
-                    "position": "center",
-                    "size": 92,
-                    "flagAnimation": "none",
-                    "targetEffect": "none"
-                },
-                "telemetryEnabled": false
-            }
+            "settings": serde_json::to_value(Settings::default()).unwrap(),
+            "license": serde_json::to_value(LicenseState::default()).unwrap()
         })
     );
 }
@@ -142,34 +132,28 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
         ),
         Ok(Value::Null)
     );
-    assert_eq!(
-        invoke(&app, "set_telemetry_enabled", json!({ "enabled": true })),
-        Ok(Value::Null)
-    );
 
     let state = invoke(&app, "get_state", json!({})).unwrap();
+    let counter = primary_counter(&state["settings"]);
+    assert_eq!(counter["target"], json!(25));
     assert_eq!(
-        state["settings"],
+        counter["overlay"],
         json!({
-            "username": "",
-            "target": 25,
-            "overlay": {
-                "showBackground": false,
-                "showProgress": true,
-                "accentColor": "#e82634",
-                "textColor": "#ffffff",
-                "backgroundColor": "#0c0c10",
-                "backgroundOpacity": 80,
-                "position": "center",
-                "size": 92,
-                "flagAnimation": "none",
-                "targetEffect": "none"
-            },
-            "telemetryEnabled": true
+            "showBackground": false,
+            "showProgress": true,
+            "accentColor": "#e82634",
+            "textColor": "#ffffff",
+            "backgroundColor": "#0c0c10",
+            "backgroundOpacity": 80,
+            "position": "center",
+            "size": 92,
+            "flagAnimation": "none",
+            "targetEffect": "none"
         })
     );
+    assert_ne!(state["settings"]["profiles"][0]["updatedAt"], json!("1970-01-01T00:00:00.000Z"));
     let saved = app.saved.lock().unwrap();
-    assert_eq!(saved.len(), 3);
+    assert_eq!(saved.len(), 2);
     assert_eq!(serde_json::to_value(saved.last().unwrap()).unwrap(), state["settings"]);
 }
 
@@ -193,4 +177,103 @@ fn reports_an_unavailable_sidecar_for_stream_actions() {
         invoke(&app, "get_state", json!({})).unwrap()["settings"]["username"],
         json!("")
     );
+}
+
+#[test]
+fn validates_license_input_before_it_reaches_the_sidecar() {
+    let app = create_app();
+
+    assert_eq!(error_code(invoke(&app, "activate_license", json!({ "code": "   " }))), "invalid-code");
+    assert_eq!(
+        error_code(invoke(
+            &app,
+            "activate_license",
+            json!({ "code": "FC-7K2QM", "replaceInstallationId": "../other" })
+        )),
+        "invalid-installation"
+    );
+    for (cmd, args) in [
+        ("activate_license", json!({ "code": "FC-7K2QM-9XH4D-PZ1RT-W8C3N" })),
+        ("refresh_license", json!({})),
+        ("deactivate_license", json!({})),
+        ("open_customer_portal", json!({})),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");
+    }
+}
+
+#[test]
+fn manages_profiles_within_the_free_plan() {
+    let app = create_app();
+
+    assert_eq!(error_code(invoke(&app, "create_profile", json!({ "name": "Quiz" }))), "pro-required");
+    assert_eq!(
+        error_code(invoke(&app, "duplicate_profile", json!({ "profileId": "default" }))),
+        "pro-required"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "rename_profile", json!({ "profileId": "default", "name": "   " }))),
+        "invalid-profile"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "switch_profile", json!({ "profileId": "missing" }))),
+        "invalid-profile"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "delete_profile", json!({ "profileId": "default" }))),
+        "invalid-profile"
+    );
+    assert!(app.saved.lock().unwrap().is_empty());
+
+    assert_eq!(
+        invoke(&app, "rename_profile", json!({ "profileId": "default", "name": " Hauptprofil " })),
+        Ok(Value::Null)
+    );
+    assert_eq!(invoke(&app, "switch_profile", json!({ "profileId": "default" })), Ok(Value::Null));
+
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    assert_eq!(state["settings"]["profiles"][0]["name"], json!("Hauptprofil"));
+    assert_eq!(app.saved.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn saves_counters_the_free_plan_allows_and_refuses_pro_counters() {
+    let app = create_app();
+    let mut counter = serde_json::to_value(CounterDefinition::red_flags(100, OverlaySettings::default())).unwrap();
+    counter["name"] = json!("Flaggen-Runde");
+
+    assert_eq!(invoke(&app, "save_counters", json!({ "counters": [counter.clone()] })), Ok(Value::Null));
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    assert_eq!(state["settings"]["profiles"][0]["counters"][0]["name"], json!("Flaggen-Runde"));
+
+    let mut poll = counter.clone();
+    poll["id"] = json!("poll");
+    poll["mode"] = json!("poll");
+    poll["options"] = json!([
+        { "id": "a", "label": "A", "triggers": [{ "kind": "text", "value": "a", "match": "word" }], "accentColor": "#112233" },
+        { "id": "b", "label": "B", "triggers": [{ "kind": "text", "value": "b", "match": "word" }], "accentColor": "#445566" }
+    ]);
+    assert_eq!(error_code(invoke(&app, "save_counters", json!({ "counters": [poll] }))), "pro-required");
+    assert_eq!(error_code(invoke(&app, "save_counters", json!({ "counters": [] }))), "invalid-counters");
+    assert_eq!(app.saved.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn targets_manual_votes_and_resets_only_with_valid_ids() {
+    let app = create_app();
+
+    for (cmd, args) in [
+        ("add_manual_vote", json!({ "counterId": "mit leerzeichen" })),
+        ("remove_manual_vote", json!({ "counterId": "teams", "optionId": "../blue" })),
+        ("reset_votes", json!({ "counterId": "" })),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "invalid-counters", "{cmd}");
+    }
+    for (cmd, args) in [
+        ("add_manual_vote", json!({ "counterId": "teams", "optionId": "blue" })),
+        ("remove_manual_vote", json!({ "counterId": "teams", "optionId": "blue" })),
+        ("reset_votes", json!({ "counterId": "teams" })),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");
+    }
 }

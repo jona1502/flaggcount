@@ -27,14 +27,14 @@ export type OverlaySettings = {
   targetEffect: TargetEffect;
 };
 
-/** Settings persisted between app starts. Votes are deliberately never stored. */
-export type Settings = {
+/** Settings as persisted by FlagCount 0.2; only read to migrate them into stream profiles. */
+export type SettingsV1 = {
   /** Last TikTok username the user connected to; empty if none. */
   username: string;
   target: number;
   overlay: OverlaySettings;
   /** Privacy-first product telemetry is disabled until the user explicitly opts in. */
-  telemetryEnabled: boolean;
+  telemetryEnabled?: boolean;
 };
 
 /** Matches the original overlay, so nothing changes until the streamer customizes it. */
@@ -54,7 +54,8 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 const isBoolean = (value: unknown): boolean => typeof value === 'boolean';
-const isColor = (value: unknown): boolean => typeof value === 'string' && HEX_COLOR.test(value);
+export const isHexColor = (value: unknown): value is string => typeof value === 'string' && HEX_COLOR.test(value);
+const isColor = isHexColor;
 const isIntegerIn =
   (min: number, max: number) =>
   (value: unknown): boolean =>

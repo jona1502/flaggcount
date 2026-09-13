@@ -1,17 +1,29 @@
 import { describe, expect, it } from 'vitest';
+import { FREE_ENTITLEMENTS, PRO_ENTITLEMENTS, type Entitlements } from '../../shared/entitlements';
+import { FREE_LICENSE_STATE } from '../../shared/licensing';
+import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
-import { VotingService } from '../../shared/voting';
 import { SidecarApp } from './app';
 import type { SidecarEvent } from './protocol';
 import type { LiveConnectionHandlers } from './tiktok/TikTokLiveService';
-import type { TelemetryEvent } from '../../shared/analytics';
 
-function createApp() {
+const teams: CounterDefinition = {
+  id: 'teams',
+  name: 'Team-Wahl',
+  mode: 'poll',
+  target: null,
+  options: [
+    { id: 'red', label: 'Rot', triggers: [{ kind: 'text', value: 'rot', match: 'word' }], accentColor: '#ff0000' },
+    { id: 'blue', label: 'Blau', triggers: [{ kind: 'text', value: 'blau', match: 'word' }], accentColor: '#0000ff' }
+  ],
+  withdrawalTriggers: [],
+  overlay: { ...DEFAULT_OVERLAY_SETTINGS }
+};
+
+function createApp(entitlements: Entitlements = PRO_ENTITLEMENTS) {
   const events: SidecarEvent[] = [];
   const connections: LiveConnectionHandlers[] = [];
   let rounds = 0;
-  const telemetry: TelemetryEvent[] = [];
-  const telemetrySettings: boolean[] = [];
 
   const app = new SidecarApp(
     (_username, handlers) => {
@@ -19,11 +31,7 @@ function createApp() {
       return { connect: async () => undefined, disconnect: async () => undefined };
     },
     (event) => events.push(event),
-    {
-      votingService: new VotingService({ target: 10, createRoundId: () => `round-${++rounds}` }),
-      onTelemetry: (event) => telemetry.push(event),
-      onTelemetryEnabled: (enabled) => telemetrySettings.push(enabled)
-    }
+    { counters: [createRedFlagCounter(10)], createRoundId: () => `round-${++rounds}`, entitlements }
   );
 
   const chat = (userId: string, comment: string): void => {
@@ -39,12 +47,12 @@ function createApp() {
   const ofType = <T extends SidecarEvent['type']>(type: T) =>
     events.filter((event): event is Extract<SidecarEvent, { type: T }> => event.type === type);
 
-  return { app, events, telemetry, telemetrySettings, chat, reply, ofType };
+  return { app, events, chat, reply, ofType };
 }
 
 describe('SidecarApp', () => {
   it('reports connection status changes', async () => {
-    const { app, ofType, telemetry } = createApp();
+    const { app, ofType } = createApp();
 
     await app.handleCommand({ type: 'connect', username: '@Streamer' });
 
@@ -52,7 +60,6 @@ describe('SidecarApp', () => {
       { status: 'connecting', username: 'streamer' },
       { status: 'connected', username: 'streamer' }
     ]);
-    expect(telemetry).toContainEqual({ version: 1, name: 'connection_succeeded' });
   });
 
   it('counts one vote per user from chat messages', async () => {
@@ -65,6 +72,7 @@ describe('SidecarApp', () => {
     chat('3', 'Bitte 🚩');
 
     expect(ofType('votes').map((event) => event.votes.count)).toEqual([1, 2]);
+    expect(ofType('counters').map((event) => event.counters[0]?.totalCount)).toEqual([1, 2]);
     expect(app.getState().votes.count).toBe(2);
   });
 
@@ -93,9 +101,10 @@ describe('SidecarApp', () => {
 
   it('never forwards chat content or viewer identities', async () => {
     const { app, chat, events } = createApp();
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
     await app.handleCommand({ type: 'connect', username: 'streamer' });
 
-    chat('4711', 'geheime Nachricht 🚩');
+    chat('4711', 'geheime Nachricht 🚩 rot');
 
     const serialized = JSON.stringify(events);
     expect(serialized).not.toContain('geheime Nachricht');
@@ -103,7 +112,7 @@ describe('SidecarApp', () => {
   });
 
   it('starts a new round on reset', async () => {
-    const { app, chat, ofType, telemetry } = createApp();
+    const { app, chat, ofType } = createApp();
     await app.handleCommand({ type: 'connect', username: 'streamer' });
     chat('1', '🚩');
 
@@ -115,16 +124,6 @@ describe('SidecarApp', () => {
       [0, 'round-2'],
       [1, 'round-2']
     ]);
-    expect(telemetry).toContainEqual({ version: 1, name: 'round_completed', voteCountBucket: '1-9' });
-  });
-
-  it('passes the privacy setting to the telemetry transport', async () => {
-    const { app, telemetrySettings } = createApp();
-
-    await app.handleCommand({ type: 'setTelemetryEnabled', enabled: true });
-    await app.handleCommand({ type: 'setTelemetryEnabled', enabled: false });
-
-    expect(telemetrySettings).toEqual([true, false]);
   });
 
   it('adds manual votes to the same count used by chat and the overlay', async () => {
@@ -149,16 +148,57 @@ describe('SidecarApp', () => {
     expect(app.getVotes().count).toBe(1);
   });
 
-  it('changes the target and rejects invalid targets', async () => {
+  it('applies a changed target from the counter configuration', async () => {
+    const { app, chat, ofType } = createApp();
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+    chat('1', '🚩');
+
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(25)] });
+
+    expect(ofType('votes').map((event) => [event.votes.count, event.votes.target, event.votes.roundId])).toEqual([
+      [1, 10, 'round-1'],
+      [1, 25, 'round-1']
+    ]);
+    expect(app.getState().votes.target).toBe(25);
+  });
+
+  it('runs parallel counters without repainting the overlay for the others', async () => {
+    const { app, chat, ofType } = createApp();
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+    const overlayVotes: number[] = [];
+    app.subscribeVotes((votes) => overlayVotes.push(votes.count));
+
+    chat('1', 'rot');
+    chat('2', 'blau');
+    chat('1', 'doch blau');
+    chat('3', '🚩');
+
+    expect(overlayVotes).toEqual([1]);
+    expect(app.getCounters().map((counter) => counter.options.map((option) => option.count))).toEqual([[1], [0, 2]]);
+    expect(ofType('counters').at(-1)?.counters[1]).toMatchObject({ counterId: 'teams', totalCount: 2 });
+  });
+
+  it('targets manual votes and resets at one counter', async () => {
+    const { app } = createApp();
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+
+    await app.handleCommand({ type: 'addManualVote', counterId: 'teams', optionId: 'blue' });
+    await app.handleCommand({ type: 'addManualVote' });
+    await app.handleCommand({ type: 'removeManualVote', counterId: 'teams', optionId: 'blue' });
+    await app.handleCommand({ type: 'addManualVote', counterId: 'teams', optionId: 'red' });
+    await app.handleCommand({ type: 'reset', counterId: 'teams' });
+
+    expect(app.getCounters().map((counter) => counter.totalCount)).toEqual([1, 0]);
+  });
+
+  it('warns about manual votes for unknown counters', async () => {
     const { app, ofType } = createApp();
 
-    await app.handleCommand({ type: 'setTarget', target: 25 });
-    await app.handleCommand({ type: 'setTarget', target: 0 });
-    await app.handleCommand({ type: 'setTarget', target: 2.5 });
+    await app.handleCommand({ type: 'addManualVote', counterId: 'missing' });
 
-    expect(ofType('votes').map((event) => event.votes.target)).toEqual([25]);
-    expect(ofType('error').map((event) => event.error.code)).toEqual(['invalid-target', 'invalid-target']);
-    expect(app.getState().votes.target).toBe(25);
+    expect(ofType('log').map((event) => event.message)).toEqual(['Ignoring a manual vote for an unknown counter or option']);
+    expect(app.getVotes().count).toBe(0);
   });
 
   it('lets the overlay subscribe to vote updates', async () => {
@@ -175,17 +215,19 @@ describe('SidecarApp', () => {
     expect(app.getVotes().count).toBe(2);
   });
 
-  it('applies overlay settings and notifies the overlay', async () => {
+  it('applies the overlay settings of the first counter and notifies the overlay', async () => {
     const { app } = createApp();
     const received: boolean[] = [];
     const unsubscribe = app.subscribeOverlaySettings((overlay) => received.push(overlay.showBackground));
+    const hidden = { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false };
 
-    await app.handleCommand({ type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10, hidden)] });
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(20, hidden)] });
     unsubscribe();
-    await app.handleCommand({ type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } });
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10)] });
 
     expect(received).toEqual([false]);
-    expect(app.getState().overlay).toEqual({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true });
+    expect(app.getState().overlay).toEqual(DEFAULT_OVERLAY_SETTINGS);
   });
 
   it('emits the full state on request', async () => {
@@ -195,22 +237,40 @@ describe('SidecarApp', () => {
 
     expect(events).toEqual([
       { type: 'status', connection: { status: 'disconnected', username: null } },
+      { type: 'votes', votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false } },
       {
-        type: 'votes',
-        votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
+        type: 'counters',
         counters: [
           {
             counterId: 'red-flags',
             name: 'Rote Flaggen',
             mode: 'single',
-            options: [{ optionId: 'red-flags', label: 'Rote Flaggen', count: 0 }],
+            options: [{ optionId: 'red-flag', label: 'Rote Flagge', count: 0 }],
             totalCount: 0,
             target: 10,
             targetReached: false,
             roundId: 'round-1'
           }
         ]
-      }
+      },
+      { type: 'license', license: FREE_LICENSE_STATE }
     ]);
+  });
+
+  it('runs only what the plan allows and never cuts running counters when Pro ends', async () => {
+    const { app } = createApp(FREE_ENTITLEMENTS);
+    const running = () => app.getCounters().map((counter) => counter.counterId);
+
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+    expect(running()).toEqual(['red-flags']);
+
+    app.setEntitlements(PRO_ENTITLEMENTS);
+    expect(running()).toEqual(['red-flags', 'teams']);
+
+    app.setEntitlements(FREE_ENTITLEMENTS);
+    expect(running()).toEqual(['red-flags', 'teams']);
+
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+    expect(running()).toEqual(['red-flags']);
   });
 });

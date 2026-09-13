@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FREE_LICENSE_STATE } from '../../shared/licensing';
+import { migrateSettingsV1 } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppState } from '../../shared/appState';
 
@@ -16,8 +18,10 @@ const state: AppState = {
   connection: { status: 'connected', username: 'streamer' },
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
+  counters: [],
+  license: FREE_LICENSE_STATE,
   publicOverlayUrl: null,
-  settings: { username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
+  settings: migrateSettingsV1({ username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
 
 describe('flagcountApi', () => {
@@ -36,7 +40,6 @@ describe('flagcountApi', () => {
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
     await flagcountApi.setOverlaySettings({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true });
-    await flagcountApi.setTelemetryEnabled(true);
 
     expect(vi.mocked(invoke).mock.calls).toEqual([
       ['get_state'],
@@ -46,8 +49,7 @@ describe('flagcountApi', () => {
       ['remove_manual_vote'],
       ['reset_votes'],
       ['set_target', { target: 25 }],
-      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }],
-      ['set_telemetry_enabled', { enabled: true }]
+      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }]
     ]);
   });
 

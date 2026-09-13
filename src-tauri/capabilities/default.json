@@ -17,6 +17,16 @@
     "allow-reset-votes",
     "allow-set-target",
     "allow-set-overlay-settings",
-    "allow-set-telemetry-enabled"
+    "allow-create-profile",
+    "allow-duplicate-profile",
+    "allow-rename-profile",
+    "allow-delete-profile",
+    "allow-switch-profile",
+    "allow-save-counters",
+    "allow-activate-license",
+    "allow-refresh-license",
+    "allow-deactivate-license",
+    "allow-open-customer-portal",
+    "allow-open-pro-page"
   ]
 }

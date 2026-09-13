@@ -1,10 +1,14 @@
 pub mod commands;
+pub mod entitlements;
+pub mod license;
+pub mod profiles;
 pub mod settings;
 pub mod sidecar;
 
 use tauri::{Manager, RunEvent, Runtime};
 use tauri_plugin_log::RotationStrategy;
 
+use license::{LicenseVault, SystemSecretStore};
 use settings::SettingsSaver;
 use sidecar::Sidecar;
 
@@ -21,7 +25,17 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::reset_votes,
             commands::set_target,
             commands::set_overlay_settings,
-            commands::set_telemetry_enabled
+            commands::create_profile,
+            commands::duplicate_profile,
+            commands::rename_profile,
+            commands::delete_profile,
+            commands::switch_profile,
+            commands::save_counters,
+            commands::activate_license,
+            commands::refresh_license,
+            commands::deactivate_license,
+            commands::open_customer_portal,
+            commands::open_pro_page
         ])
 }
 
@@ -49,8 +63,14 @@ pub fn run() {
                 settings::save(&store_handle, settings)
             }));
 
+            let license_handle = handle.clone();
+            app.manage(LicenseVault::new(move |license| {
+                license::save(&license_handle, &SystemSecretStore, license)
+            }));
+
             let sidecar = handle.state::<Sidecar>();
             sidecar.init_settings(settings::load(&handle));
+            sidecar.init_license(license::load(&handle, &SystemSecretStore));
             if let Err(error) = sidecar.start(&handle) {
                 log::error!("failed to start the sidecar ({})", error.code);
             }

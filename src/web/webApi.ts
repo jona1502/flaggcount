@@ -15,6 +15,7 @@ let lastState: AppState | null = null;
 const STREAM_RETRY_MS = 3000;
 const SERVER_UNAVAILABLE: AppError = { code: 'sidecar-unavailable', message: 'The server is not reachable' };
 const SESSION_EXPIRED: AppError = { code: 'unknown', message: 'The session has expired' };
+const DESKTOP_ONLY: AppError = { code: 'unknown', message: 'FlagCount Pro is managed in the desktop app' };
 
 /** Notifies when the server no longer accepts the session, e.g. after it expired or the password changed. */
 export function onUnauthorized(handler: () => void): () => void {
@@ -150,7 +151,21 @@ export const webApi: FlagCountApi = {
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
-  setTelemetryEnabled: (enabled: boolean) => post('/api/telemetry', { enabled }),
+  // Profiles are managed in the desktop app; the web version runs a single profile.
+  createProfile: () => Promise.reject(DESKTOP_ONLY),
+  duplicateProfile: () => Promise.reject(DESKTOP_ONLY),
+  renameProfile: () => Promise.reject(DESKTOP_ONLY),
+  deleteProfile: () => Promise.reject(DESKTOP_ONLY),
+  switchProfile: () => Promise.reject(DESKTOP_ONLY),
+  saveCounters: () => Promise.reject(DESKTOP_ONLY),
+  // FlagCount Pro is managed in the desktop app.
+  activateLicense: () => Promise.reject(DESKTOP_ONLY),
+  refreshLicense: () => Promise.reject(DESKTOP_ONLY),
+  deactivateLicense: () => Promise.reject(DESKTOP_ONLY),
+  openCustomerPortal: () => Promise.reject(DESKTOP_ONLY),
+  openProPage: async () => {
+    window.open('/pro', '_blank', 'noopener');
+  },
   copyText: (text: string) => navigator.clipboard.writeText(text),
 
   onStateChanged: (handler) => subscribe(stateListeners, handler),

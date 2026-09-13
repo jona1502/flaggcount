@@ -1,18 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { AppError, AppState } from '../../shared/appState';
+import type { CounterDefinition } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
 
 export type FlagCountActions = {
   connect: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  addManualVote: () => Promise<void>;
-  removeManualVote: () => Promise<void>;
-  resetVotes: () => Promise<void>;
+  addManualVote: (counterId?: string, optionId?: string) => Promise<void>;
+  removeManualVote: (counterId?: string, optionId?: string) => Promise<void>;
+  /** Without a counter id every round starts over. */
+  resetVotes: (counterId?: string) => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
-  setTelemetryEnabled: (enabled: boolean) => Promise<void>;
+  createProfile: (name: string) => Promise<void>;
+  duplicateProfile: (profileId: string) => Promise<void>;
+  renameProfile: (profileId: string, name: string) => Promise<void>;
+  deleteProfile: (profileId: string) => Promise<void>;
+  switchProfile: (profileId: string) => Promise<void>;
+  saveCounters: (counters: CounterDefinition[]) => Promise<void>;
+  activateLicense: (code: string, replaceInstallationId?: string) => Promise<void>;
+  refreshLicense: () => Promise<void>;
+  deactivateLicense: () => Promise<void>;
+  openCustomerPortal: () => Promise<void>;
+  openProPage: () => Promise<void>;
 };
 
 export type FlagCountController = {
@@ -95,12 +107,28 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
     () => ({
       connect: (username) => run(() => api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
-      addManualVote: () => run(() => api.addManualVote()),
-      removeManualVote: () => run(() => api.removeManualVote()),
-      resetVotes: () => run(() => api.resetVotes()),
+      addManualVote: (counterId, optionId) => run(() => api.addManualVote(counterId, optionId)),
+      removeManualVote: (counterId, optionId) => run(() => api.removeManualVote(counterId, optionId)),
+      resetVotes: (counterId) => run(() => api.resetVotes(counterId)),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
-      setTelemetryEnabled: (enabled) => run(() => api.setTelemetryEnabled(enabled))
+      createProfile: (name) =>
+        run(async () => {
+          await api.createProfile(name);
+        }),
+      duplicateProfile: (profileId) =>
+        run(async () => {
+          await api.duplicateProfile(profileId);
+        }),
+      renameProfile: (profileId, name) => run(() => api.renameProfile(profileId, name)),
+      deleteProfile: (profileId) => run(() => api.deleteProfile(profileId)),
+      switchProfile: (profileId) => run(() => api.switchProfile(profileId)),
+      saveCounters: (counters) => run(() => api.saveCounters(counters)),
+      activateLicense: (code, replaceInstallationId) => run(() => api.activateLicense(code, replaceInstallationId)),
+      refreshLicense: () => run(() => api.refreshLicense()),
+      deactivateLicense: () => run(() => api.deactivateLicense()),
+      openCustomerPortal: () => run(() => api.openCustomerPortal()),
+      openProPage: () => run(() => api.openProPage())
     }),
     [api, run]
   );

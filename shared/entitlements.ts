@@ -1,3 +1,10 @@
+import { createRedFlagCounter, type CounterDefinition, type Settings, type StreamProfile } from './profiles';
+import { RED_FLAG, WHITE_FLAG } from './voting/redFlag';
+import { triggerKey, type Trigger } from './voting/triggers';
+
+export type Plan = 'free' | 'pro';
+
+/** Every product capability that is not part of FlagCount Free. The only source of truth for gates. */
 export const FEATURES = [
   'custom-triggers',
   'multi-option-polls',
@@ -11,106 +18,214 @@ export const FEATURES = [
 ] as const;
 
 export type Feature = (typeof FEATURES)[number];
-export type Plan = 'free' | 'pro';
+
+export type PlanLimits = {
+  profiles: number;
+  /** Counters and polls running at the same time. */
+  counters: number;
+  /** Options per counter; Free only has the single red flag option. */
+  pollOptions: number;
+  optionTriggers: number;
+  withdrawalTriggers: number;
+  /** Local and online overlay URLs, one per counter. */
+  overlayUrls: number;
+  /** Stored aggregated rounds; Free keeps no history. */
+  historyRecords: number;
+  logoBytes: number;
+  backgroundBytes: number;
+};
+
+export type LimitName = keyof PlanLimits;
 
 export type Entitlements = {
   plan: Plan;
   features: ReadonlySet<Feature>;
-  limits: {
-    profiles: number;
-    counters: number;
-    pollOptions: number;
-    historyRecords: number;
-    positiveTriggersPerOption: number;
-    withdrawalTriggersPerCounter: number;
-    localOverlays: number;
-    publicOverlays: number;
-  };
+  limits: Readonly<PlanLimits>;
 };
 
-const FREE_FEATURES: ReadonlySet<Feature> = new Set();
-const PRO_FEATURES: ReadonlySet<Feature> = new Set(FEATURES);
+const MEGABYTE = 1024 * 1024;
 
-export const FREE_ENTITLEMENTS: Entitlements = {
+export const FREE_LIMITS: Readonly<PlanLimits> = Object.freeze({
+  profiles: 1,
+  counters: 1,
+  pollOptions: 1,
+  optionTriggers: 1,
+  withdrawalTriggers: 1,
+  overlayUrls: 1,
+  historyRecords: 0,
+  logoBytes: 0,
+  backgroundBytes: 0
+});
+
+export const PRO_LIMITS: Readonly<PlanLimits> = Object.freeze({
+  profiles: 10,
+  counters: 4,
+  pollOptions: 6,
+  optionTriggers: 8,
+  withdrawalTriggers: 4,
+  overlayUrls: 4,
+  historyRecords: 500,
+  logoBytes: 2 * MEGABYTE,
+  backgroundBytes: 5 * MEGABYTE
+});
+
+export const FREE_ENTITLEMENTS: Entitlements = Object.freeze({
   plan: 'free',
-  features: FREE_FEATURES,
-  limits: {
-    profiles: 1,
-    counters: 1,
-    pollOptions: 1,
-    historyRecords: 0,
-    positiveTriggersPerOption: 0,
-    withdrawalTriggersPerCounter: 0,
-    localOverlays: 1,
-    publicOverlays: 1
-  }
-};
+  features: new Set<Feature>(),
+  limits: FREE_LIMITS
+});
 
-export const PRO_ENTITLEMENTS: Entitlements = {
+export const PRO_ENTITLEMENTS: Entitlements = Object.freeze({
   plan: 'pro',
-  features: PRO_FEATURES,
-  limits: {
-    profiles: 10,
-    counters: 4,
-    pollOptions: 6,
-    historyRecords: 500,
-    positiveTriggersPerOption: 8,
-    withdrawalTriggersPerCounter: 4,
-    localOverlays: 4,
-    publicOverlays: 4
-  }
-};
+  features: new Set<Feature>(FEATURES),
+  limits: PRO_LIMITS
+});
+
+export function isFeature(value: unknown): value is Feature {
+  return typeof value === 'string' && (FEATURES as readonly string[]).includes(value);
+}
+
+/**
+ * Entitlements of a verified license. A license may grant fewer features than the plan offers;
+ * unknown feature names from newer servers are ignored.
+ */
+export function entitlementsFor(plan: Plan, grantedFeatures: readonly string[] = FEATURES): Entitlements {
+  if (plan === 'free') return FREE_ENTITLEMENTS;
+  return { plan, features: new Set(grantedFeatures.filter(isFeature)), limits: PRO_LIMITS };
+}
 
 export function canUse(entitlements: Entitlements, feature: Feature): boolean {
   return entitlements.features.has(feature);
 }
 
-export function limitFor<K extends keyof Entitlements['limits']>(entitlements: Entitlements, limit: K): number {
+export function limitFor(entitlements: Entitlements, limit: LimitName): number {
   return entitlements.limits[limit];
 }
 
-export function requireFeature(entitlements: Entitlements, feature: Feature): void {
-  if (!canUse(entitlements, feature)) throw new EntitlementError(feature);
-}
+export type EntitlementViolation =
+  | { kind: 'feature'; feature: Feature }
+  | { kind: 'limit'; limit: LimitName; allowed: number; requested: number };
 
+/** Thrown by write actions the current plan does not allow; the UI shows the matching Pro hint. */
 export class EntitlementError extends Error {
-  readonly code = 'feature-not-entitled';
-  constructor(readonly feature: Feature) {
-    super(`Feature requires FlagCount Pro: ${feature}`);
+  readonly code = 'pro-required';
+
+  constructor(readonly violation: EntitlementViolation) {
+    super(
+      violation.kind === 'feature'
+        ? `The feature ${violation.feature} requires FlagCount Pro`
+        : `The limit ${violation.limit} allows ${violation.allowed}, requested ${violation.requested}`
+    );
     this.name = 'EntitlementError';
   }
 }
 
-export function entitlementsForPlan(plan: Plan): Entitlements {
-  return plan === 'pro' ? PRO_ENTITLEMENTS : FREE_ENTITLEMENTS;
+export function requireFeature(entitlements: Entitlements, feature: Feature): void {
+  if (!canUse(entitlements, feature)) {
+    throw new EntitlementError({ kind: 'feature', feature });
+  }
 }
 
-export type EntitlementViolation =
-  | 'profiles-limit'
-  | 'counters-limit'
-  | 'poll-options-limit'
-  | 'custom-triggers'
-  | 'withdrawal-triggers-limit'
-  | 'history-limit';
-
-/** Checks a proposed profile collection before any write; returns the first user-actionable gate. */
-export function validateProfileLimits(
-  entitlements: Entitlements,
-  profiles: ReadonlyArray<{ counters: ReadonlyArray<{ mode: 'single' | 'poll'; options: ReadonlyArray<{ triggers: ReadonlyArray<unknown> }>; withdrawalTriggers: ReadonlyArray<unknown> }> }>
-): EntitlementViolation | null {
-  if (profiles.length > entitlements.limits.profiles) return 'profiles-limit';
-  for (const profile of profiles) {
-    if (profile.counters.length > entitlements.limits.counters) return 'counters-limit';
-    for (const counter of profile.counters) {
-      if (counter.mode === 'poll' && counter.options.length > entitlements.limits.pollOptions) return 'poll-options-limit';
-      if (counter.withdrawalTriggers.length > entitlements.limits.withdrawalTriggersPerCounter) {
-        if (entitlements.limits.withdrawalTriggersPerCounter === 0) return 'custom-triggers';
-        return 'withdrawal-triggers-limit';
-      }
-      for (const option of counter.options) {
-        if (option.triggers.length > entitlements.limits.positiveTriggersPerOption) return 'custom-triggers';
-      }
-    }
+export function requireWithinLimit(entitlements: Entitlements, limit: LimitName, requested: number): void {
+  const allowed = limitFor(entitlements, limit);
+  if (requested > allowed) {
+    throw new EntitlementError({ kind: 'limit', limit, allowed, requested });
   }
-  return null;
+}
+
+const sameTriggers = (triggers: readonly Trigger[], expected: readonly string[]): boolean =>
+  triggers.length === expected.length && triggers.every((trigger, index) => triggerKey(trigger) === expected[index]);
+
+const RED_FLAG_KEYS = [triggerKey({ kind: 'emoji', value: RED_FLAG, match: 'contains' })];
+const WHITE_FLAG_KEYS = [triggerKey({ kind: 'emoji', value: WHITE_FLAG, match: 'contains' })];
+
+/** Features a counter needs beyond the Free red flag counter. Names, targets and the basic design stay Free. */
+export function requiredFeatures(counter: CounterDefinition): Feature[] {
+  const features: Feature[] = [];
+  if (counter.mode === 'poll') {
+    features.push('multi-option-polls');
+  }
+  const customTriggers =
+    counter.options.some((option) => !sameTriggers(option.triggers, RED_FLAG_KEYS)) ||
+    !(counter.withdrawalTriggers.length === 0 || sameTriggers(counter.withdrawalTriggers, WHITE_FLAG_KEYS));
+  if (customTriggers) {
+    features.push('custom-triggers');
+  }
+  return features;
+}
+
+function limitViolation(entitlements: Entitlements, limit: LimitName, requested: number): EntitlementViolation[] {
+  const allowed = limitFor(entitlements, limit);
+  return requested > allowed ? [{ kind: 'limit', limit, allowed, requested }] : [];
+}
+
+/** Everything that keeps these counters from running on the given plan; empty if they are allowed. */
+export function checkCounters(counters: readonly CounterDefinition[], entitlements: Entitlements): EntitlementViolation[] {
+  const violations: EntitlementViolation[] = [];
+  if (counters.length > 1 && !canUse(entitlements, 'parallel-counters')) {
+    violations.push({ kind: 'feature', feature: 'parallel-counters' });
+  }
+  violations.push(...limitViolation(entitlements, 'counters', counters.length));
+
+  for (const counter of counters) {
+    for (const feature of requiredFeatures(counter)) {
+      if (!canUse(entitlements, feature)) violations.push({ kind: 'feature', feature });
+    }
+    violations.push(...limitViolation(entitlements, 'pollOptions', counter.options.length));
+    violations.push(...limitViolation(entitlements, 'withdrawalTriggers', counter.withdrawalTriggers.length));
+    const mostTriggers = Math.max(0, ...counter.options.map((option) => option.triggers.length));
+    violations.push(...limitViolation(entitlements, 'optionTriggers', mostTriggers));
+  }
+
+  // The same missing feature is reported once.
+  const seen = new Set<string>();
+  return violations.filter((violation) => {
+    const key = JSON.stringify(violation);
+    return seen.has(key) ? false : (seen.add(key), true);
+  });
+}
+
+export function checkSettings(settings: Settings, entitlements: Entitlements): EntitlementViolation[] {
+  const violations: EntitlementViolation[] = [];
+  if (settings.profiles.length > 1 && !canUse(entitlements, 'multiple-profiles')) {
+    violations.push({ kind: 'feature', feature: 'multiple-profiles' });
+  }
+  violations.push(...limitViolation(entitlements, 'profiles', settings.profiles.length));
+  for (const profile of settings.profiles) {
+    violations.push(...checkCounters(profile.counters, entitlements));
+  }
+  return violations;
+}
+
+/**
+ * Only the first profiles up to the plan's limit are usable; after a downgrade the others stay stored
+ * but inactive until Pro is active again. The Free profile is always the first one.
+ */
+export function isProfileUsable(settings: Settings, profileId: string, entitlements: Entitlements): boolean {
+  const index = settings.profiles.findIndex((profile) => profile.id === profileId);
+  return index >= 0 && index < limitFor(entitlements, 'profiles');
+}
+
+export function effectiveProfile(settings: Settings, entitlements: Entitlements): StreamProfile {
+  const active = settings.profiles.find((profile) => profile.id === settings.activeProfileId);
+  if (active && isProfileUsable(settings, active.id, entitlements)) return active;
+  return settings.profiles[0] as StreamProfile;
+}
+
+/**
+ * The counters that may actually run. Nothing is deleted: counters the plan does not cover are
+ * skipped, and if none is left the Free red flag counter runs with the first counter's target and design.
+ */
+export function effectiveCounters(counters: readonly CounterDefinition[], entitlements: Entitlements): CounterDefinition[] {
+  if (checkCounters(counters, entitlements).length === 0) {
+    return [...counters];
+  }
+  const allowed = counters
+    .filter((counter) => checkCounters([counter], entitlements).length === 0)
+    .slice(0, limitFor(entitlements, 'counters'));
+  if (allowed.length > 0) {
+    return allowed;
+  }
+  const first = counters[0];
+  return [createRedFlagCounter(first?.target ?? undefined, first?.overlay)];
 }

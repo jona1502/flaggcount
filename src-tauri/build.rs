@@ -14,7 +14,17 @@ fn main() {
             "reset_votes",
             "set_target",
             "set_overlay_settings",
-            "set_telemetry_enabled",
+            "create_profile",
+            "duplicate_profile",
+            "rename_profile",
+            "delete_profile",
+            "switch_profile",
+            "save_counters",
+            "activate_license",
+            "refresh_license",
+            "deactivate_license",
+            "open_customer_portal",
+            "open_pro_page",
         ]),
     ))
     .expect("failed to run tauri-build");

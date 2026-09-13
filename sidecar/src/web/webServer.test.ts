@@ -3,6 +3,7 @@ import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { migrateSettingsV1, primaryCounter, type Settings } from '../../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { AppError } from '../../../shared/appState';
 import { channelIdForKey } from '../relay/relayChannel';
@@ -21,10 +22,13 @@ afterEach(async () => {
 });
 
 async function start(overrides: Partial<WebServerOptions> = {}) {
-  const saved: unknown[] = [];
+  const saved: Settings[] = [];
   const controller = new WebController(
     () => ({ connect: async () => undefined, disconnect: async () => undefined }),
-    { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false },
+    migrateSettingsV1(
+      { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
+      '2026-01-01T00:00:00.000Z'
+    ),
     { save: async (settings) => void saved.push(settings) },
     () => undefined
   );
@@ -131,71 +135,6 @@ describe('isCorrectPassword', () => {
 });
 
 describe('startWebServer', () => {
-  it('subscribes and unsubscribes waitlist contacts with explicit consent', async () => {
-    const subscriptions: unknown[][] = [];
-    const removals: unknown[] = [];
-    const { server } = await start({
-      waitlist: {
-        subscribe: async (email, consent) => {
-          subscriptions.push([email, consent]);
-          return consent === true ? 'ok' : 'consent-required';
-        },
-        unsubscribe: async (email) => {
-          removals.push(email);
-          return 'ok';
-        }
-      }
-    });
-
-    expect(
-      (await send(server.port, '/api/v1/waitlist', post({ email: 'person@example.com', consent: false }))).status
-    ).toBe(400);
-    expect(
-      (await send(server.port, '/api/v1/waitlist', post({ email: 'person@example.com', consent: true }))).status
-    ).toBe(204);
-    expect(
-      (await send(server.port, '/api/v1/waitlist/unsubscribe', post({ email: 'person@example.com' }))).status
-    ).toBe(204);
-    expect(subscriptions).toEqual([
-      ['person@example.com', false],
-      ['person@example.com', true]
-    ]);
-    expect(removals).toEqual(['person@example.com']);
-  });
-
-  it('accepts only aggregate telemetry without requiring a dashboard session', async () => {
-    const received: unknown[] = [];
-    const { server } = await start({ onTelemetry: (event) => received.push(event) });
-    const valid = {
-      event: { version: 1, name: 'round_completed', voteCountBucket: '10-49' },
-      appVersion: '0.2.3',
-      platform: 'windows',
-      osMajor: '11'
-    };
-
-    expect((await send(server.port, '/api/v1/analytics/events', post(valid))).status).toBe(204);
-    expect(received).toEqual([valid]);
-
-    const identifying = { ...valid, username: 'creator' };
-    expect((await send(server.port, '/api/v1/analytics/events', post(identifying))).status).toBe(400);
-    expect(received).toHaveLength(1);
-  });
-
-  it('rate limits telemetry independently of dashboard login', async () => {
-    const { server } = await start({ maxTelemetryEventsPerMinute: 1 });
-    const event = {
-      event: { version: 1, name: 'app_started' },
-      appVersion: '0.2.3',
-      platform: 'windows',
-      osMajor: '11'
-    };
-
-    expect((await send(server.port, '/api/v1/analytics/events', post(event))).status).toBe(204);
-    const limited = await send(server.port, '/api/v1/analytics/events', post(event));
-    expect(limited.status).toBe(429);
-    expect(limited.headers['retry-after']).toBe('60');
-  });
-
   it('serves the health check and the overlay without a login', async () => {
     const { server } = await start();
 
@@ -356,13 +295,14 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/connect', post({ username: '@Streamer' }, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/manual-vote', post({}, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/manual-vote/remove', post({}, { cookie }))).status).toBe(204);
-    expect((await send(server.port, '/api/telemetry', post({ enabled: true }, { cookie }))).status).toBe(204);
 
     const state = JSON.parse((await send(server.port, '/api/state', { headers: { cookie } })).body);
     expect(state.votes.target).toBe(25);
     expect(state.votes.count).toBe(0);
-    expect(state.settings).toMatchObject({ username: 'streamer', target: 25, telemetryEnabled: true });
-    expect(saved.at(-1)).toMatchObject({ username: 'streamer', target: 25, telemetryEnabled: true });
+    expect(state.settings.username).toBe('streamer');
+    expect(primaryCounter(state.settings).target).toBe(25);
+    expect(saved.at(-1)).toMatchObject({ username: 'streamer' });
+    expect(primaryCounter(saved.at(-1) as Settings).target).toBe(25);
   });
 
   it('rejects invalid input with an app error', async () => {
