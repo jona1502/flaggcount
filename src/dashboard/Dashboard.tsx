@@ -16,6 +16,8 @@ type DashboardProps = {
   onCopyText: (text: string) => Promise<void>;
   version?: string | null;
   updater?: UpdaterController;
+  /** Only the web version has a login to sign out of. */
+  onLogout?: () => void;
 };
 
 export function Dashboard({
@@ -26,7 +28,8 @@ export function Dashboard({
   onDismissError,
   onCopyText,
   version,
-  updater
+  updater,
+  onLogout
 }: DashboardProps): React.JSX.Element {
   return (
     <main className="app">
@@ -34,7 +37,7 @@ export function Dashboard({
         <h1>
           <span aria-hidden="true">🚩</span> FlagCount
         </h1>
-        {(version || updater) && (
+        {(version || updater || onLogout) && (
           <div className="version-actions">
             {version && <span className="version">Version {version}</span>}
             {updater && (
@@ -45,6 +48,11 @@ export function Dashboard({
                 onClick={() => void updater.checkForUpdates()}
               >
                 Nach Updates suchen
+              </button>
+            )}
+            {onLogout && (
+              <button type="button" className="text-button" onClick={onLogout}>
+                Abmelden
               </button>
             )}
           </div>
