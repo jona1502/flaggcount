@@ -99,7 +99,8 @@ describe('OverlayPanel', () => {
     renderPanel({ overlayUrl: null });
 
     expect(screen.getByText('Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.')).toBeTruthy();
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'URL kopieren' })).toBeNull();
+    expect(screen.queryByTitle('Vorschau des Overlays')).toBeNull();
   });
 
   it('shows the saved display settings', () => {

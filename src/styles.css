@@ -410,9 +410,7 @@ input[readonly] {
 
 .overlay-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 20px;
-  align-items: end;
+  gap: 16px;
 }
 
 .overlay-options {
@@ -451,6 +449,118 @@ input[readonly] {
 .overlay-options:disabled .checkbox {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.designer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.designer-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.designer-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.designer-group legend {
+  margin: 0 0 6px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.designer-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.designer input[type='color'] {
+  width: 100%;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.designer select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+}
+
+.designer input[type='range'] {
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  accent-color: var(--accent);
+}
+
+.range-value {
+  min-width: 3.2em;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.designer-reset {
+  justify-self: start;
+}
+
+.overlay-preview-frame {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+/* Checkerboard shows which parts of the overlay are transparent. */
+.overlay-preview {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: #2a2d33;
+  background-image:
+    linear-gradient(45deg, #34373e 25%, transparent 25%),
+    linear-gradient(-45deg, #34373e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #34373e 75%),
+    linear-gradient(-45deg, transparent 75%, #34373e 75%);
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0;
+  background-size: 20px 20px;
+}
+
+.overlay-preview iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  /* A color scheme matching the embedded page keeps the iframe transparent. */
+  color-scheme: normal;
 }
 
 .visually-hidden {
@@ -494,6 +604,10 @@ input[readonly] {
     gap: 14px;
   }
 
+  .designer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .overlay-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
@@ -524,6 +638,10 @@ input[readonly] {
 
   .input-row .button {
     flex: 1;
+  }
+
+  .designer-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .overlay-options {

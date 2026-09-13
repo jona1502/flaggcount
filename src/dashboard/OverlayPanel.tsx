@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { OverlaySettings } from '../../shared/settings';
+import { OverlayDesigner } from './OverlayDesigner';
 
 type OverlayPanelProps = {
   overlayUrl: string | null;
@@ -95,27 +96,12 @@ export function OverlayPanel({
           <p className="hint">Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.</p>
         )}
 
-        <fieldset className="overlay-options" disabled={disabled}>
-          <legend>Darstellung</legend>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.showBackground}
-              disabled={disabled}
-              onChange={(event) => onChangeSettings({ ...settings, showBackground: event.target.checked })}
-            />
-            Hintergrund anzeigen
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.showProgress}
-              disabled={disabled}
-              onChange={(event) => onChangeSettings({ ...settings, showProgress: event.target.checked })}
-            />
-            Fortschrittsbalken anzeigen
-          </label>
-        </fieldset>
+        <OverlayDesigner
+          settings={settings}
+          previewUrl={overlayUrl}
+          disabled={disabled}
+          onChange={onChangeSettings}
+        />
       </div>
     </section>
   );

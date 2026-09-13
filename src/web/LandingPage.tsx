@@ -58,13 +58,8 @@ export function LandingPage(): React.JSX.Element {
       </header>
 
       <main className="landing-inner">
-        <section className="landing-hero" aria-labelledby="hero-title">
+        <section className="landing-hero">
           <div>
-            <h1 id="hero-title">Rote Flaggen im Live-Chat, live gezählt.</h1>
-            <p className="lead">
-              FlagCount liest den Chat deines TikTok-Livestreams mit, zählt jede 🚩 als Stimme und zeigt das Ergebnis als
-              Overlay in OBS.
-            </p>
             <div className="download-row">
               <a className="download-button" href="/download">
                 <Icon>
