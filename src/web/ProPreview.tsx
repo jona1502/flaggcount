@@ -17,7 +17,7 @@ export function ProPreview(): React.JSX.Element {
   const [consent, setConsent] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<FormStatus>(null);
-  const [prices, setPrices] = useState<Price[]>([]);
+  const prices: Price[] = [];
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
 
   const checkout = async (plan: 'monthly' | 'yearly'): Promise<void> => {
