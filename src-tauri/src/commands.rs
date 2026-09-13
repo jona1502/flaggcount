@@ -1,23 +1,16 @@
-use tauri::State;
+use tauri::{AppHandle, Runtime, State};
 
+use crate::settings::{self, OverlaySettings, MAX_TARGET, MIN_TARGET};
 use crate::sidecar::{AppError, AppState, Sidecar, SidecarCommand};
-
-/// Generous upper bound: profile URLs are accepted and normalized by the sidecar.
-pub const MAX_USERNAME_LENGTH: usize = 100;
-pub const MIN_TARGET: u32 = 1;
-pub const MAX_TARGET: u32 = 100_000;
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
 pub fn validate_username(username: &str) -> Result<String, AppError> {
-    let trimmed = username.trim();
-    if trimmed.is_empty() || trimmed.chars().count() > MAX_USERNAME_LENGTH {
-        return Err(AppError::new("invalid-username", "Invalid TikTok username"));
-    }
-    Ok(trimmed.to_string())
+    settings::normalize_username(username)
+        .ok_or_else(|| AppError::new("invalid-username", "Invalid TikTok username"))
 }
 
 pub fn validate_target(target: u32) -> Result<u32, AppError> {
-    if (MIN_TARGET..=MAX_TARGET).contains(&target) {
+    if settings::is_valid_target(target) {
         Ok(target)
     } else {
         Err(AppError::new(
@@ -27,15 +20,33 @@ pub fn validate_target(target: u32) -> Result<u32, AppError> {
     }
 }
 
+/// Settings are saved first; a sidecar that is (re)starting applies them once it is ready.
+fn send_setting(sidecar: &Sidecar, command: &SidecarCommand) -> Result<(), AppError> {
+    match sidecar.send(command) {
+        Err(error) if error.code == "sidecar-unavailable" => Ok(()),
+        result => result,
+    }
+}
+
 #[tauri::command]
 pub fn get_state(sidecar: State<'_, Sidecar>) -> AppState {
     sidecar.state()
 }
 
 #[tauri::command]
-pub fn connect(sidecar: State<'_, Sidecar>, username: String) -> Result<(), AppError> {
+pub fn connect<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    username: String,
+) -> Result<(), AppError> {
     let username = validate_username(&username)?;
-    sidecar.send(&SidecarCommand::Connect { username })
+    sidecar.send(&SidecarCommand::Connect {
+        username: username.clone(),
+    })?;
+
+    let saved = sidecar.update_settings(&app, |settings| settings.username = username);
+    settings::save(&app, &saved);
+    Ok(())
 }
 
 #[tauri::command]
@@ -49,14 +60,32 @@ pub fn reset_votes(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 }
 
 #[tauri::command]
-pub fn set_target(sidecar: State<'_, Sidecar>, target: u32) -> Result<(), AppError> {
+pub fn set_target<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    target: u32,
+) -> Result<(), AppError> {
     let target = validate_target(target)?;
-    sidecar.send(&SidecarCommand::SetTarget { target })
+    let saved = sidecar.update_settings(&app, |settings| settings.target = target);
+    settings::save(&app, &saved);
+    send_setting(&sidecar, &SidecarCommand::SetTarget { target })
+}
+
+#[tauri::command]
+pub fn set_overlay_settings<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    overlay: OverlaySettings,
+) -> Result<(), AppError> {
+    let saved = sidecar.update_settings(&app, |settings| settings.overlay = overlay);
+    settings::save(&app, &saved);
+    send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::MAX_USERNAME_LENGTH;
 
     #[test]
     fn trims_valid_usernames() {

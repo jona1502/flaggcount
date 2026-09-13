@@ -14,7 +14,8 @@ const state: AppState = {
   sidecarRunning: true,
   connection: { status: 'connected', username: 'streamer' },
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
-  overlayUrl: 'http://127.0.0.1:3847/overlay'
+  overlayUrl: 'http://127.0.0.1:3847/overlay',
+  settings: { username: 'streamer', target: 10, overlay: { showBackground: true, showProgress: true } }
 };
 
 describe('flagcountApi', () => {
@@ -30,13 +31,15 @@ describe('flagcountApi', () => {
     await flagcountApi.disconnect();
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
+    await flagcountApi.setOverlaySettings({ showBackground: false, showProgress: true });
 
     expect(vi.mocked(invoke).mock.calls).toEqual([
       ['get_state'],
       ['connect', { username: 'streamer' }],
       ['disconnect'],
       ['reset_votes'],
-      ['set_target', { target: 25 }]
+      ['set_target', { target: 25 }],
+      ['set_overlay_settings', { overlay: { showBackground: false, showProgress: true } }]
     ]);
   });
 

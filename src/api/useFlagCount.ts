@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { AppError, AppState } from '../../shared/appState';
+import type { OverlaySettings } from '../../shared/settings';
 import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
 
 export type FlagCountActions = {
@@ -8,6 +9,7 @@ export type FlagCountActions = {
   disconnect: () => Promise<void>;
   resetVotes: () => Promise<void>;
   setTarget: (target: number) => Promise<void>;
+  setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
 };
 
 export type FlagCountController = {
@@ -91,7 +93,8 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       connect: (username) => run(() => api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
       resetVotes: () => run(() => api.resetVotes()),
-      setTarget: (target) => run(() => api.setTarget(target))
+      setTarget: (target) => run(() => api.setTarget(target)),
+      setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay))
     }),
     [api, run]
   );

@@ -6,6 +6,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
+use crate::settings::{OverlaySettings, Settings, DEFAULT_TARGET};
+
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
 /// The only window that receives app events.
@@ -15,7 +17,6 @@ pub const APP_ERROR_EVENT: &str = "app-error";
 /// Consecutive restarts before the app stops reviving a crashing sidecar.
 pub const MAX_RESTART_ATTEMPTS: u32 = 5;
 
-const DEFAULT_TARGET: u32 = 100;
 /// A sidecar that ran this long counts as healthy again and gets a fresh restart budget.
 const STABLE_RUNTIME: Duration = Duration::from_secs(60);
 const MAX_LOG_MESSAGE_CHARS: usize = 300;
@@ -28,6 +29,7 @@ pub enum SidecarCommand {
     Disconnect,
     Reset,
     SetTarget { target: u32 },
+    SetOverlaySettings { overlay: OverlaySettings },
     GetState,
 }
 
@@ -107,6 +109,7 @@ pub struct AppState {
     pub connection: ConnectionState,
     pub votes: VoteSnapshot,
     pub overlay_url: Option<String>,
+    pub settings: Settings,
 }
 
 /// URL of the OBS browser source served by the sidecar.
@@ -177,34 +180,38 @@ pub fn restart_delay(attempt: u32) -> Duration {
     Duration::from_secs(1u64 << attempt.saturating_sub(1).min(4))
 }
 
-/// What the user asked for, so a restarted sidecar can pick up where the old one stopped.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DesiredState {
-    pub username: Option<String>,
-    pub target: Option<u32>,
+/// Commands that bring a freshly started sidecar in line with the saved settings, and, after
+/// a crash, back to the stream the user was connected to.
+pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<SidecarCommand> {
+    let mut commands = vec![
+        SidecarCommand::SetTarget {
+            target: settings.target,
+        },
+        SidecarCommand::SetOverlaySettings {
+            overlay: settings.overlay,
+        },
+    ];
+    if let Some(username) = reconnect_to {
+        commands.push(SidecarCommand::Connect {
+            username: username.to_string(),
+        });
+    }
+    commands
 }
 
-impl DesiredState {
+/// The stream the user wants to be connected to, so a restarted sidecar can resume it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DesiredConnection {
+    pub username: Option<String>,
+}
+
+impl DesiredConnection {
     pub fn remember(&mut self, command: &SidecarCommand) {
         match command {
             SidecarCommand::Connect { username } => self.username = Some(username.clone()),
             SidecarCommand::Disconnect => self.username = None,
-            SidecarCommand::SetTarget { target } => self.target = Some(*target),
-            SidecarCommand::Reset | SidecarCommand::GetState => {}
+            _ => {}
         }
-    }
-
-    pub fn restore_commands(&self) -> Vec<SidecarCommand> {
-        let mut commands = Vec::new();
-        if let Some(target) = self.target {
-            commands.push(SidecarCommand::SetTarget { target });
-        }
-        if let Some(username) = &self.username {
-            commands.push(SidecarCommand::Connect {
-                username: username.clone(),
-            });
-        }
-        commands
     }
 }
 
@@ -213,7 +220,7 @@ struct Inner {
     child: Option<CommandChild>,
     session: Option<SidecarSession>,
     state: AppState,
-    desired: DesiredState,
+    desired: DesiredConnection,
     stopping: bool,
     started_at: Option<Instant>,
     restart_attempts: u32,
@@ -234,6 +241,30 @@ pub struct Sidecar {
 }
 
 impl Sidecar {
+    /// Uses the loaded settings for the UI and every sidecar start.
+    pub fn init_settings(&self, settings: Settings) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.state.settings = settings;
+        }
+    }
+
+    /// Changes the settings, notifies the UI and returns the result for saving.
+    pub fn update_settings<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        change: impl FnOnce(&mut Settings),
+    ) -> Settings {
+        let state = match self.inner.lock() {
+            Ok(mut inner) => {
+                change(&mut inner.state.settings);
+                inner.state.clone()
+            }
+            Err(_) => return Settings::default(),
+        };
+        emit_state(app, &state);
+        state.settings
+    }
+
     pub fn start<R: Runtime>(&self, app: &AppHandle<R>) -> Result<(), AppError> {
         let state = {
             let mut inner = self.lock()?;
@@ -320,7 +351,7 @@ impl Sidecar {
             return;
         };
 
-        let (outcome, restore) = {
+        let (outcome, startup) = {
             let Ok(mut guard) = self.inner.lock() else {
                 return;
             };
@@ -342,12 +373,18 @@ impl Sidecar {
                 StateUpdate::Log(level, message) => Outcome::Log(level, message),
                 StateUpdate::None => Outcome::Nothing,
             };
-            let restore = if is_ready && std::mem::take(&mut inner.restore_pending) {
-                inner.desired.restore_commands()
+            let startup = if is_ready {
+                let reconnect = std::mem::take(&mut inner.restore_pending);
+                let reconnect_to = if reconnect {
+                    inner.desired.username.as_deref()
+                } else {
+                    None
+                };
+                startup_commands(&inner.state.settings, reconnect_to)
             } else {
                 Vec::new()
             };
-            (outcome, restore)
+            (outcome, startup)
         };
 
         match outcome {
@@ -360,9 +397,9 @@ impl Sidecar {
             Outcome::Nothing => {}
         }
 
-        for command in restore {
+        for command in startup {
             if let Err(error) = self.send(&command) {
-                log::warn!("failed to restore the sidecar state: {}", error.code);
+                log::warn!("failed to configure the sidecar: {}", error.code);
             }
         }
     }
@@ -479,6 +516,18 @@ mod tests {
             (
                 SidecarCommand::SetTarget { target: 25 },
                 json!({ "type": "setTarget", "target": 25 }),
+            ),
+            (
+                SidecarCommand::SetOverlaySettings {
+                    overlay: OverlaySettings {
+                        show_background: false,
+                        show_progress: true,
+                    },
+                },
+                json!({
+                    "type": "setOverlaySettings",
+                    "overlay": { "showBackground": false, "showProgress": true }
+                }),
             ),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
         ];
@@ -609,7 +658,12 @@ mod tests {
                 "sidecarRunning": false,
                 "connection": { "status": "disconnected", "username": null },
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
-                "overlayUrl": null
+                "overlayUrl": null,
+                "settings": {
+                    "username": "",
+                    "target": 100,
+                    "overlay": { "showBackground": true, "showProgress": true }
+                }
             })
         );
     }
@@ -625,29 +679,44 @@ mod tests {
     }
 
     #[test]
-    fn restores_target_and_connection_after_a_restart() {
-        let mut desired = DesiredState::default();
-
-        desired.remember(&SidecarCommand::SetTarget { target: 25 });
-        desired.remember(&SidecarCommand::Connect {
-            username: "streamer".into(),
-        });
-        desired.remember(&SidecarCommand::Reset);
+    fn configures_every_new_sidecar_from_the_saved_settings() {
+        let settings = Settings {
+            username: "saved".into(),
+            target: 25,
+            overlay: OverlaySettings {
+                show_background: false,
+                show_progress: true,
+            },
+        };
 
         assert_eq!(
-            desired.restore_commands(),
+            startup_commands(&settings, None),
             [
                 SidecarCommand::SetTarget { target: 25 },
-                SidecarCommand::Connect {
-                    username: "streamer".into()
+                SidecarCommand::SetOverlaySettings {
+                    overlay: settings.overlay
                 },
             ]
         );
+        assert_eq!(
+            startup_commands(&settings, Some("streamer")).last(),
+            Some(&SidecarCommand::Connect {
+                username: "streamer".into()
+            })
+        );
+    }
+
+    #[test]
+    fn remembers_the_desired_connection() {
+        let mut desired = DesiredConnection::default();
+
+        desired.remember(&SidecarCommand::Connect {
+            username: "streamer".into(),
+        });
+        desired.remember(&SidecarCommand::SetTarget { target: 5 });
+        assert_eq!(desired.username.as_deref(), Some("streamer"));
 
         desired.remember(&SidecarCommand::Disconnect);
-        assert_eq!(
-            desired.restore_commands(),
-            [SidecarCommand::SetTarget { target: 25 }]
-        );
+        assert_eq!(desired.username, None);
     }
 }

@@ -268,6 +268,42 @@ input[readonly] {
   color: var(--muted);
 }
 
+.overlay-options {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  border: none;
+}
+
+.overlay-options legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.overlay-options:disabled .checkbox {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .progress-fill {
     transition: none;

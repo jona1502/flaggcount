@@ -34,7 +34,9 @@ async function main(): Promise<void> {
       token,
       getState: () => app.getState(),
       getVotes: () => app.getVotes(),
-      subscribeVotes: (listener) => app.subscribeVotes(listener)
+      subscribeVotes: (listener) => app.subscribeVotes(listener),
+      getOverlaySettings: () => app.getOverlaySettings(),
+      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener)
     },
     DEFAULT_OVERLAY_PORT
   );

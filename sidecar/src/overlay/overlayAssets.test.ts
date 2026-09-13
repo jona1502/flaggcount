@@ -102,6 +102,25 @@ describe('overlay page', () => {
     expect(element('count').textContent).toBe('3');
   });
 
+  it('renders the saved overlay settings', () => {
+    const html = renderOverlayPage(votes(1, 4), { showBackground: false, showProgress: false });
+
+    expect(html).toContain('data-background="false"');
+    expect(html).toContain('data-progress="false"');
+  });
+
+  it('applies overlay settings changes live', () => {
+    const source = mountOverlay(votes(1, 4));
+    expect(element('overlay').dataset['background']).toBe('true');
+
+    source.emitRaw('settings', JSON.stringify({ showBackground: false, showProgress: false }));
+
+    expect(element('overlay').dataset['background']).toBe('false');
+    expect(element('overlay').dataset['progress']).toBe('false');
+    expect(() => source.emitRaw('settings', '{broken')).not.toThrow();
+    expect(element('overlay').dataset['background']).toBe('false');
+  });
+
   it('works under the strict content security policy', () => {
     const html = renderOverlayPage(votes(1, 2));
 

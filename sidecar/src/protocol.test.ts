@@ -7,6 +7,10 @@ describe('parseCommand', () => {
     ['{"type":"disconnect"}', { type: 'disconnect' }],
     ['{"type":"reset"}', { type: 'reset' }],
     ['{"type":"setTarget","target":25}', { type: 'setTarget', target: 25 }],
+    [
+      '{"type":"setOverlaySettings","overlay":{"showBackground":false,"showProgress":true,"extra":1}}',
+      { type: 'setOverlaySettings', overlay: { showBackground: false, showProgress: true } }
+    ],
     ['{"type":"getState","extra":true}', { type: 'getState' }]
   ])('parses %s', (line, expected) => {
     expect(parseCommand(line)).toEqual(expected);
@@ -20,6 +24,8 @@ describe('parseCommand', () => {
     '{"type":"connect"}',
     '{"type":"connect","username":5}',
     '{"type":"setTarget","target":"25"}',
+    '{"type":"setOverlaySettings"}',
+    '{"type":"setOverlaySettings","overlay":{"showBackground":"no","showProgress":true}}',
     '{"type":"shutdown"}'
   ])('rejects %j', (line) => {
     expect(parseCommand(line)).toBeNull();

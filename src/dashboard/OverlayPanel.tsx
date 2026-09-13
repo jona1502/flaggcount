@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react';
+import type { OverlaySettings } from '../../shared/settings';
 
 type OverlayPanelProps = {
   overlayUrl: string | null;
+  settings: OverlaySettings;
+  disabled: boolean;
   onCopy: (text: string) => Promise<void>;
+  onChangeSettings: (overlay: OverlaySettings) => void;
   feedbackMs?: number;
 };
 
-export function OverlayPanel({ overlayUrl, onCopy, feedbackMs = 2000 }: OverlayPanelProps): React.JSX.Element {
+export function OverlayPanel({
+  overlayUrl,
+  settings,
+  disabled,
+  onCopy,
+  onChangeSettings,
+  feedbackMs = 2000
+}: OverlayPanelProps): React.JSX.Element {
   const [feedback, setFeedback] = useState<'copied' | 'failed' | null>(null);
 
   useEffect(() => {
@@ -45,6 +56,28 @@ export function OverlayPanel({ overlayUrl, onCopy, feedbackMs = 2000 }: OverlayP
       ) : (
         <p className="hint">Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.</p>
       )}
+
+      <fieldset className="overlay-options" disabled={disabled}>
+        <legend>Darstellung</legend>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={settings.showBackground}
+            disabled={disabled}
+            onChange={(event) => onChangeSettings({ ...settings, showBackground: event.target.checked })}
+          />
+          Hintergrund anzeigen
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={settings.showProgress}
+            disabled={disabled}
+            onChange={(event) => onChangeSettings({ ...settings, showProgress: event.target.checked })}
+          />
+          Fortschrittsbalken anzeigen
+        </label>
+      </fieldset>
     </section>
   );
 }

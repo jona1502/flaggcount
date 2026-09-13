@@ -8,6 +8,7 @@ fn main() {
             "disconnect",
             "reset_votes",
             "set_target",
+            "set_overlay_settings",
         ]),
     ))
     .expect("failed to run tauri-build");

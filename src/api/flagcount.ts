@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { AppError, AppState } from '../../shared/appState';
+import type { OverlaySettings } from '../../shared/settings';
 
 export const STATE_CHANGED_EVENT = 'state-changed';
 export const APP_ERROR_EVENT = 'app-error';
@@ -13,6 +14,7 @@ export const flagcountApi = {
   disconnect: (): Promise<void> => invoke('disconnect'),
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
+  setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
   copyText: (text: string): Promise<void> => writeText(text),
 
   onStateChanged: (handler: (state: AppState) => void): Promise<UnlistenFn> =>

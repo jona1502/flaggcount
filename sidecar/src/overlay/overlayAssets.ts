@@ -1,13 +1,16 @@
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 
 /** Strict policy: no inline scripts or styles, only same-origin assets and the event stream. */
 export const OVERLAY_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 
-export function renderOverlayPage(votes: VoteSnapshot): string {
+export function renderOverlayPage(votes: VoteSnapshot, overlay: OverlaySettings = DEFAULT_OVERLAY_SETTINGS): string {
   const count = Math.max(0, Math.trunc(votes.count));
   const target = Math.max(1, Math.trunc(votes.target));
   const reached = votes.targetReached ? 'true' : 'false';
+  const background = overlay.showBackground ? 'true' : 'false';
+  const progress = overlay.showProgress ? 'true' : 'false';
 
   return `<!doctype html>
 <html lang="de">
@@ -19,7 +22,7 @@ export function renderOverlayPage(votes: VoteSnapshot): string {
 <script src="/overlay/overlay.js" defer></script>
 </head>
 <body>
-<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-connected="true">
+<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" data-connected="true">
 <div class="headline"><span class="flag" aria-hidden="true">🚩</span><span class="count" id="count">${count}</span><span class="separator">/</span><span class="target" id="target">${target}</span></div>
 <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
 </div>
@@ -52,6 +55,10 @@ body {
   transition: opacity 0.3s ease;
 }
 
+.overlay[data-background='false'] {
+  background: transparent;
+}
+
 .headline {
   display: flex;
   align-items: baseline;
@@ -77,6 +84,10 @@ body {
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.2);
+}
+
+.overlay[data-progress='false'] .bar {
+  display: none;
 }
 
 .bar-fill {
@@ -124,6 +135,15 @@ export const OVERLAY_SCRIPT = `(function () {
       root.dataset.connected = 'true';
     } catch (error) {
       // Ignore malformed updates and keep the last known state.
+    }
+  });
+  source.addEventListener('settings', function (event) {
+    try {
+      var settings = JSON.parse(event.data);
+      root.dataset.background = settings.showBackground ? 'true' : 'false';
+      root.dataset.progress = settings.showProgress ? 'true' : 'false';
+    } catch (error) {
+      // Ignore malformed updates and keep the last known settings.
     }
   });
   source.addEventListener('open', function () {

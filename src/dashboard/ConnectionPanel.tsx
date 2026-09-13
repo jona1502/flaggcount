@@ -3,6 +3,8 @@ import type { ConnectionState } from '../../shared/appState';
 
 type ConnectionPanelProps = {
   connection: ConnectionState;
+  /** Username from the last session, used to prefill the input. */
+  savedUsername: string;
   sidecarRunning: boolean;
   pending: boolean;
   onConnect: (username: string) => void;
@@ -33,12 +35,13 @@ function describeStatus(connection: ConnectionState, sidecarRunning: boolean): {
 
 export function ConnectionPanel({
   connection,
+  savedUsername,
   sidecarRunning,
   pending,
   onConnect,
   onDisconnect
 }: ConnectionPanelProps): React.JSX.Element {
-  const [username, setUsername] = useState(connection.username ?? '');
+  const [username, setUsername] = useState(connection.username ?? savedUsername);
   const [validation, setValidation] = useState<string | null>(null);
   const active = connection.status !== 'disconnected';
   const status = describeStatus(connection, sidecarRunning);

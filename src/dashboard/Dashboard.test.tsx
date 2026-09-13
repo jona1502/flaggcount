@@ -16,7 +16,8 @@ const baseState: AppState = {
   sidecarRunning: true,
   connection: { status: 'disconnected', username: null },
   votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
-  overlayUrl: 'http://127.0.0.1:3847/overlay'
+  overlayUrl: 'http://127.0.0.1:3847/overlay',
+  settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
 };
 
 type RenderOptions = {
@@ -30,7 +31,8 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     connect: vi.fn(async (_username: string) => undefined),
     disconnect: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),
-    setTarget: vi.fn(async (_target: number) => undefined)
+    setTarget: vi.fn(async (_target: number) => undefined),
+    setOverlaySettings: vi.fn(async () => undefined)
   } satisfies FlagCountActions;
   const onDismissError = vi.fn();
   const onCopyText = vi.fn(async (_text: string) => undefined);

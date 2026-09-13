@@ -1,4 +1,5 @@
 import type { ConnectionState } from '../../shared/appState';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { MAX_TARGET, MIN_TARGET, VotingService, isValidTarget, type VoteSnapshot } from '../../shared/voting';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLiveService';
@@ -6,6 +7,7 @@ import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLi
 export type SidecarStateSnapshot = {
   connection: ConnectionState;
   votes: VoteSnapshot;
+  overlay: OverlaySettings;
 };
 
 export type SidecarAppOptions = {
@@ -16,6 +18,8 @@ export type SidecarAppOptions = {
 export class SidecarApp {
   private readonly voting: VotingService;
   private readonly live: TikTokLiveService;
+  private overlay: OverlaySettings = { ...DEFAULT_OVERLAY_SETTINGS };
+  private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
 
   constructor(
     createConnection: LiveConnectionFactory,
@@ -36,7 +40,7 @@ export class SidecarApp {
   }
 
   getState(): SidecarStateSnapshot {
-    return { connection: this.live.getState(), votes: this.voting.getSnapshot() };
+    return { connection: this.live.getState(), votes: this.voting.getSnapshot(), overlay: this.getOverlaySettings() };
   }
 
   getVotes(): VoteSnapshot {
@@ -45,6 +49,17 @@ export class SidecarApp {
 
   subscribeVotes(listener: (votes: VoteSnapshot) => void): () => void {
     return this.voting.subscribe(listener);
+  }
+
+  getOverlaySettings(): OverlaySettings {
+    return { ...this.overlay };
+  }
+
+  subscribeOverlaySettings(listener: (overlay: OverlaySettings) => void): () => void {
+    this.overlayListeners.add(listener);
+    return () => {
+      this.overlayListeners.delete(listener);
+    };
   }
 
   async handleCommand(command: SidecarCommand): Promise<void> {
@@ -67,6 +82,12 @@ export class SidecarApp {
           return;
         }
         this.voting.setTarget(command.target);
+        break;
+      case 'setOverlaySettings':
+        this.overlay = { ...command.overlay };
+        for (const listener of this.overlayListeners) {
+          listener(this.getOverlaySettings());
+        }
         break;
       case 'getState': {
         const state = this.getState();

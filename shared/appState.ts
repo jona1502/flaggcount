@@ -1,3 +1,4 @@
+import type { Settings } from './settings';
 import type { VoteSnapshot } from './voting';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -39,4 +40,5 @@ export type AppState = {
   votes: VoteSnapshot;
   /** URL for the OBS browser source; `null` while the sidecar is not running. */
   overlayUrl: string | null;
+  settings: Settings;
 };

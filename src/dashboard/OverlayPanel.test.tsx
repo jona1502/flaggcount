@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '../../shared/appState';
+import type { FlagCountActions } from '../api/useFlagCount';
 import { Dashboard } from './Dashboard';
 import { OverlayPanel } from './OverlayPanel';
 
@@ -13,19 +15,32 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function renderPanel(overrides: Partial<ComponentProps<typeof OverlayPanel>> = {}) {
+  const props: ComponentProps<typeof OverlayPanel> = {
+    overlayUrl: OVERLAY_URL,
+    settings: { showBackground: true, showProgress: true },
+    disabled: false,
+    onCopy: vi.fn(async (_text: string) => undefined),
+    onChangeSettings: vi.fn(),
+    ...overrides
+  };
+  render(<OverlayPanel {...props} />);
+  return props;
+}
+
+const checkbox = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+
 describe('OverlayPanel', () => {
   it('shows the overlay URL', () => {
-    render(<OverlayPanel overlayUrl={OVERLAY_URL} onCopy={vi.fn()} />);
+    renderPanel();
 
     expect((screen.getByLabelText('Als Browserquelle in OBS hinzufügen') as HTMLInputElement).value).toBe(OVERLAY_URL);
   });
 
   it('copies the URL and confirms it', async () => {
-    const onCopy = vi.fn(async (_text: string) => undefined);
-    const user = userEvent.setup();
-    render(<OverlayPanel overlayUrl={OVERLAY_URL} onCopy={onCopy} />);
+    const { onCopy } = renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'URL kopieren' }));
 
     expect(onCopy).toHaveBeenCalledWith(OVERLAY_URL);
     expect(screen.getByRole('button', { name: 'Kopiert!' })).toBeTruthy();
@@ -33,7 +48,7 @@ describe('OverlayPanel', () => {
 
   it('resets the confirmation after a moment', async () => {
     vi.useFakeTimers();
-    render(<OverlayPanel overlayUrl={OVERLAY_URL} onCopy={vi.fn(async (_text: string) => undefined)} />);
+    renderPanel();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'URL kopieren' }));
@@ -48,22 +63,43 @@ describe('OverlayPanel', () => {
   });
 
   it('explains how to copy manually if the clipboard fails', async () => {
-    const onCopy = vi.fn(async (_text: string) => {
-      throw new Error('denied');
+    renderPanel({
+      onCopy: vi.fn(async (_text: string) => {
+        throw new Error('denied');
+      })
     });
-    const user = userEvent.setup();
-    render(<OverlayPanel overlayUrl={OVERLAY_URL} onCopy={onCopy} />);
 
-    await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'URL kopieren' }));
 
     expect(screen.getByRole('alert').textContent).toContain('manuell');
   });
 
   it('shows a hint while no overlay URL is available', () => {
-    render(<OverlayPanel overlayUrl={null} onCopy={vi.fn()} />);
+    renderPanel({ overlayUrl: null });
 
     expect(screen.getByText('Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.')).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('shows the saved display settings', () => {
+    renderPanel({ settings: { showBackground: false, showProgress: true } });
+
+    expect(checkbox('Hintergrund anzeigen').checked).toBe(false);
+    expect(checkbox('Fortschrittsbalken anzeigen').checked).toBe(true);
+  });
+
+  it('changes a display setting', async () => {
+    const { onChangeSettings } = renderPanel();
+
+    await userEvent.setup().click(checkbox('Fortschrittsbalken anzeigen'));
+
+    expect(onChangeSettings).toHaveBeenCalledWith({ showBackground: true, showProgress: false });
+  });
+
+  it('disables the display settings while an action is pending', () => {
+    renderPanel({ disabled: true });
+
+    expect(checkbox('Hintergrund anzeigen').disabled).toBe(true);
   });
 
   it('is part of the dashboard', async () => {
@@ -71,8 +107,16 @@ describe('OverlayPanel', () => {
       sidecarRunning: true,
       connection: { status: 'disconnected', username: null },
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
-      overlayUrl: OVERLAY_URL
+      overlayUrl: OVERLAY_URL,
+      settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
     };
+    const actions = {
+      connect: vi.fn(async (_username: string) => undefined),
+      disconnect: vi.fn(async () => undefined),
+      resetVotes: vi.fn(async () => undefined),
+      setTarget: vi.fn(async (_target: number) => undefined),
+      setOverlaySettings: vi.fn(async () => undefined)
+    } satisfies FlagCountActions;
     const onCopyText = vi.fn(async (_text: string) => undefined);
     const user = userEvent.setup();
     render(
@@ -80,19 +124,16 @@ describe('OverlayPanel', () => {
         state={state}
         error={null}
         pending={false}
-        actions={{
-          connect: vi.fn(async () => undefined),
-          disconnect: vi.fn(async () => undefined),
-          resetVotes: vi.fn(async () => undefined),
-          setTarget: vi.fn(async () => undefined)
-        }}
+        actions={actions}
         onDismissError={vi.fn()}
         onCopyText={onCopyText}
       />
     );
 
     await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
+    await user.click(checkbox('Hintergrund anzeigen'));
 
     expect(onCopyText).toHaveBeenCalledWith(OVERLAY_URL);
+    expect(actions.setOverlaySettings).toHaveBeenCalledWith({ showBackground: false, showProgress: true });
   });
 });

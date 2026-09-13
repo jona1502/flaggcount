@@ -41,6 +41,7 @@ export function Dashboard({
         <>
           <ConnectionPanel
             connection={state.connection}
+            savedUsername={state.settings.username}
             sidecarRunning={state.sidecarRunning}
             pending={pending}
             onConnect={(username) => void actions.connect(username)}
@@ -52,7 +53,13 @@ export function Dashboard({
             onSetTarget={(target) => void actions.setTarget(target)}
             onReset={() => void actions.resetVotes()}
           />
-          <OverlayPanel overlayUrl={state.overlayUrl} onCopy={onCopyText} />
+          <OverlayPanel
+            overlayUrl={state.overlayUrl}
+            settings={state.settings.overlay}
+            disabled={pending}
+            onCopy={onCopyText}
+            onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
+          />
         </>
       )}
     </main>

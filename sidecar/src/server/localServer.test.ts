@@ -1,7 +1,8 @@
 import { createServer, request as httpRequest, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { VotingService, type VoteSnapshot } from '../../../shared/voting';
+import type { OverlaySettings } from '../../../shared/settings';
+import { VotingService } from '../../../shared/voting';
 import {
   createSessionToken,
   isAuthorized,
@@ -71,14 +72,15 @@ function send(
   });
 }
 
-/** Reads `count` SSE vote events from the overlay stream, then disconnects. */
-function readVoteEvents(
+/** Reads `count` SSE events named `eventName` from the overlay stream, then disconnects. */
+function readEvents<T>(
   port: number,
+  eventName: string,
   count: number,
   onFirstEvent?: () => void
-): Promise<{ events: VoteSnapshot[]; headers: IncomingHttpHeaders }> {
+): Promise<{ events: T[]; headers: IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
-    const events: VoteSnapshot[] = [];
+    const events: T[] = [];
     const request = httpRequest(
       { host: '127.0.0.1', port, path: '/overlay/events', headers: { host: `127.0.0.1:${port}` }, agent: false },
       (response) => {
@@ -88,12 +90,12 @@ function readVoteEvents(
           buffer += chunk;
           let index: number;
           while ((index = buffer.indexOf('\n\n')) >= 0) {
-            const block = buffer.slice(0, index);
+            const lines = buffer.slice(0, index).split('\n');
             buffer = buffer.slice(index + 2);
-            const data = block.split('\n').find((line) => line.startsWith('data: '));
-            if (!data) continue;
+            const data = lines.find((line) => line.startsWith('data: '));
+            if (!lines.includes(`event: ${eventName}`) || !data) continue;
 
-            events.push(JSON.parse(data.slice('data: '.length)) as VoteSnapshot);
+            events.push(JSON.parse(data.slice('data: '.length)) as T);
             if (events.length === 1) onFirstEvent?.();
             if (events.length === count) {
               request.destroy();
@@ -201,6 +203,16 @@ describe('startLocalServer', () => {
       expect(response.headers['content-security-policy']).toContain("default-src 'none'");
       expect(response.body).toContain('data-count="0"');
       expect(response.body).toContain('data-target="4"');
+      expect(response.body).toContain('data-background="true"');
+    });
+
+    it('renders the current overlay settings into the page', async () => {
+      const { server } = await start({ getOverlaySettings: () => ({ showBackground: false, showProgress: false }) });
+
+      const response = await send(server.port, { path: '/overlay', authorization: null });
+
+      expect(response.body).toContain('data-background="false"');
+      expect(response.body).toContain('data-progress="false"');
     });
 
     it.each([
@@ -219,13 +231,38 @@ describe('startLocalServer', () => {
     it('streams the current votes and every update', async () => {
       const { server, voting } = await start();
 
-      const { events, headers } = await readVoteEvents(server.port, 2, () => voting.handleComment('viewer', '🚩'));
+      const { events, headers } = await readEvents(server.port, 'votes', 2, () =>
+        voting.handleComment('viewer', '🚩')
+      );
 
       expect(headers['content-type']).toBe('text/event-stream; charset=utf-8');
       expect(events).toEqual([
         { count: 0, target: 4, roundId: 'round-1', targetReached: false },
         { count: 1, target: 4, roundId: 'round-1', targetReached: false }
       ]);
+    });
+
+    it('streams the overlay settings and their updates', async () => {
+      let overlay: OverlaySettings = { showBackground: true, showProgress: true };
+      const listeners = new Set<(settings: OverlaySettings) => void>();
+      const { server } = await start({
+        getOverlaySettings: () => overlay,
+        subscribeOverlaySettings: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        }
+      });
+
+      const { events } = await readEvents<OverlaySettings>(server.port, 'settings', 2, () => {
+        overlay = { showBackground: false, showProgress: true };
+        for (const listener of listeners) listener(overlay);
+      });
+
+      expect(events).toEqual([
+        { showBackground: true, showProgress: true },
+        { showBackground: false, showProgress: true }
+      ]);
+      await vi.waitFor(() => expect(listeners.size).toBe(0));
     });
 
     it('stops pushing updates to closed overlay connections', async () => {
@@ -243,7 +280,7 @@ describe('startLocalServer', () => {
         }
       });
 
-      await readVoteEvents(server.port, 1);
+      await readEvents(server.port, 'votes', 1);
 
       await vi.waitFor(() => expect(subscribers).toBe(0));
     });

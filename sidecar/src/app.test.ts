@@ -104,6 +104,19 @@ describe('SidecarApp', () => {
     expect(app.getVotes().count).toBe(2);
   });
 
+  it('applies overlay settings and notifies the overlay', async () => {
+    const { app } = createApp();
+    const received: boolean[] = [];
+    const unsubscribe = app.subscribeOverlaySettings((overlay) => received.push(overlay.showBackground));
+
+    await app.handleCommand({ type: 'setOverlaySettings', overlay: { showBackground: false, showProgress: true } });
+    unsubscribe();
+    await app.handleCommand({ type: 'setOverlaySettings', overlay: { showBackground: true, showProgress: true } });
+
+    expect(received).toEqual([false]);
+    expect(app.getState().overlay).toEqual({ showBackground: true, showProgress: true });
+  });
+
   it('emits the full state on request', async () => {
     const { app, events } = createApp();
 

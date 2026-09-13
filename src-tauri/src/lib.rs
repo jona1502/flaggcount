@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod settings;
 pub mod sidecar;
 
 use tauri::{Manager, RunEvent};
@@ -17,6 +18,7 @@ pub fn run() {
                 .rotation_strategy(RotationStrategy::KeepOne)
                 .build(),
         )
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Sidecar::default())
@@ -25,11 +27,14 @@ pub fn run() {
             commands::connect,
             commands::disconnect,
             commands::reset_votes,
-            commands::set_target
+            commands::set_target,
+            commands::set_overlay_settings
         ])
         .setup(|app| {
             let handle = app.handle();
-            if let Err(error) = handle.state::<Sidecar>().start(handle) {
+            let sidecar = handle.state::<Sidecar>();
+            sidecar.init_settings(settings::load(handle));
+            if let Err(error) = sidecar.start(handle) {
                 log::error!("failed to start the sidecar ({})", error.code);
             }
             Ok(())

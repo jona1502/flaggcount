@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { OVERLAY_CSP, OVERLAY_CSS, OVERLAY_SCRIPT, renderOverlayPage } from '../overlay/overlayAssets';
 
@@ -14,6 +15,8 @@ export type LocalServerOptions = {
   getState: () => unknown;
   getVotes: () => VoteSnapshot;
   subscribeVotes: (listener: (votes: VoteSnapshot) => void) => () => void;
+  getOverlaySettings?: () => OverlaySettings;
+  subscribeOverlaySettings?: (listener: (overlay: OverlaySettings) => void) => () => void;
   heartbeatMs?: number;
 };
 
@@ -83,25 +86,32 @@ function listen(server: Server, port: number): Promise<void> {
 export async function startLocalServer(options: LocalServerOptions, preferredPort = 0): Promise<LocalServer> {
   let boundPort = 0;
   const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS;
+  const getOverlaySettings = options.getOverlaySettings ?? (() => DEFAULT_OVERLAY_SETTINGS);
 
-  const streamVotes = (request: IncomingMessage, response: ServerResponse): void => {
+  const streamOverlay = (request: IncomingMessage, response: ServerResponse): void => {
     response.writeHead(200, {
       ...BASE_HEADERS,
       'Content-Type': 'text/event-stream; charset=utf-8',
       Connection: 'keep-alive'
     });
-    const push = (votes: VoteSnapshot): void => {
+    const pushVotes = (votes: VoteSnapshot): void => {
       response.write(`event: votes\ndata: ${JSON.stringify(votes)}\n\n`);
+    };
+    const pushSettings = (overlay: OverlaySettings): void => {
+      response.write(`event: settings\ndata: ${JSON.stringify(overlay)}\n\n`);
     };
 
     response.write('retry: 2000\n\n');
-    push(options.getVotes());
-    const unsubscribe = options.subscribeVotes(push);
+    pushSettings(getOverlaySettings());
+    pushVotes(options.getVotes());
+    const unsubscribeVotes = options.subscribeVotes(pushVotes);
+    const unsubscribeSettings = options.subscribeOverlaySettings?.(pushSettings);
     const heartbeat = setInterval(() => response.write(': ping\n\n'), heartbeatMs);
 
     request.on('close', () => {
       clearInterval(heartbeat);
-      unsubscribe();
+      unsubscribeVotes();
+      unsubscribeSettings?.();
     });
   };
 
@@ -114,9 +124,13 @@ export async function startLocalServer(options: LocalServerOptions, preferredPor
 
     switch (pathname) {
       case '/overlay':
-        send(response, 200, 'text/html; charset=utf-8', renderOverlayPage(options.getVotes()), {
-          'Content-Security-Policy': OVERLAY_CSP
-        });
+        send(
+          response,
+          200,
+          'text/html; charset=utf-8',
+          renderOverlayPage(options.getVotes(), getOverlaySettings()),
+          { 'Content-Security-Policy': OVERLAY_CSP }
+        );
         return;
       case '/overlay/overlay.css':
         send(response, 200, 'text/css; charset=utf-8', OVERLAY_CSS);
@@ -125,7 +139,7 @@ export async function startLocalServer(options: LocalServerOptions, preferredPor
         send(response, 200, 'text/javascript; charset=utf-8', OVERLAY_SCRIPT);
         return;
       case '/overlay/events':
-        streamVotes(request, response);
+        streamOverlay(request, response);
         return;
       default:
         sendJson(response, 404, { error: 'not-found' });

@@ -1,4 +1,5 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
+import type { OverlaySettings } from '../../shared/settings';
 import type { VoteSnapshot } from '../../shared/voting';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
@@ -25,6 +26,7 @@ export type SidecarCommand =
   | { type: 'disconnect' }
   | { type: 'reset' }
   | { type: 'setTarget'; target: number }
+  | { type: 'setOverlaySettings'; overlay: OverlaySettings }
   | { type: 'getState' };
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -37,6 +39,18 @@ export type SidecarEvent =
   | { type: 'error'; error: AppError }
   /** Sanitized log line: never usernames, chat content, URLs or tokens. */
   | { type: 'log'; level: LogLevel; message: string };
+
+function parseOverlaySettings(value: unknown): OverlaySettings | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const showBackground = record['showBackground'];
+  const showProgress = record['showProgress'];
+  return typeof showBackground === 'boolean' && typeof showProgress === 'boolean'
+    ? { showBackground, showProgress }
+    : null;
+}
 
 export function parseCommand(line: string): SidecarCommand | null {
   let value: unknown;
@@ -55,6 +69,10 @@ export function parseCommand(line: string): SidecarCommand | null {
       return typeof record['username'] === 'string' ? { type: 'connect', username: record['username'] } : null;
     case 'setTarget':
       return typeof record['target'] === 'number' ? { type: 'setTarget', target: record['target'] } : null;
+    case 'setOverlaySettings': {
+      const overlay = parseOverlaySettings(record['overlay']);
+      return overlay ? { type: 'setOverlaySettings', overlay } : null;
+    }
     case 'disconnect':
     case 'reset':
     case 'getState':
