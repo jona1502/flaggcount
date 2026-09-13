@@ -37,10 +37,10 @@ export function OverlayPanel({
 
   return (
     <section className="panel" aria-labelledby="overlay-heading">
-      <h2 id="overlay-heading">OBS-Overlay</h2>
+      <h2 id="overlay-heading">Streaming-Overlay</h2>
       {overlayUrl ? (
         <>
-          <label htmlFor="overlay-url">Als Browserquelle in OBS hinzufügen</label>
+          <label htmlFor="overlay-url">Als Browser- oder Link-Quelle hinzufügen</label>
           <div className="input-row">
             <input id="overlay-url" value={overlayUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
             <button type="button" className="button secondary" onClick={() => void copy(overlayUrl)}>

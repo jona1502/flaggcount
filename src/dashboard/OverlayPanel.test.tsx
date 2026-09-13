@@ -34,7 +34,9 @@ describe('OverlayPanel', () => {
   it('shows the overlay URL', () => {
     renderPanel();
 
-    expect((screen.getByLabelText('Als Browserquelle in OBS hinzufügen') as HTMLInputElement).value).toBe(OVERLAY_URL);
+    expect((screen.getByLabelText('Als Browser- oder Link-Quelle hinzufügen') as HTMLInputElement).value).toBe(
+      OVERLAY_URL
+    );
   });
 
   it('copies the URL and confirms it', async () => {

@@ -6,7 +6,7 @@ import type { VoteSnapshot } from '../../../shared/voting';
 import { OVERLAY_CSP, OVERLAY_CSS, OVERLAY_SCRIPT, renderOverlayPage } from '../overlay/overlayAssets';
 
 export const LOOPBACK_HOST = '127.0.0.1';
-/** Stable default so the OBS browser source URL survives app restarts. */
+/** Stable default so the streaming overlay URL survives app restarts. */
 export const DEFAULT_OVERLAY_PORT = 3847;
 const HEARTBEAT_MS = 15_000;
 
@@ -80,7 +80,7 @@ function listen(server: Server, port: number): Promise<void> {
 }
 
 /**
- * Starts the sidecar's HTTP server, reachable only from this machine. The OBS overlay
+ * Starts the sidecar's HTTP server, reachable only from this machine. The streaming overlay
  * is public on loopback (it only shows the vote count); the API requires the session token.
  */
 export async function startLocalServer(options: LocalServerOptions, preferredPort = 0): Promise<LocalServer> {

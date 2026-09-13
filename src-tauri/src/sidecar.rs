@@ -113,7 +113,7 @@ pub struct AppState {
     pub settings: Settings,
 }
 
-/// URL of the OBS browser source served by the sidecar.
+/// URL of the streaming browser/link source served by the sidecar.
 pub fn overlay_url(port: u16) -> String {
     format!("http://127.0.0.1:{port}/overlay")
 }

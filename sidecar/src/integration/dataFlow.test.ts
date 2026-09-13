@@ -62,7 +62,7 @@ async function startSidecar() {
 }
 
 /**
- * Subscribes to the overlay event stream like the OBS browser source does and
+ * Subscribes to the overlay event stream like a streaming browser source does and
  * resolves once the initial settings and votes have arrived.
  */
 async function openOverlayStream(port: number) {

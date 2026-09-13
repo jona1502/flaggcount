@@ -1,6 +1,6 @@
 # FlagCount
 
-FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Overlay für OBS.
+FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Streaming-Overlay.
 
 ## Bedienung
 
@@ -14,9 +14,9 @@ FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines T
 
 Benutzername, Stimmenziel und die Darstellung des Overlays bleiben nach einem Neustart erhalten. Stimmen werden nie gespeichert – nach einem Neustart beginnt eine neue Runde.
 
-## OBS einrichten
+## Streaming-Overlay einrichten
 
-1. In FlagCount im Bereich **OBS-Overlay** auf **URL kopieren** klicken. Standardmäßig lautet die Adresse `http://127.0.0.1:3847/overlay`.
+1. In FlagCount im Bereich **Streaming-Overlay** auf **URL kopieren** klicken. Standardmäßig lautet die Adresse `http://127.0.0.1:3847/overlay`.
 2. In OBS unter **Quellen** auf **+** klicken, **Browser** wählen und einen Namen vergeben, z. B. „FlagCount“.
 3. Die URL einfügen und die Größe festlegen, z. B. **Breite** `520` und **Höhe** `200`. Das benutzerdefinierte CSS von OBS kann unverändert bleiben – der Hintergrund des Overlays ist transparent.
 4. **Quelle herunterfahren, wenn nicht sichtbar** deaktiviert lassen, damit das Overlay jederzeit aktuell ist.
