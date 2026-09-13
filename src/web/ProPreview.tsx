@@ -10,12 +10,42 @@ const FEATURES = [
 ] as const;
 
 type FormStatus = { kind: 'success' | 'error'; message: string } | null;
+type Price = { plan: 'monthly' | 'yearly'; total: string; currencyCode: string; interval: string };
 
 export function ProPreview(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [consent, setConsent] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<FormStatus>(null);
+  const [prices, setPrices] = useState<Price[]>([]);
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+
+  const loadPrices = async (): Promise<void> => {
+    try {
+      const response = await fetch('/api/v1/billing/prices');
+      if (!response.ok) return;
+      const data = (await response.json()) as { prices?: Price[] };
+      setPrices((data.prices ?? []).filter((price) => price.plan === 'monthly' || price.plan === 'yearly'));
+    } catch {
+      // Public preview remains usable when billing is not configured.
+    }
+  };
+
+  const checkout = async (plan: 'monthly' | 'yearly'): Promise<void> => {
+    setCheckoutPlan(plan);
+    try {
+      const response = await fetch('/api/v1/billing/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan })
+      });
+      const data = (await response.json()) as { url?: string };
+      if (!response.ok || !data.url?.startsWith('https://')) throw new Error('unavailable');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setStatus({ kind: 'error', message: 'Checkout ist momentan nicht verfügbar. Bitte versuche es später erneut.' });
+    } finally {
+      setCheckoutPlan(null);
+    }
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -63,10 +93,14 @@ export function ProPreview(): React.JSX.Element {
             Der kostenlose Flaggenzähler bleibt kostenlos.
           </p>
         </div>
-        <div className="planned-price" aria-label="Geplante Preise">
-          <strong>6,99 € / Monat</strong>
-          <span>oder 59,00 € / Jahr</span>
-          <small>geplant, inklusive Umsatzsteuer soweit anwendbar</small>
+        <div className="planned-price" aria-label="FlagCount Pro Preise">
+          <strong>{prices.find((price) => price.plan === 'monthly')?.total ?? '6,99 €'} / Monat</strong>
+          <span>oder {prices.find((price) => price.plan === 'yearly')?.total ?? '59,00 €'} / Jahr</span>
+          <small>Endgültiger Preis inkl. Steuer wird vom Zahlungsanbieter berechnet.</small>
+          <div className="pro-checkout-actions">
+            <button className="button primary" type="button" onClick={() => void checkout('monthly')} disabled={checkoutPlan !== null}>Monatlich starten</button>
+            <button className="button" type="button" onClick={() => void checkout('yearly')} disabled={checkoutPlan !== null}>Jährlich starten</button>
+          </div>
         </div>
       </div>
 
