@@ -32,7 +32,9 @@ export function renderOverlayPage(
     `data-panel="${escapeAttribute(overlay.backgroundColor)}"`,
     `data-panel-opacity="${Math.trunc(overlay.backgroundOpacity)}"`,
     `data-position="${escapeAttribute(overlay.position)}"`,
-    `data-size="${Math.trunc(overlay.size)}"`
+    `data-size="${Math.trunc(overlay.size)}"`,
+    `data-flag-animation="${escapeAttribute(overlay.flagAnimation)}"`,
+    `data-target-effect="${escapeAttribute(overlay.targetEffect)}"`
   ].join(' ');
 
   return `<!doctype html>
@@ -46,8 +48,9 @@ export function renderOverlayPage(
 </head>
 <body>
 <div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" ${appearance} data-events="${eventsUrl}" data-connected="true">
-<div class="headline"><span class="flag" aria-hidden="true">🚩</span><span class="count" id="count">${count}</span><span class="separator">/</span><span class="target" id="target">${target}</span></div>
+<div class="headline"><span class="flag" id="flag" aria-hidden="true">🚩</span><span class="count" id="count">${count}</span><span class="separator">/</span><span class="target" id="target">${target}</span></div>
 <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+<div class="confetti" id="confetti" aria-hidden="true"></div>
 </div>
 </body>
 </html>
@@ -109,8 +112,10 @@ body {
 }
 
 .flag {
+  display: inline-block;
   align-self: center;
   font-size: 80px;
+  transform-origin: 30% 90%;
 }
 
 .count {
@@ -153,6 +158,115 @@ body {
 .overlay[data-connected='false'] {
   opacity: 0.5;
 }
+
+/* Flag animations: "wave" runs continuously, the others play on every new vote. */
+.overlay[data-flag-animation='wave'] .flag {
+  animation: flag-wave 1.6s ease-in-out infinite;
+}
+
+.flag.vote-bounce {
+  animation: flag-bounce 0.6s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.flag.vote-pulse {
+  animation: flag-pulse 0.5s ease-out;
+}
+
+.count.vote-pop {
+  animation: count-pop 0.35s ease-out;
+}
+
+/* Target effects */
+.overlay[data-target-effect='glow'][data-reached='true'] {
+  animation: target-glow 1.4s ease-in-out infinite;
+}
+
+.confetti {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 16px;
+  height: 26px;
+  border-radius: 3px;
+  opacity: 0;
+  animation: confetti-burst 1.9s cubic-bezier(0.15, 0.7, 0.4, 1) var(--delay, 0ms) forwards;
+}
+
+@keyframes flag-wave {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(7deg) skewY(-4deg);
+  }
+}
+
+@keyframes flag-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-38%) scale(1.08);
+  }
+  65% {
+    transform: translateY(6%) scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes flag-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+    filter: drop-shadow(0 0 18px var(--accent, #e82634));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes count-pop {
+  40% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes target-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgba(47, 191, 127, 0.5), 0 0 24px 2px rgba(47, 191, 127, 0.35);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(47, 191, 127, 0.9), 0 0 56px 10px rgba(47, 191, 127, 0.6);
+  }
+}
+
+@keyframes confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(var(--x), var(--y)) rotate(var(--r));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), calc(var(--y) + 420px)) rotate(calc(var(--r) * 2));
+  }
+}
 `;
 
 export const OVERLAY_SCRIPT = `(function () {
@@ -161,7 +275,18 @@ export const OVERLAY_SCRIPT = `(function () {
   var count = document.getElementById('count');
   var target = document.getElementById('target');
   var fill = document.getElementById('bar-fill');
+  var flag = document.getElementById('flag');
+  var confetti = document.getElementById('confetti');
   var HEX_COLOR = /^#[0-9a-f]{6}$/i;
+  var FLAG_ANIMATIONS = ['none', 'wave', 'bounce', 'pulse'];
+  var TARGET_EFFECTS = ['none', 'glow', 'confetti'];
+  var CONFETTI_PIECES = 48;
+  var CONFETTI_MS = 2200;
+  var flagAnimation = 'none';
+  var targetEffect = 'none';
+  // State of the previous render; null until the page has rendered once.
+  var lastCount = null;
+  var lastReached = null;
   // Gap to the source's edge when the overlay sits at the top or bottom.
   var EDGE_GAP = 0.04;
   // Share of the source the overlay may cover and where it sits; replaced by the settings.
@@ -175,6 +300,37 @@ export const OVERLAY_SCRIPT = `(function () {
 
   function round(value) {
     return Math.round(value * 100) / 100;
+  }
+
+  // Removing the class and forcing a reflow restarts the animation for rapid votes.
+  function restartAnimation(element, className) {
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+  }
+
+  function celebrateVote() {
+    if (flagAnimation === 'bounce') restartAnimation(flag, 'vote-bounce');
+    if (flagAnimation === 'pulse') restartAnimation(flag, 'vote-pulse');
+    if (flagAnimation !== 'none') restartAnimation(count, 'vote-pop');
+  }
+
+  function burstConfetti() {
+    var accent = root.style.getPropertyValue('--accent') || '#e82634';
+    var colors = [accent, '#ffd166', '#06d6a0', '#4cc9f0', '#ffffff'];
+    for (var i = 0; i < CONFETTI_PIECES; i++) {
+      var piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.style.backgroundColor = colors[i % colors.length];
+      piece.style.setProperty('--x', Math.round((Math.random() * 2 - 1) * 520) + 'px');
+      piece.style.setProperty('--y', Math.round(-160 - Math.random() * 260) + 'px');
+      piece.style.setProperty('--r', Math.round(Math.random() * 720 - 360) + 'deg');
+      piece.style.setProperty('--delay', Math.round(Math.random() * 120) + 'ms');
+      confetti.appendChild(piece);
+    }
+    setTimeout(function () {
+      confetti.textContent = '';
+    }, CONFETTI_MS);
   }
 
   // Streaming tools like TikTok LIVE Studio render the page larger than their source frame and
@@ -212,6 +368,14 @@ export const OVERLAY_SCRIPT = `(function () {
     }
     var percent = Number(settings.size);
     if (percent >= 20 && percent <= 100) size = percent / 100;
+    if (FLAG_ANIMATIONS.indexOf(settings.flagAnimation) >= 0) {
+      flagAnimation = settings.flagAnimation;
+      root.dataset.flagAnimation = flagAnimation;
+    }
+    if (TARGET_EFFECTS.indexOf(settings.targetEffect) >= 0) {
+      targetEffect = settings.targetEffect;
+      root.dataset.targetEffect = targetEffect;
+    }
     fit();
   }
 
@@ -224,10 +388,21 @@ export const OVERLAY_SCRIPT = `(function () {
     var percent = votes.target > 0 ? Math.min(100, (votes.count / votes.target) * 100) : 0;
     fill.style.width = percent + '%';
     root.dataset.reached = votes.targetReached ? 'true' : 'false';
+    // Only changes after the first render celebrate, not the state the page was opened with.
+    if (lastCount !== null && votes.count > lastCount) celebrateVote();
+    if (lastReached === false && votes.targetReached && targetEffect === 'confetti') burstConfetti();
+    lastCount = votes.count;
+    lastReached = Boolean(votes.targetReached);
     fit();
   }
 
   window.addEventListener('resize', fit);
+  flag.addEventListener('animationend', function () {
+    flag.classList.remove('vote-bounce', 'vote-pulse');
+  });
+  count.addEventListener('animationend', function () {
+    count.classList.remove('vote-pop');
+  });
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(fit);
   }
@@ -240,7 +415,9 @@ export const OVERLAY_SCRIPT = `(function () {
     backgroundColor: root.dataset.panel,
     backgroundOpacity: root.dataset.panelOpacity,
     position: root.dataset.position,
-    size: root.dataset.size
+    size: root.dataset.size,
+    flagAnimation: root.dataset.flagAnimation,
+    targetEffect: root.dataset.targetEffect
   });
 
   render({

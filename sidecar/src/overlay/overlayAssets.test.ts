@@ -195,6 +195,7 @@ describe('overlay page', () => {
     expect(html).toContain('data-accent="#e82634"');
     expect(html).toContain('data-panel-opacity="80"');
     expect(html).toContain('data-position="center" data-size="92"');
+    expect(html).toContain('data-flag-animation="none" data-target-effect="none"');
   });
 
   it('applies overlay settings changes live', () => {
@@ -207,6 +208,68 @@ describe('overlay page', () => {
     expect(element('overlay').dataset['progress']).toBe('false');
     expect(() => source.emitRaw('settings', '{broken')).not.toThrow();
     expect(element('overlay').dataset['background']).toBe('false');
+  });
+
+  it('keeps the flag still while animations are off', () => {
+    const source = mountOverlay(votes(0, 4));
+
+    source.emitVotes(votes(1, 4));
+
+    expect(element('flag').className).toBe('flag');
+    expect(element('count').className).toBe('count');
+  });
+
+  it.each([
+    ['bounce', 'vote-bounce'],
+    ['pulse', 'vote-pulse']
+  ] as const)('plays the %s animation on every new vote', (flagAnimation, className) => {
+    const source = mountOverlay(votes(0, 4), undefined, { ...DEFAULT_OVERLAY_SETTINGS, flagAnimation });
+    expect(element('flag').classList.contains(className)).toBe(false);
+
+    source.emitVotes(votes(1, 4));
+
+    expect(element('flag').classList.contains(className)).toBe(true);
+    expect(element('count').classList.contains('vote-pop')).toBe(true);
+
+    element('flag').dispatchEvent(new Event('animationend'));
+    source.emitVotes(votes(0, 4));
+    expect(element('flag').classList.contains(className)).toBe(false);
+  });
+
+  it('waves the flag continuously and switches animations live', () => {
+    const source = mountOverlay(votes(0, 4), undefined, { ...DEFAULT_OVERLAY_SETTINGS, flagAnimation: 'wave' });
+    expect(element('overlay').dataset['flagAnimation']).toBe('wave');
+
+    source.emitRaw('settings', JSON.stringify({ ...DEFAULT_OVERLAY_SETTINGS, flagAnimation: 'pulse' }));
+    expect(element('overlay').dataset['flagAnimation']).toBe('pulse');
+
+    source.emitRaw('settings', JSON.stringify({ ...DEFAULT_OVERLAY_SETTINGS, flagAnimation: 'explode' }));
+    expect(element('overlay').dataset['flagAnimation']).toBe('pulse');
+  });
+
+  it('bursts confetti once when the target is reached', () => {
+    const source = mountOverlay(votes(3, 4), undefined, { ...DEFAULT_OVERLAY_SETTINGS, targetEffect: 'confetti' });
+
+    source.emitVotes(votes(4, 4, true));
+    expect(element('confetti').children).toHaveLength(48);
+
+    source.emitVotes(votes(5, 4, true));
+    expect(element('confetti').children).toHaveLength(48);
+  });
+
+  it('does not celebrate a target that was already reached when the page opened', () => {
+    const source = mountOverlay(votes(5, 4, true), undefined, { ...DEFAULT_OVERLAY_SETTINGS, targetEffect: 'confetti' });
+
+    source.emitVotes(votes(6, 4, true));
+
+    expect(element('confetti').children).toHaveLength(0);
+  });
+
+  it('marks the glow effect for the stylesheet', () => {
+    mountOverlay(votes(4, 4, true), undefined, { ...DEFAULT_OVERLAY_SETTINGS, targetEffect: 'glow' });
+
+    expect(element('overlay').dataset['targetEffect']).toBe('glow');
+    expect(element('confetti').children).toHaveLength(0);
   });
 
   it('works under the strict content security policy', () => {
