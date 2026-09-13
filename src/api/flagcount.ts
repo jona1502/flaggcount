@@ -12,6 +12,7 @@ export const flagcountApi = {
   getState: (): Promise<AppState> => invoke<AppState>('get_state'),
   connect: (username: string): Promise<void> => invoke('connect', { username }),
   disconnect: (): Promise<void> => invoke('disconnect'),
+  addManualVote: (): Promise<void> => invoke('add_manual_vote'),
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),

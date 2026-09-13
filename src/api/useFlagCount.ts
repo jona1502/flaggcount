@@ -7,6 +7,7 @@ import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
 export type FlagCountActions = {
   connect: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  addManualVote: () => Promise<void>;
   resetVotes: () => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
@@ -92,6 +93,7 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
     () => ({
       connect: (username) => run(() => api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
+      addManualVote: () => run(() => api.addManualVote()),
       resetVotes: () => run(() => api.resetVotes()),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay))

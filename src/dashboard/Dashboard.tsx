@@ -50,6 +50,7 @@ export function Dashboard({
           <VotesPanel
             votes={state.votes}
             disabled={!state.sidecarRunning || pending}
+            onAddManualVote={() => void actions.addManualVote()}
             onSetTarget={(target) => void actions.setTarget(target)}
             onReset={() => void actions.resetVotes()}
           />

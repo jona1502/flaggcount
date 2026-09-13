@@ -30,6 +30,7 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
   const actions = {
     connect: vi.fn(async (_username: string) => undefined),
     disconnect: vi.fn(async () => undefined),
+    addManualVote: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async () => undefined)
@@ -176,6 +177,14 @@ describe('Dashboard', () => {
       await user.click(button('Übernehmen'));
 
       expect(actions.setTarget).toHaveBeenCalledWith(25);
+    });
+
+    it('adds a flag manually even without a TikTok connection', async () => {
+      const { actions, user } = renderDashboard();
+
+      await user.click(button('Flagge manuell hinzufügen'));
+
+      expect(actions.addManualVote).toHaveBeenCalledTimes(1);
     });
 
     it.each(['0', '2.5', '100001', ''])('rejects the target %j with a German message', async (value) => {

@@ -8,11 +8,12 @@ const numberFormat = new Intl.NumberFormat('de-DE');
 type VotesPanelProps = {
   votes: VoteSnapshot;
   disabled: boolean;
+  onAddManualVote: () => void;
   onSetTarget: (target: number) => void;
   onReset: () => void;
 };
 
-export function VotesPanel({ votes, disabled, onSetTarget, onReset }: VotesPanelProps): React.JSX.Element {
+export function VotesPanel({ votes, disabled, onAddManualVote, onSetTarget, onReset }: VotesPanelProps): React.JSX.Element {
   const [draft, setDraft] = useState(String(votes.target));
   const [validation, setValidation] = useState<string | null>(null);
 
@@ -56,6 +57,10 @@ export function VotesPanel({ votes, disabled, onSetTarget, onReset }: VotesPanel
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
       {votes.targetReached && <p className="target-reached">Ziel erreicht!</p>}
+
+      <button type="button" className="button primary manual-vote" disabled={disabled} onClick={onAddManualVote}>
+        <span aria-hidden="true">🚩</span> Flagge manuell hinzufügen
+      </button>
 
       <div className="votes-actions">
         <form className="target-form" onSubmit={submitTarget} noValidate>

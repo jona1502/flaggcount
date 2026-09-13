@@ -27,6 +27,7 @@ const MAX_LOG_MESSAGE_CHARS: usize = 300;
 pub enum SidecarCommand {
     Connect { username: String },
     Disconnect,
+    AddManualVote,
     Reset,
     SetTarget { target: u32 },
     SetOverlaySettings { overlay: OverlaySettings },
@@ -512,6 +513,7 @@ mod tests {
                 json!({ "type": "connect", "username": "streamer" }),
             ),
             (SidecarCommand::Disconnect, json!({ "type": "disconnect" })),
+            (SidecarCommand::AddManualVote, json!({ "type": "addManualVote" })),
             (SidecarCommand::Reset, json!({ "type": "reset" })),
             (
                 SidecarCommand::SetTarget { target: 25 },

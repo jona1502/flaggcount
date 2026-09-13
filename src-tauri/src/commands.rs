@@ -55,6 +55,11 @@ pub fn disconnect(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 }
 
 #[tauri::command]
+pub fn add_manual_vote(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::AddManualVote)
+}
+
+#[tauri::command]
 pub fn reset_votes(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::Reset)
 }

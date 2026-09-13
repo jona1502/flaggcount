@@ -64,6 +64,18 @@ describe('VotingService', () => {
     expect(service.getSnapshot().count).toBe(1);
   });
 
+  it('keeps manual votes when chat votes arrive and clears both on reset', () => {
+    const service = createService();
+
+    service.addManualVote();
+    service.addManualVote();
+    expect(service.handleComment('user-1', '🚩')).toBe('counted');
+    expect(service.handleComment('user-1', '🚩')).toBe('duplicate');
+    expect(service.getSnapshot().count).toBe(3);
+
+    expect(service.reset().count).toBe(0);
+  });
+
   it('supports changing the target', () => {
     const service = createService({ target: 5 });
 

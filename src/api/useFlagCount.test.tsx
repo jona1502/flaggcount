@@ -38,6 +38,7 @@ function createFakeApi() {
     getState: vi.fn(async () => initialState),
     connect: vi.fn(async (_username: string) => undefined),
     disconnect: vi.fn(async () => undefined),
+    addManualVote: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
@@ -126,11 +127,13 @@ describe('useFlagCount', () => {
     await act(async () => {
       await result.current.actions.connect('streamer');
       await result.current.actions.disconnect();
+      await result.current.actions.addManualVote();
       await result.current.actions.resetVotes();
     });
 
     expect(api.connect).toHaveBeenCalledWith('streamer');
     expect(api.disconnect).toHaveBeenCalled();
+    expect(api.addManualVote).toHaveBeenCalled();
     expect(api.resetVotes).toHaveBeenCalled();
   });
 

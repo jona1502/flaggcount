@@ -11,6 +11,7 @@
     "allow-get-state",
     "allow-connect",
     "allow-disconnect",
+    "allow-add-manual-vote",
     "allow-reset-votes",
     "allow-set-target",
     "allow-set-overlay-settings"

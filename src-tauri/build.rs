@@ -8,6 +8,7 @@ fn main() {
             "get_state",
             "connect",
             "disconnect",
+            "add_manual_vote",
             "reset_votes",
             "set_target",
             "set_overlay_settings",

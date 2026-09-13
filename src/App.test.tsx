@@ -78,6 +78,7 @@ describe('App with the Tauri backend', () => {
 
     await user.type(screen.getByLabelText('TikTok-Benutzername'), 'streamer');
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
+    await user.click(screen.getByRole('button', { name: 'Flagge manuell hinzufügen' }));
 
     const target = screen.getByLabelText('Stimmenziel');
     await user.clear(target);
@@ -91,6 +92,7 @@ describe('App with the Tauri backend', () => {
     await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
 
     expect(payloadOf('connect')).toEqual({ username: 'streamer' });
+    expect(commands()).toContain('add_manual_vote');
     expect(payloadOf('set_target')).toEqual({ target: 25 });
     expect(commands()).toContain('reset_votes');
     expect(payloadOf('set_overlay_settings')).toEqual({ overlay: { showBackground: false, showProgress: true } });

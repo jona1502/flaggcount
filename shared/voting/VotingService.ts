@@ -6,6 +6,7 @@ export const MAX_TARGET = 100_000;
 
 export type VoteState = {
   voters: Set<string>;
+  manualVotes: number;
   count: number;
   target: number;
   roundId: string;
@@ -46,7 +47,7 @@ export class VotingService {
     assertValidTarget(target);
 
     this.createRoundId = options.createRoundId ?? createRandomRoundId;
-    this.state = { voters: new Set(), count: 0, target, roundId: this.createRoundId() };
+    this.state = { voters: new Set(), manualVotes: 0, count: 0, target, roundId: this.createRoundId() };
   }
 
   handleComment(userId: string, comment: string): VoteResult {
@@ -63,14 +64,23 @@ export class VotingService {
     }
 
     this.state.voters.add(voter);
-    this.state.count = this.state.voters.size;
+    this.state.count = this.state.voters.size + this.state.manualVotes;
     this.notify();
     return 'counted';
+  }
+
+  /** Adds one operator-entered vote without affecting TikTok's per-viewer deduplication. */
+  addManualVote(): VoteSnapshot {
+    this.state.manualVotes++;
+    this.state.count = this.state.voters.size + this.state.manualVotes;
+    this.notify();
+    return this.getSnapshot();
   }
 
   /** Starts a new round: all votes are cleared and every user may vote again. */
   reset(): VoteSnapshot {
     this.state.voters.clear();
+    this.state.manualVotes = 0;
     this.state.count = 0;
     this.state.roundId = this.createRoundId();
     this.notify();

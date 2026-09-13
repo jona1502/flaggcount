@@ -213,6 +213,10 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.manual-vote {
+  margin-top: 18px;
+}
+
 .votes-actions {
   display: flex;
   flex-wrap: wrap;

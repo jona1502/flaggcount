@@ -113,6 +113,7 @@ describe('OverlayPanel', () => {
     const actions = {
       connect: vi.fn(async (_username: string) => undefined),
       disconnect: vi.fn(async () => undefined),
+      addManualVote: vi.fn(async () => undefined),
       resetVotes: vi.fn(async () => undefined),
       setTarget: vi.fn(async (_target: number) => undefined),
       setOverlaySettings: vi.fn(async () => undefined)

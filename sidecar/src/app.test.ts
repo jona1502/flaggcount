@@ -78,6 +78,17 @@ describe('SidecarApp', () => {
     ]);
   });
 
+  it('adds manual votes to the same count used by chat and the overlay', async () => {
+    const { app, chat, ofType } = createApp();
+
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+    await app.handleCommand({ type: 'addManualVote' });
+    chat('1', '🚩');
+
+    expect(ofType('votes').map((event) => event.votes.count)).toEqual([1, 2]);
+    expect(app.getVotes().count).toBe(2);
+  });
+
   it('changes the target and rejects invalid targets', async () => {
     const { app, ofType } = createApp();
 

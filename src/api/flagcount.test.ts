@@ -29,6 +29,7 @@ describe('flagcountApi', () => {
     await flagcountApi.getState();
     await flagcountApi.connect('streamer');
     await flagcountApi.disconnect();
+    await flagcountApi.addManualVote();
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
     await flagcountApi.setOverlaySettings({ showBackground: false, showProgress: true });
@@ -37,6 +38,7 @@ describe('flagcountApi', () => {
       ['get_state'],
       ['connect', { username: 'streamer' }],
       ['disconnect'],
+      ['add_manual_vote'],
       ['reset_votes'],
       ['set_target', { target: 25 }],
       ['set_overlay_settings', { overlay: { showBackground: false, showProgress: true } }]

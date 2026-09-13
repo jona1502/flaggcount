@@ -70,6 +70,9 @@ export class SidecarApp {
       case 'disconnect':
         await this.live.disconnect();
         break;
+      case 'addManualVote':
+        this.voting.addManualVote();
+        break;
       case 'reset':
         this.voting.reset();
         break;

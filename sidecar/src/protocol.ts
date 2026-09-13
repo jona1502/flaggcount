@@ -24,6 +24,7 @@ export type ChatMessage = {
 export type SidecarCommand =
   | { type: 'connect'; username: string }
   | { type: 'disconnect' }
+  | { type: 'addManualVote' }
   | { type: 'reset' }
   | { type: 'setTarget'; target: number }
   | { type: 'setOverlaySettings'; overlay: OverlaySettings }
@@ -74,6 +75,7 @@ export function parseCommand(line: string): SidecarCommand | null {
       return overlay ? { type: 'setOverlaySettings', overlay } : null;
     }
     case 'disconnect':
+    case 'addManualVote':
     case 'reset':
     case 'getState':
       return { type: record['type'] };
