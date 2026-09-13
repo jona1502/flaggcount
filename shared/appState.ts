@@ -1,5 +1,6 @@
 import type { Settings } from './settings';
 import type { VoteSnapshot } from './voting';
+import type { CounterSnapshot } from './voting';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -39,6 +40,8 @@ export type AppState = {
   sidecarRunning: boolean;
   connection: ConnectionState;
   votes: VoteSnapshot;
+  /** Versioned multi-counter view; `votes` remains available during the compatibility migration. */
+  counters?: CounterSnapshot[];
   /** URL for a streaming browser/link source; `null` while the sidecar is not running. */
   overlayUrl: string | null;
   /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */

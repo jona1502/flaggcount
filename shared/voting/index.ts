@@ -13,6 +13,7 @@ export {
 } from './VotingService';
 export {
   ConfigurableVotingService,
+  counterSnapshotFromLegacy,
   matchesTrigger,
   type ConfigurableVoteResult,
   type ConfigurableVotingServiceOptions,

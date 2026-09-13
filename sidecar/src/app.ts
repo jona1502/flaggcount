@@ -1,6 +1,6 @@
 import type { ConnectionState } from '../../shared/appState';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
-import { MAX_TARGET, MIN_TARGET, VotingService, isValidTarget, type VoteSnapshot } from '../../shared/voting';
+import { MAX_TARGET, MIN_TARGET, VotingService, counterSnapshotFromLegacy, isValidTarget, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { TELEMETRY_ERROR_CODES, voteCountBucket, type TelemetryErrorCode, type TelemetryEvent } from '../../shared/analytics';
 import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLiveService';
@@ -8,6 +8,7 @@ import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLi
 export type SidecarStateSnapshot = {
   connection: ConnectionState;
   votes: VoteSnapshot;
+  counters: CounterSnapshot[];
   overlay: OverlaySettings;
 };
 
@@ -34,7 +35,7 @@ export class SidecarApp {
     this.voting = options.votingService ?? new VotingService();
     this.onTelemetry = options.onTelemetry ?? (() => undefined);
     this.onTelemetryEnabled = options.onTelemetryEnabled ?? (() => undefined);
-    this.voting.subscribe((votes) => send({ type: 'votes', votes }));
+    this.voting.subscribe((votes) => send({ type: 'votes', votes, counters: [counterSnapshotFromLegacy(votes)] }));
 
     this.live = new TikTokLiveService(createConnection, {
       onStatus: (connection) => {
@@ -56,7 +57,8 @@ export class SidecarApp {
   }
 
   getState(): SidecarStateSnapshot {
-    return { connection: this.live.getState(), votes: this.voting.getSnapshot(), overlay: this.getOverlaySettings() };
+    const votes = this.voting.getSnapshot();
+    return { connection: this.live.getState(), votes, counters: [counterSnapshotFromLegacy(votes)], overlay: this.getOverlaySettings() };
   }
 
   getVotes(): VoteSnapshot {
@@ -124,7 +126,7 @@ export class SidecarApp {
       case 'getState': {
         const state = this.getState();
         this.send({ type: 'status', connection: state.connection });
-        this.send({ type: 'votes', votes: state.votes });
+        this.send({ type: 'votes', votes: state.votes, counters: state.counters });
         break;
       }
     }

@@ -1,6 +1,6 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
 import { parseOverlaySettings, type OverlaySettings } from '../../shared/settings';
-import type { VoteSnapshot } from '../../shared/voting';
+import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
 export type ConnectionErrorCode = AppErrorCode;
@@ -39,7 +39,7 @@ export type SidecarEvent =
   /** `publicOverlayUrl` is the online overlay mirrored by the relay; `null` if it is unavailable. */
   | { type: 'ready'; port: number; token: string; publicOverlayUrl: string | null }
   | { type: 'status'; connection: ConnectionState }
-  | { type: 'votes'; votes: VoteSnapshot }
+  | { type: 'votes'; votes: VoteSnapshot; counters: CounterSnapshot[] }
   | { type: 'error'; error: AppError }
   /** Sanitized log line: never usernames, chat content, URLs or tokens. */
   | { type: 'log'; level: LogLevel; message: string };

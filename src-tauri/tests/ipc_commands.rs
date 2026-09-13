@@ -72,6 +72,7 @@ fn returns_the_initial_state() {
             "sidecarRunning": false,
             "connection": { "status": "disconnected", "username": null },
             "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
+            "counters": [],
             "overlayUrl": null,
             "publicOverlayUrl": null,
             "settings": {

@@ -1,4 +1,6 @@
 import type { CounterDefinition, Trigger } from '../profiles';
+import type { VoteSnapshot } from './VotingService';
+import { DEFAULT_COUNTER_ID } from '../profiles';
 
 export type OptionSnapshot = { optionId: string; label: string; count: number };
 export type CounterSnapshot = {
@@ -16,6 +18,20 @@ export type CounterVoteResult = { counterId: string; result: ConfigurableVoteRes
 
 type CounterState = { voters: Map<string, string>; manualVotes: Map<string, number>; manualWithdrawals: number; roundId: string };
 export type ConfigurableVotingServiceOptions = { createRoundId?: () => string };
+
+/** Adapts the existing free snapshot while consumers migrate to the multi-counter protocol. */
+export function counterSnapshotFromLegacy(votes: VoteSnapshot): CounterSnapshot {
+  return {
+    counterId: DEFAULT_COUNTER_ID,
+    name: 'Rote Flaggen',
+    mode: 'single',
+    options: [{ optionId: 'red-flags', label: 'Rote Flaggen', count: votes.count }],
+    totalCount: votes.count,
+    target: votes.target,
+    targetReached: votes.targetReached,
+    roundId: votes.roundId
+  };
+}
 
 /** Pure multi-counter voting engine. Viewer identities exist only in transient in-memory maps. */
 export class ConfigurableVotingService {

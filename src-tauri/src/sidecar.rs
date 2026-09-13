@@ -73,6 +73,51 @@ pub struct VoteSnapshot {
     pub target_reached: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CounterMode {
+    Single,
+    Poll,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OptionSnapshot {
+    pub option_id: String,
+    pub label: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterSnapshot {
+    pub counter_id: String,
+    pub name: String,
+    pub mode: CounterMode,
+    pub options: Vec<OptionSnapshot>,
+    pub total_count: u32,
+    pub target: Option<u32>,
+    pub target_reached: bool,
+    pub round_id: String,
+}
+
+fn counter_snapshot_from_legacy(votes: &VoteSnapshot) -> CounterSnapshot {
+    CounterSnapshot {
+        counter_id: "red-flags".into(),
+        name: "Rote Flaggen".into(),
+        mode: CounterMode::Single,
+        options: vec![OptionSnapshot {
+            option_id: "red-flags".into(),
+            label: "Rote Flaggen".into(),
+            count: votes.count,
+        }],
+        total_count: votes.count,
+        target: Some(votes.target),
+        target_reached: votes.target_reached,
+        round_id: votes.round_id.clone(),
+    }
+}
+
 impl Default for VoteSnapshot {
     fn default() -> Self {
         Self {
@@ -113,6 +158,7 @@ pub struct AppState {
     pub sidecar_running: bool,
     pub connection: ConnectionState,
     pub votes: VoteSnapshot,
+    pub counters: Vec<CounterSnapshot>,
     pub overlay_url: Option<String>,
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
@@ -143,7 +189,11 @@ pub enum SidecarEvent {
         public_overlay_url: Option<String>,
     },
     Status { connection: ConnectionState },
-    Votes { votes: VoteSnapshot },
+    Votes {
+        votes: VoteSnapshot,
+        #[serde(default)]
+        counters: Vec<CounterSnapshot>,
+    },
     Error { error: AppError },
     Log { level: LogLevel, message: String },
 }
@@ -181,7 +231,12 @@ pub fn apply_event(
             state.connection = connection;
             StateUpdate::State
         }
-        SidecarEvent::Votes { votes } => {
+        SidecarEvent::Votes { votes, counters } => {
+            state.counters = if counters.is_empty() {
+                vec![counter_snapshot_from_legacy(&votes)]
+            } else {
+                counters
+            };
             state.votes = votes;
             StateUpdate::State
         }
@@ -654,6 +709,22 @@ mod tests {
         );
         assert_eq!(state.votes.count, 3);
         assert_eq!(state.votes.round_id, "r1");
+        assert_eq!(state.counters, vec![counter_snapshot_from_legacy(&state.votes)]);
+    }
+
+    #[test]
+    fn accepts_multiple_sanitized_counter_snapshots() {
+        let mut state = AppState::default();
+        let mut session = None;
+        apply_event(
+            &mut state,
+            &mut session,
+            parse(r#"{"type":"votes","votes":{"count":1,"target":5,"roundId":"r1","targetReached":false},"counters":[{"counterId":"a","name":"A/B","mode":"poll","options":[{"optionId":"yes","label":"Ja","count":1},{"optionId":"no","label":"Nein","count":0}],"totalCount":1,"target":null,"targetReached":false,"roundId":"ra"}]}"#),
+        );
+
+        assert_eq!(state.counters.len(), 1);
+        assert_eq!(state.counters[0].mode, CounterMode::Poll);
+        assert_eq!(state.counters[0].options[0].count, 1);
     }
 
     #[test]
@@ -726,6 +797,7 @@ mod tests {
                 "sidecarRunning": false,
                 "connection": { "status": "disconnected", "username": null },
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
+                "counters": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
                 "settings": {

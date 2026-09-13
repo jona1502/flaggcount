@@ -41,11 +41,12 @@ export class WebController {
   }
 
   getState(): AppState {
-    const { connection, votes } = this.app.getState();
+    const { connection, votes, counters } = this.app.getState();
     return {
       sidecarRunning: true,
       connection,
       votes,
+      counters,
       // The browser knows its public origin better than the server behind the proxy.
       overlayUrl: null,
       // The web version's own /overlay is already public.

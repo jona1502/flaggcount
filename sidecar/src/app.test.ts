@@ -195,7 +195,22 @@ describe('SidecarApp', () => {
 
     expect(events).toEqual([
       { type: 'status', connection: { status: 'disconnected', username: null } },
-      { type: 'votes', votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false } }
+      {
+        type: 'votes',
+        votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
+        counters: [
+          {
+            counterId: 'red-flags',
+            name: 'Rote Flaggen',
+            mode: 'single',
+            options: [{ optionId: 'red-flags', label: 'Rote Flaggen', count: 0 }],
+            totalCount: 0,
+            target: 10,
+            targetReached: false,
+            roundId: 'round-1'
+          }
+        ]
+      }
     ]);
   });
 });
