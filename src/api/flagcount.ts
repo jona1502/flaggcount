@@ -25,6 +25,7 @@ export const flagcountApi = {
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]): Promise<string> => invoke<string>('import_overlay_asset', { kind, bytes }),
+  clearHistory: (): Promise<void> => invoke('clear_history'),
   setTelemetryEnabled: (enabled: boolean): Promise<void> => invoke('set_telemetry_enabled', { enabled }),
   createProfile: (name: string): Promise<string> => invoke<string>('create_profile', { name }),
   duplicateProfile: (profileId: string): Promise<string> => invoke<string>('duplicate_profile', { profileId }),

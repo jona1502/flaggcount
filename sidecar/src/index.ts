@@ -12,6 +12,7 @@ import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
 import { AnalyticsClient } from './analytics';
+import { RoundHistoryStore } from './historyStore';
 
 declare const __FLAGCOUNT_VERSION__: string;
 
@@ -86,6 +87,8 @@ async function main(): Promise<void> {
   const serviceUrl = process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL;
   const appVersion = typeof __FLAGCOUNT_VERSION__ === 'string' ? __FLAGCOUNT_VERSION__ : '0.0.0';
   const analytics = new AnalyticsClient({ baseUrl: serviceUrl, appVersion });
+  const historyStore = process.env['FLAGCOUNT_DATA_DIR'] ? new RoundHistoryStore(`${process.env['FLAGCOUNT_DATA_DIR']}\\round-history.json`) : null;
+  const history = historyStore ? await historyStore.load() : [];
   // The license service runs on the same FlagCount server as the online overlay.
   const license = new LicenseManager({
     send,
@@ -97,7 +100,9 @@ async function main(): Promise<void> {
   const app = new SidecarApp(createTikTokConnection, send, {
     license,
     onTelemetry: (event) => analytics.track(event),
-    onTelemetryEnabled: (enabled) => analytics.setEnabled(enabled)
+    onTelemetryEnabled: (enabled) => analytics.setEnabled(enabled),
+    history,
+    onHistoryChanged: (records) => { void historyStore?.replace(records).catch(() => log('error', 'Saving round history failed')); }
   });
 
   // Fresh secret per app start, shared with Tauri only over the private stdout pipe.

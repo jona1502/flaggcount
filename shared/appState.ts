@@ -1,6 +1,7 @@
 import type { LicenseState } from './licensing';
 import type { Settings } from './profiles';
 import type { CounterSnapshot, VoteSnapshot } from './voting';
+import type { RoundRecord } from './history';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -48,6 +49,7 @@ export type AppState = {
   votes: VoteSnapshot;
   /** Aggregated counts of every counter of the active profile. */
   counters: CounterSnapshot[];
+  history?: RoundRecord[];
   /** URL for a streaming browser/link source; `null` while the sidecar is not running. */
   overlayUrl: string | null;
   /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */

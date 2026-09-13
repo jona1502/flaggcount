@@ -253,7 +253,8 @@ describe('SidecarApp', () => {
           }
         ]
       },
-      { type: 'license', license: FREE_LICENSE_STATE }
+      { type: 'license', license: FREE_LICENSE_STATE },
+      { type: 'history', history: [] }
     ]);
   });
 

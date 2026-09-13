@@ -323,6 +323,11 @@ pub fn set_telemetry_enabled<R: Runtime>(
     sidecar.send(&SidecarCommand::SetTelemetryEnabled { enabled })
 }
 
+#[tauri::command]
+pub fn clear_history(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::ClearHistory)
+}
+
 /// Prices, terms and checkout live on the website, so they are always shown before a purchase.
 #[tauri::command]
 pub fn open_pro_page<R: Runtime>(app: AppHandle<R>) -> Result<(), AppError> {

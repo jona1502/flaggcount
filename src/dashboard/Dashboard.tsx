@@ -14,6 +14,7 @@ import { PrivacyPanel } from './PrivacyPanel';
 import { VotesPanel } from './VotesPanel';
 import { UpdateNotice } from '../updater/UpdateNotice';
 import type { UpdaterController } from '../updater/useUpdater';
+import { HistoryPanel } from '../history/HistoryPanel';
 
 type DashboardProps = {
   state: AppState | null;
@@ -30,11 +31,12 @@ type DashboardProps = {
   proAvailable?: boolean;
 };
 
-type Section = 'live' | 'profiles' | 'pro';
+type Section = 'live' | 'profiles' | 'history' | 'pro';
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'live', label: 'Live' },
   { id: 'profiles', label: 'Profile' },
+  { id: 'history', label: 'Historie' },
   { id: 'pro', label: 'Pro' }
 ];
 
@@ -86,6 +88,10 @@ export function Dashboard({
     // The profile that actually runs: after a downgrade that is the first one, not the chosen one.
     const entitlements = entitlementsFor(appState.license.plan, appState.license.features);
     const running = effectiveProfile(appState.settings, entitlements);
+
+    if (current === 'history') {
+      return <div role="tabpanel" id="section-history" aria-labelledby="tab-history"><HistoryPanel records={appState.history ?? []} available={canUse(entitlements, 'history')} disabled={pending} onClear={() => void actions.clearHistory()} /></div>;
+    }
 
     if (current === 'profiles') {
       return (

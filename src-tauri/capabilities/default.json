@@ -19,6 +19,7 @@
     "allow-set-overlay-settings",
     "allow-import-overlay-asset",
     "allow-set-telemetry-enabled",
+    "allow-clear-history",
     "allow-create-profile",
     "allow-duplicate-profile",
     "allow-rename-profile",

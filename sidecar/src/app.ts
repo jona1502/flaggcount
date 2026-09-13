@@ -8,6 +8,7 @@ import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot }
 import { TELEMETRY_ERROR_CODES, voteCountBucket, type TelemetryErrorCode, type TelemetryEvent } from '../../shared/analytics';
 import type { LicenseManager } from './license/licenseManager';
 import type { SidecarCommand, SidecarEvent } from './protocol';
+import { trimHistory, type RoundRecord } from '../../shared/history';
 import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLiveService';
 
 export type SidecarStateSnapshot = {
@@ -16,6 +17,7 @@ export type SidecarStateSnapshot = {
   counters: CounterSnapshot[];
   overlay: OverlaySettings;
   license: LicenseState;
+  history: RoundRecord[];
 };
 
 export type SidecarAppOptions = {
@@ -28,6 +30,8 @@ export type SidecarAppOptions = {
   license?: LicenseManager;
   onTelemetry?: (event: TelemetryEvent) => void;
   onTelemetryEnabled?: (enabled: boolean) => void;
+  history?: RoundRecord[];
+  onHistoryChanged?: (history: RoundRecord[]) => void;
 };
 
 /** Wires the TikTok connection to the voting logic and reports sanitized updates. */
@@ -45,6 +49,12 @@ export class SidecarApp {
   private lastVotes: string;
   private readonly onTelemetry: (event: TelemetryEvent) => void;
   private readonly onTelemetryEnabled: (enabled: boolean) => void;
+  private history: RoundRecord[];
+  private readonly onHistoryChanged: (history: RoundRecord[]) => void;
+  private readonly startedAt = new Map<string, string>();
+  private readonly manualVotes = new Map<string, number>();
+  private profileId = 'active';
+  private profileName = 'Aktives Profil';
 
   constructor(
     createConnection: LiveConnectionFactory,
@@ -55,9 +65,12 @@ export class SidecarApp {
     this.license = options.license ?? null;
     this.onTelemetry = options.onTelemetry ?? (() => undefined);
     this.onTelemetryEnabled = options.onTelemetryEnabled ?? (() => undefined);
+    this.history = options.history ?? [];
+    this.onHistoryChanged = options.onHistoryChanged ?? (() => undefined);
     this.requested = options.counters ?? [createRedFlagCounter()];
     this.definitions = effectiveCounters(this.requested, this.entitlements);
     this.engine = new VotingEngine(this.definitions, { createRoundId: options.createRoundId });
+    for (const counter of this.definitions) this.startedAt.set(counter.id, new Date().toISOString());
     this.lastVotes = JSON.stringify(this.getVotes());
     this.engine.subscribe((counters) => {
       send({ type: 'counters', counters });
@@ -90,7 +103,8 @@ export class SidecarApp {
       votes: this.getVotes(),
       counters: this.engine.getSnapshots(),
       overlay: this.getOverlaySettings(),
-      license: this.license?.getState() ?? FREE_LICENSE_STATE
+      license: this.license?.getState() ?? FREE_LICENSE_STATE,
+      history: structuredClone(this.history)
     };
   }
 
@@ -192,6 +206,7 @@ export class SidecarApp {
         if (!applied && command.type === 'addManualVote') {
           this.send({ type: 'log', level: 'warn', message: 'Ignoring a manual vote for an unknown counter or option' });
         }
+        if (applied && command.type === 'addManualVote') this.manualVotes.set(counterId, (this.manualVotes.get(counterId) ?? 0) + 1);
         break;
       }
       case 'reset':
@@ -200,9 +215,12 @@ export class SidecarApp {
             this.onTelemetry({ version: 1, name: 'round_completed', voteCountBucket: voteCountBucket(snapshot.totalCount) });
           }
         }
+        this.finishRounds(command.counterId, 'reset');
         this.engine.reset(command.counterId);
         break;
       case 'configureCounters':
+        this.profileId = command.profileId ?? this.profileId;
+        this.profileName = command.profileName ?? this.profileName;
         this.configure(command.counters);
         break;
       case 'configureLicense':
@@ -223,23 +241,33 @@ export class SidecarApp {
       case 'setTelemetryEnabled':
         this.onTelemetryEnabled(command.enabled);
         break;
+      case 'clearHistory':
+        this.history = [];
+        this.onHistoryChanged([]);
+        this.send({ type: 'history', history: [] });
+        break;
       case 'getState': {
         const state = this.getState();
         this.send({ type: 'status', connection: state.connection });
         this.send({ type: 'votes', votes: state.votes });
         this.send({ type: 'counters', counters: state.counters });
         this.send({ type: 'license', license: state.license });
+        this.send({ type: 'history', history: this.history });
         break;
       }
     }
   }
 
   shutdown(): Promise<void> {
+    this.finishRounds(undefined, 'app-exit');
     this.license?.stop();
     return this.live.disconnect();
   }
 
   private configure(counters: CounterDefinition[]): void {
+    if (JSON.stringify(counters.map(({ id }) => id)) !== JSON.stringify(this.requested.map(({ id }) => id))) {
+      this.finishRounds(undefined, 'profile-change');
+    }
     const previousOverlay = JSON.stringify(this.getOverlaySettings());
     this.requested = counters;
     this.definitions = effectiveCounters(counters, this.entitlements);
@@ -253,6 +281,23 @@ export class SidecarApp {
       }
     }
     this.notifyBoard();
+  }
+
+  private finishRounds(counterId: string | undefined, reason: RoundRecord['endReason']): void {
+    if (!canUse(this.entitlements, 'history')) return;
+    const endedAt = new Date().toISOString();
+    const records = this.engine.getSnapshots().filter((snapshot) => (!counterId || snapshot.counterId === counterId) && snapshot.totalCount > 0).map((snapshot): RoundRecord => ({
+      schemaVersion: 1, id: `${snapshot.roundId}-${endedAt}`, profileId: this.profileId, profileName: this.profileName, counterId: snapshot.counterId,
+      counterName: snapshot.name, mode: snapshot.mode, startedAt: this.startedAt.get(snapshot.counterId) ?? endedAt, endedAt, endReason: reason,
+      target: snapshot.target, targetReached: snapshot.targetReached, totalCount: snapshot.totalCount,
+      options: snapshot.options.map(({ optionId, label, count }) => ({ optionId, label, count })), manualVotes: this.manualVotes.get(snapshot.counterId) ?? 0
+    }));
+    if (records.length) {
+      this.history = trimHistory([...this.history, ...records]);
+      this.onHistoryChanged(this.history);
+      this.send({ type: 'history', history: this.history });
+    }
+    for (const snapshot of this.engine.getSnapshots()) if (!counterId || snapshot.counterId === counterId) { this.startedAt.set(snapshot.counterId, endedAt); this.manualVotes.delete(snapshot.counterId); }
   }
 
   private notifyBoard(): void {

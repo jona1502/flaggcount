@@ -1,0 +1,5 @@
+# Automatically generated - DO NOT EDIT!
+[[permission]]
+identifier = "allow-clear-history"
+description = "Allows clearing local aggregated history."
+commands.allow = ["clear_history"]

@@ -43,12 +43,13 @@ export class WebController {
   }
 
   getState(): AppState {
-    const { connection, votes, counters } = this.app.getState();
+    const { connection, votes, counters, history } = this.app.getState();
     return {
       sidecarRunning: true,
       connection,
       votes,
       counters,
+      history,
       // The browser knows its public origin better than the server behind the proxy.
       overlayUrl: null,
       // The web version's own /overlay is already public.
@@ -153,7 +154,8 @@ export class WebController {
   }
 
   private configureCounters(): Promise<void> {
-    return this.app.handleCommand({ type: 'configureCounters', counters: activeProfile(this.settings).counters });
+    const profile = activeProfile(this.settings);
+    return this.app.handleCommand({ type: 'configureCounters', counters: profile.counters, profileId: profile.id, profileName: profile.name });
   }
 
   private run(command: SidecarCommand): void {
@@ -177,6 +179,7 @@ export class WebController {
       // Every vote change emits `counters`; `votes` only repeats the first counter.
       case 'status':
       case 'counters':
+      case 'history':
         this.emitState();
         break;
       case 'error':

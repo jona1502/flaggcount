@@ -80,6 +80,7 @@ pub enum SidecarCommand {
     DeactivateLicense,
     OpenCustomerPortal,
     SetTelemetryEnabled { enabled: bool },
+    ClearHistory,
     GetState,
 }
 
@@ -182,6 +183,7 @@ pub struct AppState {
     /// The first counter in the single-count format of 0.2.
     pub votes: VoteSnapshot,
     pub counters: Vec<CounterSnapshot>,
+    pub history: Vec<Value>,
     pub overlay_url: Option<String>,
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
@@ -220,6 +222,7 @@ pub enum SidecarEvent {
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
     Counters { counters: Vec<CounterSnapshot> },
+    History { history: Vec<Value> },
     OverlayUrls { urls: BTreeMap<String, String> },
     License { license: LicenseState },
     /// Credentials and entitlement to store on this computer; `None` removes them.
@@ -279,6 +282,10 @@ pub fn apply_event(
         }
         SidecarEvent::Counters { counters } => {
             state.counters = counters;
+            StateUpdate::State
+        }
+        SidecarEvent::History { history } => {
+            state.history = history;
             StateUpdate::State
         }
         SidecarEvent::OverlayUrls { urls } => {
@@ -1096,6 +1103,7 @@ mod tests {
                 "connection": { "status": "disconnected", "username": null },
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
                 "counters": [],
+                "history": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
                 "counterOverlayUrls": {},

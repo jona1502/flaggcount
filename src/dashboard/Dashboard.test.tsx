@@ -43,6 +43,7 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     setOverlaySettings: vi.fn(async () => undefined),
     setTelemetryEnabled: vi.fn(async () => undefined),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
+    clearHistory: vi.fn(async () => undefined),
     activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
     refreshLicense: vi.fn(async () => undefined),
     deactivateLicense: vi.fn(async () => undefined),

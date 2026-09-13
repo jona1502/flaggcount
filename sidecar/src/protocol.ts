@@ -4,6 +4,7 @@ import { parseCounterDefinitions, type CounterDefinition } from '../../shared/pr
 import { parseOverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 import type { LicenseCredentials } from './license/licenseManager';
+import type { RoundRecord } from '../../shared/history';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
 export type ConnectionErrorCode = AppErrorCode;
@@ -41,7 +42,7 @@ export type SidecarCommand =
   /** Without a counter id, every counter starts a new round. */
   | { type: 'reset'; counterId?: string }
   /** The counters of the active profile; running rounds of counters that keep their id continue. */
-  | { type: 'configureCounters'; counters: CounterDefinition[] }
+  | { type: 'configureCounters'; counters: CounterDefinition[]; profileId?: string; profileName?: string }
   /** The stored license, sent once after every start. The secret only travels over this private pipe. */
   | { type: 'configureLicense'; installationId: string; credentials: LicenseCredentials | null; entitlement: unknown }
   | { type: 'activateLicense'; code: string; replaceInstallationId?: string }
@@ -49,6 +50,7 @@ export type SidecarCommand =
   | { type: 'deactivateLicense' }
   | { type: 'openCustomerPortal' }
   | { type: 'setTelemetryEnabled'; enabled: boolean }
+  | { type: 'clearHistory' }
   | { type: 'getState' };
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -62,6 +64,7 @@ export type SidecarEvent =
   | { type: 'votes'; votes: VoteSnapshot }
   /** Aggregated counts of every counter: never viewer identities or chat content. */
   | { type: 'counters'; counters: CounterSnapshot[] }
+  | { type: 'history'; history: RoundRecord[] }
   /** License status for the UI: never the code or the secret. */
   | { type: 'license'; license: LicenseState }
   /** Public Pro overlay URL per counter id and `all`; empty whenever Pro or the relay is unavailable. */
@@ -122,7 +125,10 @@ export function parseCommand(line: string): SidecarCommand | null {
       return typeof record['username'] === 'string' ? { type: 'connect', username: record['username'] } : null;
     case 'configureCounters': {
       const counters = parseCounterDefinitions(record['counters']);
-      return counters ? { type: 'configureCounters', counters } : null;
+      if (!counters) return null;
+      const profileId = typeof record['profileId'] === 'string' && ID_PATTERN.test(record['profileId']) ? record['profileId'] : undefined;
+      const profileName = typeof record['profileName'] === 'string' && record['profileName'].trim() ? record['profileName'].slice(0, 60) : undefined;
+      return { type: 'configureCounters', counters, ...(profileId ? { profileId } : {}), ...(profileName ? { profileName } : {}) };
     }
     case 'addManualVote':
     case 'removeManualVote': {
@@ -151,6 +157,8 @@ export function parseCommand(line: string): SidecarCommand | null {
     }
     case 'setTelemetryEnabled':
       return typeof record['enabled'] === 'boolean' ? { type: 'setTelemetryEnabled', enabled: record['enabled'] } : null;
+    case 'clearHistory':
+      return { type: 'clearHistory' };
     case 'disconnect':
     case 'refreshLicense':
     case 'deactivateLicense':
