@@ -81,7 +81,7 @@ Der Befehl
 3. kompiliert die App im Release-Modus und
 4. erstellt den NSIS-Installer.
 
-Ergebnis: `src-tauri/target/release/bundle/nsis/FlagCount_0.1.0_x64-setup.exe`
+Ergebnis: `src-tauri/target/release/bundle/nsis/FlagCount_<Version>_x64-setup.exe`
 
 Beim ersten Build lädt `pkg` eine Node.js-Basisdatei und Tauri die NSIS-Werkzeuge herunter; dafür ist eine Internetverbindung nötig. Spätere Builds nutzen den Cache.
 

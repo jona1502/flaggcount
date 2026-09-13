@@ -58,9 +58,10 @@ function setVersion(version) {
   packageLock.packages[''].version = version;
   writeFileSync(files.lock, `${JSON.stringify(packageLock, null, 2)}\n`);
 
-  const tauriConfig = JSON.parse(readFileSync(files.tauri, 'utf8'));
-  tauriConfig.version = version;
-  writeFileSync(files.tauri, `${JSON.stringify(tauriConfig, null, 2)}\n`);
+  const tauriConfig = readFileSync(files.tauri, 'utf8');
+  const tauriVersionPattern = /(^\s*"version"\s*:\s*)"[^"]+"/m;
+  if (!tauriVersionPattern.test(tauriConfig)) throw new Error(`Version in ${files.tauri} nicht gefunden.`);
+  writeFileSync(files.tauri, tauriConfig.replace(tauriVersionPattern, `$1"${version}"`));
 
   const cargoToml = readFileSync(files.cargo, 'utf8');
   const cargoVersionPattern = /(^\[package\][\s\S]*?^version\s*=\s*)"[^"]+"/m;

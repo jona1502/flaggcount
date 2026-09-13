@@ -13,7 +13,7 @@ Der private Schlüssel hat kein Passwort. Er muss an einem zweiten sicheren Ort 
 Für lokale signierte Builds:
 
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY_PATH = 'C:\Users\muhr9\.tauri\flagcount.key'
+$env:TAURI_SIGNING_PRIVATE_KEY = 'C:\Users\muhr9\.tauri\flagcount.key'
 npm run package:windows
 ```
 
@@ -56,3 +56,17 @@ git push origin main app-v0.2.0
 ```
 
 Der Workflow bricht ab, wenn Tag und App-Version voneinander abweichen.
+
+## Erster Rollout
+
+`0.2.0` ist die erste Version mit Updater. Bestehende `0.1.0`-Installationen können sie noch nicht automatisch finden und müssen den neuen Installer einmal manuell ausführen.
+
+Vor der ersten Veröffentlichung müssen das GitHub-Secret gesetzt und die Update-Dateien öffentlich erreichbar sein. Danach:
+
+1. `0.2.0` veröffentlichen und manuell installieren.
+2. Mit `npm run version:set -- 0.2.1` eine Testversion vorbereiten.
+3. Release Notes ergänzen, committen und `app-v0.2.1` pushen.
+4. In der installierten `0.2.0` sowohl die automatische Prüfung beim Start als auch **Nach Updates suchen** testen.
+5. Downloadfortschritt, Signaturprüfung, passive NSIS-Installation und Neustart als `0.2.1` kontrollieren.
+
+Ein fehlgeschlagener oder nicht signierter Download darf niemals installiert werden. Die bisherige Installation muss in diesem Fall weiter funktionieren.

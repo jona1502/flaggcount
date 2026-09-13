@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { SidecarEvent } from '../protocol';
@@ -16,7 +15,7 @@ beforeAll(async () => {
   bundleDir = mkdtempSync(join(tmpdir(), 'flagcount-sidecar-'));
   bundlePath = join(bundleDir, 'index.cjs');
   await build({
-    entryPoints: [fileURLToPath(new URL('../index.ts', import.meta.url))],
+    entryPoints: ['./sidecar/src/index.ts'],
     outfile: bundlePath,
     bundle: true,
     platform: 'node',
