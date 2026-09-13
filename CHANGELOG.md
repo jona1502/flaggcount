@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 0.2.3 – 2026-09-13
+
+- Zuschauer können ihre Stimme mit einer weißen Flagge (`🏳️`) im Chat zurücknehmen.
+- Die zurückgenommene Stimme wird sofort aus Dashboard und Streaming-Overlay entfernt.
+- Ein Hinweis im Dashboard erklärt die rote und weiße Flagge.
+
 ## 0.2.2 – 2026-09-13
 
 - Visuellen Overlay-Designer für Farben, Position, Größe und Effekte ergänzt.
