@@ -40,7 +40,7 @@ export type SidecarEvent =
   /** Sanitized log line: never usernames, chat content, URLs or tokens. */
   | { type: 'log'; level: LogLevel; message: string };
 
-function parseOverlaySettings(value: unknown): OverlaySettings | null {
+export function parseOverlaySettings(value: unknown): OverlaySettings | null {
   if (typeof value !== 'object' || value === null) {
     return null;
   }
