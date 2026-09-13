@@ -1,6 +1,7 @@
 import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
-import { parseCommand, serializeEvent, type SidecarEvent } from './protocol';
+import { describeError } from './logging';
+import { parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
 
@@ -11,6 +12,17 @@ console.log = console.info = console.debug = (...args: unknown[]) => console.err
 function send(event: SidecarEvent): void {
   writeStdout(serializeEvent(event));
 }
+
+function log(level: LogLevel, message: string): void {
+  send({ type: 'log', level, message });
+}
+
+// A broken pipe means the Tauri app is gone: nobody is left to serve.
+process.stdout.on('error', () => process.exit(0));
+
+// Keep the current round and the overlay alive even if a library callback throws.
+process.on('uncaughtException', (error) => log('error', `Uncaught exception: ${describeError(error)}`));
+process.on('unhandledRejection', (reason) => log('error', `Unhandled promise rejection: ${describeError(reason)}`));
 
 async function main(): Promise<void> {
   const app = new SidecarApp(createTikTokConnection, send);
@@ -27,7 +39,7 @@ async function main(): Promise<void> {
     DEFAULT_OVERLAY_PORT
   );
   if (server.port !== DEFAULT_OVERLAY_PORT) {
-    console.error(`Port ${DEFAULT_OVERLAY_PORT} is in use; the overlay uses port ${server.port} instead`);
+    log('warn', `Port ${DEFAULT_OVERLAY_PORT} is in use; the overlay uses port ${server.port} instead`);
   }
 
   const commands = createInterface({ input: process.stdin });
@@ -35,11 +47,11 @@ async function main(): Promise<void> {
   commands.on('line', (line) => {
     const command = parseCommand(line);
     if (!command) {
-      console.error('Ignoring invalid command');
+      log('warn', 'Ignoring invalid command');
       return;
     }
     app.handleCommand(command).catch((error: unknown) => {
-      console.error('Command failed:', error instanceof Error ? error.message : error);
+      log('error', `Command ${command.type} failed: ${describeError(error)}`);
     });
   });
 
@@ -53,6 +65,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('Sidecar failed to start:', error instanceof Error ? error.message : error);
+  // Tauri restarts the sidecar with a backoff when it exits unexpectedly.
+  log('error', `Sidecar failed to start: ${describeError(error)}`);
   process.exit(1);
 });

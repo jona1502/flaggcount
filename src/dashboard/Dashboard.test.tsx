@@ -103,6 +103,27 @@ describe('Dashboard', () => {
       expect(actions.disconnect).toHaveBeenCalledTimes(1);
     });
 
+    it('shows automatic reconnect attempts and lets the user stop them', async () => {
+      const { actions, user } = renderDashboard({
+        state: {
+          ...baseState,
+          connection: {
+            status: 'reconnecting',
+            username: 'streamer',
+            reconnect: { attempt: 2, maxAttempts: 8, delayMs: 4000 }
+          }
+        }
+      });
+
+      expect(screen.getByRole('status').textContent).toBe(
+        'Verbindung zu @streamer unterbrochen – neuer Versuch 2 von 8 in 4 s'
+      );
+      await user.click(button('Trennen'));
+
+      expect(actions.disconnect).toHaveBeenCalledTimes(1);
+      expect(actions.connect).not.toHaveBeenCalled();
+    });
+
     it('disables all actions when the connection service is unavailable', () => {
       renderDashboard({ state: { ...baseState, sidecarRunning: false } });
 

@@ -19,6 +19,13 @@ function describeStatus(connection: ConnectionState, sidecarRunning: boolean): {
       return { key: 'connecting', text: `Verbinde mit ${name} …` };
     case 'connected':
       return { key: 'connected', text: `Verbunden mit ${name}` };
+    case 'reconnecting': {
+      const retry = connection.reconnect;
+      const detail = retry
+        ? ` – neuer Versuch ${retry.attempt} von ${retry.maxAttempts} in ${Math.max(1, Math.round(retry.delayMs / 1000))} s`
+        : '';
+      return { key: 'reconnecting', text: `Verbindung zu ${name} unterbrochen${detail}` };
+    }
     default:
       return { key: 'disconnected', text: 'Nicht verbunden' };
   }
@@ -54,7 +61,7 @@ export function ConnectionPanel({
 
   let buttonLabel = 'Verbinden';
   if (connection.status === 'connecting') buttonLabel = 'Abbrechen';
-  if (connection.status === 'connected') buttonLabel = 'Trennen';
+  if (connection.status === 'connected' || connection.status === 'reconnecting') buttonLabel = 'Trennen';
 
   return (
     <section className="panel" aria-labelledby="connection-heading">

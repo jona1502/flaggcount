@@ -30,7 +30,8 @@ export class SidecarApp {
       onChat: (message) => {
         this.voting.handleComment(message.userId, message.comment);
       },
-      onError: (error) => send({ type: 'error', error })
+      onError: (error) => send({ type: 'error', error }),
+      onLog: (level, message) => send({ type: 'log', level, message })
     });
   }
 

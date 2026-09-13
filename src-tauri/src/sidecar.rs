@@ -1,4 +1,5 @@
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -11,8 +12,13 @@ pub const SIDECAR_NAME: &str = "flagcount-sidecar";
 pub const MAIN_WINDOW: &str = "main";
 pub const STATE_CHANGED_EVENT: &str = "state-changed";
 pub const APP_ERROR_EVENT: &str = "app-error";
+/// Consecutive restarts before the app stops reviving a crashing sidecar.
+pub const MAX_RESTART_ATTEMPTS: u32 = 5;
 
 const DEFAULT_TARGET: u32 = 100;
+/// A sidecar that ran this long counts as healthy again and gets a fresh restart budget.
+const STABLE_RUNTIME: Duration = Duration::from_secs(60);
+const MAX_LOG_MESSAGE_CHARS: usize = 300;
 
 /// Commands understood by the sidecar, sent as one JSON object per stdin line.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -32,12 +38,23 @@ pub enum ConnectionStatus {
     Disconnected,
     Connecting,
     Connected,
+    Reconnecting,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconnectInfo {
+    pub attempt: u32,
+    pub max_attempts: u32,
+    pub delay_ms: u64,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConnectionState {
     pub status: ConnectionStatus,
     pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reconnect: Option<ReconnectInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,6 +114,14 @@ pub fn overlay_url(port: u16) -> String {
     format!("http://127.0.0.1:{port}/overlay")
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Info,
+    Warn,
+    Error,
+}
+
 /// Events emitted by the sidecar. Deliberately not `Debug`: `Ready` carries the session token.
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -105,6 +130,7 @@ pub enum SidecarEvent {
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
     Error { error: AppError },
+    Log { level: LogLevel, message: String },
 }
 
 /// Access data for the sidecar's local server, valid for this app start only.
@@ -116,6 +142,7 @@ pub struct SidecarSession {
 pub enum StateUpdate {
     State,
     Error(AppError),
+    Log(LogLevel, String),
     None,
 }
 
@@ -139,6 +166,45 @@ pub fn apply_event(
             StateUpdate::State
         }
         SidecarEvent::Error { error } => StateUpdate::Error(error),
+        SidecarEvent::Log { level, message } => {
+            StateUpdate::Log(level, message.chars().take(MAX_LOG_MESSAGE_CHARS).collect())
+        }
+    }
+}
+
+/// Delay before the n-th consecutive restart: 1 s, 2 s, 4 s, 8 s, then 16 s.
+pub fn restart_delay(attempt: u32) -> Duration {
+    Duration::from_secs(1u64 << attempt.saturating_sub(1).min(4))
+}
+
+/// What the user asked for, so a restarted sidecar can pick up where the old one stopped.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DesiredState {
+    pub username: Option<String>,
+    pub target: Option<u32>,
+}
+
+impl DesiredState {
+    pub fn remember(&mut self, command: &SidecarCommand) {
+        match command {
+            SidecarCommand::Connect { username } => self.username = Some(username.clone()),
+            SidecarCommand::Disconnect => self.username = None,
+            SidecarCommand::SetTarget { target } => self.target = Some(*target),
+            SidecarCommand::Reset | SidecarCommand::GetState => {}
+        }
+    }
+
+    pub fn restore_commands(&self) -> Vec<SidecarCommand> {
+        let mut commands = Vec::new();
+        if let Some(target) = self.target {
+            commands.push(SidecarCommand::SetTarget { target });
+        }
+        if let Some(username) = &self.username {
+            commands.push(SidecarCommand::Connect {
+                username: username.clone(),
+            });
+        }
+        commands
     }
 }
 
@@ -147,7 +213,18 @@ struct Inner {
     child: Option<CommandChild>,
     session: Option<SidecarSession>,
     state: AppState,
+    desired: DesiredState,
     stopping: bool,
+    started_at: Option<Instant>,
+    restart_attempts: u32,
+    restore_pending: bool,
+}
+
+enum Outcome {
+    State(AppState),
+    Error(AppError),
+    Log(LogLevel, String),
+    Nothing,
 }
 
 /// Owns the sidecar process and the latest state it reported.
@@ -168,7 +245,7 @@ impl Sidecar {
                 .shell()
                 .sidecar(SIDECAR_NAME)
                 .and_then(|command| command.spawn())
-                .map_err(|error| AppError::new("sidecar-unavailable", error.to_string()))?;
+                .map_err(|_| AppError::sidecar_unavailable())?;
 
             let app_handle = app.clone();
             tauri::async_runtime::spawn(async move {
@@ -176,10 +253,13 @@ impl Sidecar {
                     let sidecar = app_handle.state::<Sidecar>();
                     match event {
                         CommandEvent::Stdout(line) => sidecar.handle_stdout(&app_handle, &line),
-                        CommandEvent::Stderr(line) => {
-                            eprintln!("[sidecar] {}", String::from_utf8_lossy(&line).trim_end());
+                        CommandEvent::Stderr(_line) => {
+                            // Raw library output may contain usernames or chat content, so it
+                            // is only shown on the console of debug builds and never persisted.
+                            #[cfg(debug_assertions)]
+                            eprintln!("[sidecar] {}", String::from_utf8_lossy(&_line).trim_end());
                         }
-                        CommandEvent::Error(error) => eprintln!("[sidecar] error: {error}"),
+                        CommandEvent::Error(_) => log::warn!("failed to read sidecar output"),
                         CommandEvent::Terminated(payload) => {
                             sidecar.handle_terminated(&app_handle, payload.code);
                             break;
@@ -191,10 +271,12 @@ impl Sidecar {
 
             inner.child = Some(child);
             inner.stopping = false;
+            inner.started_at = Some(Instant::now());
             inner.state.sidecar_running = true;
             inner.state.clone()
         };
 
+        log::info!("sidecar started");
         emit_state(app, &state);
         Ok(())
     }
@@ -205,13 +287,15 @@ impl Sidecar {
         line.push(b'\n');
 
         let mut inner = self.lock()?;
+        inner.desired.remember(command);
         let child = inner
             .child
             .as_mut()
             .ok_or_else(AppError::sidecar_unavailable)?;
-        child
-            .write(&line)
-            .map_err(|_| AppError::sidecar_unavailable())
+        child.write(&line).map_err(|_| {
+            log::warn!("failed to write a command to the sidecar");
+            AppError::sidecar_unavailable()
+        })
     }
 
     pub fn state(&self) -> AppState {
@@ -232,31 +316,59 @@ impl Sidecar {
 
     fn handle_stdout<R: Runtime>(&self, app: &AppHandle<R>, line: &[u8]) {
         let Ok(event) = serde_json::from_slice::<SidecarEvent>(line) else {
-            eprintln!("[sidecar] ignoring malformed event");
+            log::warn!("ignoring malformed sidecar event");
             return;
         };
 
-        let update = {
+        let (outcome, restore) = {
             let Ok(mut guard) = self.inner.lock() else {
                 return;
             };
             let inner = &mut *guard;
-            match apply_event(&mut inner.state, &mut inner.session, event) {
-                StateUpdate::State => Some(Ok(inner.state.clone())),
-                StateUpdate::Error(error) => Some(Err(error)),
-                StateUpdate::None => None,
+            let is_ready = matches!(event, SidecarEvent::Ready { .. });
+
+            if let SidecarEvent::Status { connection } = &event {
+                // Once a connection has been closed for good, a restart must not reopen it.
+                if connection.status == ConnectionStatus::Disconnected
+                    && inner.state.connection.status != ConnectionStatus::Disconnected
+                {
+                    inner.desired.username = None;
+                }
             }
+
+            let outcome = match apply_event(&mut inner.state, &mut inner.session, event) {
+                StateUpdate::State => Outcome::State(inner.state.clone()),
+                StateUpdate::Error(error) => Outcome::Error(error),
+                StateUpdate::Log(level, message) => Outcome::Log(level, message),
+                StateUpdate::None => Outcome::Nothing,
+            };
+            let restore = if is_ready && std::mem::take(&mut inner.restore_pending) {
+                inner.desired.restore_commands()
+            } else {
+                Vec::new()
+            };
+            (outcome, restore)
         };
 
-        match update {
-            Some(Ok(state)) => emit_state(app, &state),
-            Some(Err(error)) => emit_error(app, &error),
-            None => {}
+        match outcome {
+            Outcome::State(state) => emit_state(app, &state),
+            Outcome::Error(error) => {
+                log::warn!("sidecar reported error: {}", error.code);
+                emit_error(app, &error);
+            }
+            Outcome::Log(level, message) => log_sidecar_message(level, &message),
+            Outcome::Nothing => {}
+        }
+
+        for command in restore {
+            if let Err(error) = self.send(&command) {
+                log::warn!("failed to restore the sidecar state: {}", error.code);
+            }
         }
     }
 
     fn handle_terminated<R: Runtime>(&self, app: &AppHandle<R>, code: Option<i32>) {
-        let (state, unexpected) = {
+        let (state, restart_in) = {
             let Ok(mut inner) = self.inner.lock() else {
                 return;
             };
@@ -265,13 +377,54 @@ impl Sidecar {
             inner.state.sidecar_running = false;
             inner.state.overlay_url = None;
             inner.state.connection.status = ConnectionStatus::Disconnected;
-            (inner.state.clone(), !inner.stopping)
+            inner.state.connection.reconnect = None;
+            if inner.stopping {
+                return;
+            }
+
+            if inner
+                .started_at
+                .is_some_and(|started| started.elapsed() >= STABLE_RUNTIME)
+            {
+                inner.restart_attempts = 0;
+            }
+            inner.restart_attempts += 1;
+            let restart_in = (inner.restart_attempts <= MAX_RESTART_ATTEMPTS)
+                .then(|| restart_delay(inner.restart_attempts));
+            (inner.state.clone(), restart_in)
         };
 
-        if unexpected {
-            eprintln!("[sidecar] terminated unexpectedly (code: {code:?})");
-            emit_state(app, &state);
-            emit_error(app, &AppError::sidecar_unavailable());
+        emit_state(app, &state);
+
+        match restart_in {
+            Some(delay) => {
+                log::warn!(
+                    "sidecar exited unexpectedly (exit code {code:?}), restarting in {} ms",
+                    delay.as_millis()
+                );
+                let app = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(delay);
+                    app.state::<Sidecar>().restart(&app);
+                });
+            }
+            None => {
+                log::error!(
+                    "sidecar exited unexpectedly (exit code {code:?}), giving up after {MAX_RESTART_ATTEMPTS} restarts"
+                );
+                emit_error(app, &AppError::sidecar_unavailable());
+            }
+        }
+    }
+
+    fn restart<R: Runtime>(&self, app: &AppHandle<R>) {
+        match self.inner.lock() {
+            Ok(mut inner) if !inner.stopping => inner.restore_pending = true,
+            _ => return,
+        }
+        if let Err(error) = self.start(app) {
+            log::error!("failed to restart the sidecar ({})", error.code);
+            emit_error(app, &error);
         }
     }
 
@@ -282,15 +435,24 @@ impl Sidecar {
     }
 }
 
+/// The sidecar only sends sanitized messages built from fixed templates and error codes.
+fn log_sidecar_message(level: LogLevel, message: &str) {
+    match level {
+        LogLevel::Info => log::info!(target: "sidecar", "{message}"),
+        LogLevel::Warn => log::warn!(target: "sidecar", "{message}"),
+        LogLevel::Error => log::error!(target: "sidecar", "{message}"),
+    }
+}
+
 fn emit_state<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
-    if let Err(error) = app.emit_to(MAIN_WINDOW, STATE_CHANGED_EVENT, state) {
-        eprintln!("failed to emit state: {error}");
+    if app.emit_to(MAIN_WINDOW, STATE_CHANGED_EVENT, state).is_err() {
+        log::warn!("failed to emit the app state");
     }
 }
 
 fn emit_error<R: Runtime>(app: &AppHandle<R>, error: &AppError) {
-    if let Err(emit_error) = app.emit_to(MAIN_WINDOW, APP_ERROR_EVENT, error) {
-        eprintln!("failed to emit error: {emit_error}");
+    if app.emit_to(MAIN_WINDOW, APP_ERROR_EVENT, error).is_err() {
+        log::warn!("failed to emit an app error");
     }
 }
 
@@ -370,10 +532,35 @@ mod tests {
             ConnectionState {
                 status: ConnectionStatus::Connected,
                 username: Some("streamer".into()),
+                reconnect: None,
             }
         );
         assert_eq!(state.votes.count, 3);
         assert_eq!(state.votes.round_id, "r1");
+    }
+
+    #[test]
+    fn passes_reconnect_details_through_to_the_ui() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"status","connection":{"status":"reconnecting","username":"streamer","reconnect":{"attempt":2,"maxAttempts":8,"delayMs":4000}}}"#,
+            ),
+        );
+
+        assert_eq!(state.connection.status, ConnectionStatus::Reconnecting);
+        assert_eq!(
+            serde_json::to_value(&state.connection).unwrap(),
+            json!({
+                "status": "reconnecting",
+                "username": "streamer",
+                "reconnect": { "attempt": 2, "maxAttempts": 8, "delayMs": 4000 }
+            })
+        );
     }
 
     #[test]
@@ -395,6 +582,21 @@ mod tests {
     }
 
     #[test]
+    fn truncates_sidecar_log_messages() {
+        let mut state = AppState::default();
+        let mut session = None;
+        let line = json!({ "type": "log", "level": "warn", "message": "x".repeat(1000) }).to_string();
+
+        match apply_event(&mut state, &mut session, parse(&line)) {
+            StateUpdate::Log(level, message) => {
+                assert_eq!(level, LogLevel::Warn);
+                assert_eq!(message.chars().count(), MAX_LOG_MESSAGE_CHARS);
+            }
+            _ => panic!("expected a log update"),
+        }
+    }
+
+    #[test]
     fn rejects_unknown_events() {
         assert!(serde_json::from_str::<SidecarEvent>(r#"{"type":"chat","message":{}}"#).is_err());
     }
@@ -409,6 +611,43 @@ mod tests {
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
                 "overlayUrl": null
             })
+        );
+    }
+
+    #[test]
+    fn restart_delay_grows_and_is_capped() {
+        let seconds: Vec<u64> = [1, 2, 3, 4, 5, 9]
+            .into_iter()
+            .map(|attempt| restart_delay(attempt).as_secs())
+            .collect();
+
+        assert_eq!(seconds, [1, 2, 4, 8, 16, 16]);
+    }
+
+    #[test]
+    fn restores_target_and_connection_after_a_restart() {
+        let mut desired = DesiredState::default();
+
+        desired.remember(&SidecarCommand::SetTarget { target: 25 });
+        desired.remember(&SidecarCommand::Connect {
+            username: "streamer".into(),
+        });
+        desired.remember(&SidecarCommand::Reset);
+
+        assert_eq!(
+            desired.restore_commands(),
+            [
+                SidecarCommand::SetTarget { target: 25 },
+                SidecarCommand::Connect {
+                    username: "streamer".into()
+                },
+            ]
+        );
+
+        desired.remember(&SidecarCommand::Disconnect);
+        assert_eq!(
+            desired.restore_commands(),
+            [SidecarCommand::SetTarget { target: 25 }]
         );
     }
 }

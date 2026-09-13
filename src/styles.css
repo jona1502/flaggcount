@@ -162,7 +162,8 @@ button:focus-visible {
   background: var(--success);
 }
 
-.status[data-status='connecting'] .status-dot {
+.status[data-status='connecting'] .status-dot,
+.status[data-status='reconnecting'] .status-dot {
   background: var(--warning);
 }
 

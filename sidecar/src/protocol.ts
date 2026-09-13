@@ -27,12 +27,16 @@ export type SidecarCommand =
   | { type: 'setTarget'; target: number }
   | { type: 'getState' };
 
+export type LogLevel = 'info' | 'warn' | 'error';
+
 /** Events sent by the sidecar to Tauri, one JSON object per stdout line. */
 export type SidecarEvent =
   | { type: 'ready'; port: number; token: string }
   | { type: 'status'; connection: ConnectionState }
   | { type: 'votes'; votes: VoteSnapshot }
-  | { type: 'error'; error: AppError };
+  | { type: 'error'; error: AppError }
+  /** Sanitized log line: never usernames, chat content, URLs or tokens. */
+  | { type: 'log'; level: LogLevel; message: string };
 
 export function parseCommand(line: string): SidecarCommand | null {
   let value: unknown;

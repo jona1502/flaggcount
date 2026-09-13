@@ -1,10 +1,18 @@
 import type { VoteSnapshot } from './voting';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+
+export type ReconnectInfo = {
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+};
 
 export type ConnectionState = {
   status: ConnectionStatus;
   username: string | null;
+  /** Only present while an automatic reconnect is scheduled. */
+  reconnect?: ReconnectInfo;
 };
 
 export type AppErrorCode =
@@ -14,6 +22,7 @@ export type AppErrorCode =
   | 'rate-limited'
   | 'network'
   | 'stream-ended'
+  | 'reconnect-failed'
   | 'invalid-target'
   | 'sidecar-unavailable'
   | 'unknown';

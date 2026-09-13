@@ -2,11 +2,21 @@ pub mod commands;
 pub mod sidecar;
 
 use tauri::{Manager, RunEvent};
+use tauri_plugin_log::RotationStrategy;
 
 use sidecar::Sidecar;
 
 pub fn run() {
     tauri::Builder::default()
+        // Logs go to stdout and to a file in the app's log directory. Only sanitized
+        // messages are logged: no usernames, chat content, paths or session tokens.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .max_file_size(1_000_000)
+                .rotation_strategy(RotationStrategy::KeepOne)
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Sidecar::default())
@@ -20,7 +30,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             if let Err(error) = handle.state::<Sidecar>().start(handle) {
-                eprintln!("failed to start sidecar: {}", error.message);
+                log::error!("failed to start the sidecar ({})", error.code);
             }
             Ok(())
         })
