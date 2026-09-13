@@ -30,3 +30,11 @@ https://github.com/jona1502/flaggcount/releases/latest/download/latest.json
 ```
 
 Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-Anmeldung erreichbar sein. Bei einem privaten Repository muss dafür entweder das Repository öffentlich werden oder ein separates öffentliches Downloadziel konfiguriert werden. Ein GitHub-Token darf nicht in die Desktop-App eingebaut werden.
+
+## GitHub Actions einrichten
+
+1. Den Inhalt von `C:\Users\muhr9\.tauri\flagcount.key` kopieren.
+2. Im Repository unter **Settings → Secrets and variables → Actions** ein Repository-Secret namens `TAURI_SIGNING_PRIVATE_KEY` anlegen.
+3. Sicherstellen, dass GitHub Actions Releases schreiben darf. Der Workflow fordert dafür ausschließlich `contents: write` an.
+
+Der Workflow `.github/workflows/release.yml` läuft bei Tags mit dem Präfix `app-v` sowie manuell. Er führt Typecheck und Tests aus, baut den Windows-NSIS-Installer, signiert das Update und veröffentlicht `latest.json`, Installer und Signatur als GitHub Release.
