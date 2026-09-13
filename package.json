@@ -9,6 +9,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:sidecar": "node scripts/build-sidecar.mjs",
+    "version:check": "node scripts/version.mjs --check",
+    "version:set": "node scripts/version.mjs",
     "package:windows": "tauri build --bundles nsis",
     "preview": "vite preview",
     "tauri": "tauri",

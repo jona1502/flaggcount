@@ -38,6 +38,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Check synchronized versions
+        run: npm run version:check
+
+      - name: Match version to release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tagVersion = '${{ github.ref_name }}' -replace '^app-v', ''
+          npm run version:check -- $tagVersion
+
       - name: Check TypeScript
         run: npm run typecheck
 

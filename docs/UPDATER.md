@@ -38,3 +38,21 @@ Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-An
 3. Sicherstellen, dass GitHub Actions Releases schreiben darf. Der Workflow fordert dafür ausschließlich `contents: write` an.
 
 Der Workflow `.github/workflows/release.yml` läuft bei Tags mit dem Präfix `app-v` sowie manuell. Er führt Typecheck und Tests aus, baut den Windows-NSIS-Installer, signiert das Update und veröffentlicht `latest.json`, Installer und Signatur als GitHub Release.
+
+## Version veröffentlichen
+
+Alle Versionsangaben werden gemeinsam aktualisiert:
+
+```powershell
+npm run version:set -- 0.2.0
+npm run version:check
+```
+
+Danach Änderungen und Release Notes committen und einen exakt passenden Tag pushen:
+
+```powershell
+git tag app-v0.2.0
+git push origin main app-v0.2.0
+```
+
+Der Workflow bricht ab, wenn Tag und App-Version voneinander abweichen.
