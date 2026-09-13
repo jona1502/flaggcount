@@ -20,3 +20,13 @@ npm run package:windows
 Für GitHub Actions muss der vollständige Inhalt der privaten Schlüsseldatei als Repository-Secret `TAURI_SIGNING_PRIVATE_KEY` hinterlegt werden. Ein Passwort-Secret ist für diesen Schlüssel nicht erforderlich.
 
 Private Schlüssel und öffentliche Schlüsseldateien sind über `.gitignore` vor versehentlichem Einchecken geschützt. Der bereits konfigurierte öffentliche Schlüssel in `tauri.conf.json` darf veröffentlicht werden.
+
+## Updatequelle
+
+Die Anwendung liest das Manifest des neuesten GitHub Release von:
+
+```text
+https://github.com/jona1502/flaggcount/releases/latest/download/latest.json
+```
+
+Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-Anmeldung erreichbar sein. Bei einem privaten Repository muss dafür entweder das Repository öffentlich werden oder ein separates öffentliches Downloadziel konfiguriert werden. Ein GitHub-Token darf nicht in die Desktop-App eingebaut werden.
