@@ -1,4 +1,4 @@
-export { RED_FLAG, containsRedFlag } from './redFlag';
+export { RED_FLAG, WHITE_FLAG, containsRedFlag, containsWhiteFlag } from './redFlag';
 export {
   DEFAULT_TARGET,
   MAX_TARGET,

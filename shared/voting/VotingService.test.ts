@@ -34,6 +34,34 @@ describe('VotingService', () => {
     expect(service.getSnapshot().count).toBe(2);
   });
 
+  it('lets a user withdraw their vote with a white flag and vote again later', () => {
+    const service = createService();
+
+    expect(service.handleComment('user-1', '🚩')).toBe('counted');
+    expect(service.handleComment('user-1', 'Ich nehme sie zurück 🏳️')).toBe('withdrawn');
+    expect(service.getSnapshot().count).toBe(0);
+    expect(service.hasVoted('user-1')).toBe(false);
+    expect(service.handleComment('user-1', '🚩')).toBe('counted');
+  });
+
+  it('ignores a white flag from a user who has not voted', () => {
+    const service = createService();
+    const listener = vi.fn();
+    service.subscribe(listener);
+
+    expect(service.handleComment('user-1', '🏳️')).toBe('not-voted');
+    expect(service.getSnapshot().count).toBe(0);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('treats a white flag as withdrawal when both flag types occur', () => {
+    const service = createService();
+    service.handleComment('user-1', '🚩');
+
+    expect(service.handleComment('user-1', '🚩 🏳️')).toBe('withdrawn');
+    expect(service.getSnapshot().count).toBe(0);
+  });
+
   it('does not change the count for comments without a red flag', () => {
     const service = createService();
 

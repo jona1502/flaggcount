@@ -61,6 +61,9 @@ export function VotesPanel({ votes, disabled, onAddManualVote, onSetTarget, onRe
       <button type="button" className="button primary manual-vote" disabled={disabled} onClick={onAddManualVote}>
         <span aria-hidden="true">🚩</span> Flagge manuell hinzufügen
       </button>
+      <p className="chat-vote-hint">
+        Im Chat: <span aria-hidden="true">🚩</span> Stimme abgeben · <span aria-hidden="true">🏳️</span> Stimme zurücknehmen
+      </p>
 
       <div className="votes-actions">
         <form className="target-form" onSubmit={submitTarget} noValidate>

@@ -1,12 +1,12 @@
 # FlagCount
 
-FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Streaming-Overlay.
+FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme und kann sie mit einer weißen Flagge (`🏳️`) wieder zurücknehmen; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Streaming-Overlay.
 
 ## Bedienung
 
 1. FlagCount starten.
 2. Im Feld **TikTok-Benutzername** den Namen des Streamers eingeben – `name`, `@name` oder die Profil-/Live-URL – und **Verbinden** klicken. Der Stream muss gerade live sein.
-3. Zuschauer stimmen ab, indem sie eine Chatnachricht mit `🚩` schreiben. `🚩`, `🚩🚩` und `Bitte 🚩` zählen jeweils genau eine Stimme; jede Person zählt pro Runde nur einmal, egal wie viele Nachrichten sie schreibt.
+3. Zuschauer stimmen ab, indem sie eine Chatnachricht mit `🚩` schreiben. `🚩`, `🚩🚩` und `Bitte 🚩` zählen jeweils genau eine Stimme; jede Person zählt pro Runde nur einmal, egal wie viele Nachrichten sie schreibt. Mit `🏳️` nimmt sie ihre Stimme zurück und kann danach wieder neu abstimmen.
 4. Falls eine Chat-Stimme nicht erkannt wurde, fügt **Flagge manuell hinzufügen** genau eine Stimme hinzu. Das funktioniert auch ohne aktive TikTok-Verbindung und aktualisiert Dashboard sowie Overlay sofort.
 5. Unter **Stimmenziel** das Ziel eintragen und mit **Übernehmen** speichern. Ist das Ziel erreicht, wird der Fortschrittsbalken grün.
 6. **Runde zurücksetzen** und anschließend **Ja, zurücksetzen** löscht alle automatischen und manuellen Stimmen der Runde; danach dürfen alle erneut abstimmen. Ohne Bestätigung bricht der Reset nach fünf Sekunden ab.

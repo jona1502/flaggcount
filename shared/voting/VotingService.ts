@@ -1,4 +1,4 @@
-import { containsRedFlag } from './redFlag';
+import { containsRedFlag, containsWhiteFlag } from './redFlag';
 
 export const DEFAULT_TARGET = 100;
 export const MIN_TARGET = 1;
@@ -20,7 +20,7 @@ export type VoteSnapshot = {
   targetReached: boolean;
 };
 
-export type VoteResult = 'counted' | 'duplicate' | 'no-flag' | 'invalid-user';
+export type VoteResult = 'counted' | 'duplicate' | 'withdrawn' | 'not-voted' | 'no-flag' | 'invalid-user';
 
 export type VoteListener = (snapshot: VoteSnapshot) => void;
 
@@ -51,7 +51,8 @@ export class VotingService {
   }
 
   handleComment(userId: string, comment: string): VoteResult {
-    if (!containsRedFlag(comment)) {
+    const withdrawsVote = containsWhiteFlag(comment);
+    if (!withdrawsVote && !containsRedFlag(comment)) {
       return 'no-flag';
     }
 
@@ -59,6 +60,18 @@ export class VotingService {
     if (!voter) {
       return 'invalid-user';
     }
+
+    // A white flag takes precedence if a comment contains both flag types. This makes
+    // withdrawal unambiguous and avoids accidentally adding the vote again.
+    if (withdrawsVote) {
+      if (!this.state.voters.delete(voter)) {
+        return 'not-voted';
+      }
+      this.state.count = this.state.voters.size + this.state.manualVotes;
+      this.notify();
+      return 'withdrawn';
+    }
+
     if (this.state.voters.has(voter)) {
       return 'duplicate';
     }

@@ -53,6 +53,18 @@ describe('SidecarApp', () => {
     expect(app.getState().votes.count).toBe(2);
   });
 
+  it('publishes a lower count when a viewer withdraws with a white flag', async () => {
+    const { app, chat, ofType } = createApp();
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+
+    chat('1', '🚩');
+    chat('2', '🚩');
+    chat('1', '🏳️');
+
+    expect(ofType('votes').map((event) => event.votes.count)).toEqual([1, 2, 1]);
+    expect(app.getState().votes.count).toBe(1);
+  });
+
   it('never forwards chat content or viewer identities', async () => {
     const { app, chat, events } = createApp();
     await app.handleCommand({ type: 'connect', username: 'streamer' });
