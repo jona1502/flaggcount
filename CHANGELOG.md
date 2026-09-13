@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 0.2.2 – 2026-09-13
+
+- Visuellen Overlay-Designer für Farben, Position, Größe und Effekte ergänzt.
+- Flaggenanimation bei neuen Stimmen und Ziel-Feier hinzugefügt.
+- Tauri-Dashboard kompakter und übersichtlicher gestaltet.
+- Einleitungstext von der öffentlichen Downloadseite entfernt.
+
 ## 0.2.1 – 2026-09-13
 
 - Online-URL für das Streaming-Overlay ergänzt, damit es auch in TikTok LIVE Studio funktioniert. Die App überträgt dafür nur Zählerstand, Ziel und Darstellung, keine Chat-Inhalte.
