@@ -199,14 +199,15 @@ pub fn restart_delay(attempt: u32) -> Duration {
 /// Commands that bring a freshly started sidecar in line with the saved settings, and, after
 /// a crash, back to the stream the user was connected to.
 pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<SidecarCommand> {
-    let mut commands = vec![
-        SidecarCommand::SetTarget {
-            target: settings.target,
-        },
-        SidecarCommand::SetOverlaySettings {
-            overlay: settings.overlay.clone(),
-        },
-    ];
+    let mut commands = Vec::new();
+    if let Some(counter) = settings.primary_counter() {
+        if let Some(target) = counter.target {
+            commands.push(SidecarCommand::SetTarget { target });
+        }
+        commands.push(SidecarCommand::SetOverlaySettings {
+            overlay: counter.overlay.clone(),
+        });
+    }
     if let Some(username) = reconnect_to {
         commands.push(SidecarCommand::Connect {
             username: username.to_string(),
@@ -720,11 +721,7 @@ mod tests {
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
-                "settings": {
-                    "username": "",
-                    "target": 100,
-                    "overlay": serde_json::to_value(OverlaySettings::default()).unwrap()
-                }
+                "settings": serde_json::to_value(Settings::default()).unwrap()
             })
         );
     }
@@ -741,22 +738,21 @@ mod tests {
 
     #[test]
     fn configures_every_new_sidecar_from_the_saved_settings() {
-        let settings = Settings {
-            username: "saved".into(),
-            target: 25,
-            overlay: OverlaySettings {
-                show_background: false,
-                ..OverlaySettings::default()
-            },
+        let overlay = OverlaySettings {
+            show_background: false,
+            ..OverlaySettings::default()
         };
+        let mut settings = Settings::default();
+        settings.update_primary_counter(crate::settings::EPOCH_TIMESTAMP, |counter| {
+            counter.target = Some(25);
+            counter.overlay = overlay.clone();
+        });
 
         assert_eq!(
             startup_commands(&settings, None),
             [
                 SidecarCommand::SetTarget { target: 25 },
-                SidecarCommand::SetOverlaySettings {
-                    overlay: settings.overlay.clone()
-                },
+                SidecarCommand::SetOverlaySettings { overlay },
             ]
         );
         assert_eq!(

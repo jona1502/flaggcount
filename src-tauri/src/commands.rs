@@ -83,7 +83,10 @@ pub fn set_target<R: Runtime>(
     target: u32,
 ) -> Result<(), AppError> {
     let target = validate_target(target)?;
-    saver.save(&sidecar.update_settings(&app, |settings| settings.target = target));
+    let now = settings::now_timestamp();
+    saver.save(&sidecar.update_settings(&app, |settings| {
+        settings.update_primary_counter(&now, |counter| counter.target = Some(target))
+    }));
     send_setting(&sidecar, &SidecarCommand::SetTarget { target })
 }
 
@@ -96,7 +99,10 @@ pub fn set_overlay_settings<R: Runtime>(
 ) -> Result<(), AppError> {
     let overlay = validate_overlay(overlay)?;
     let saved = overlay.clone();
-    saver.save(&sidecar.update_settings(&app, |settings| settings.overlay = saved));
+    let now = settings::now_timestamp();
+    saver.save(&sidecar.update_settings(&app, |settings| {
+        settings.update_primary_counter(&now, |counter| counter.overlay = saved)
+    }));
     send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
 }
 

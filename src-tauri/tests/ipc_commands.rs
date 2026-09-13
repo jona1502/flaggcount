@@ -60,6 +60,10 @@ fn error_code(result: Result<Value, Value>) -> String {
         .to_string()
 }
 
+fn primary_counter(settings: &Value) -> &Value {
+    &settings["profiles"][0]["counters"][0]
+}
+
 #[test]
 fn returns_the_initial_state() {
     let app = create_app();
@@ -74,22 +78,7 @@ fn returns_the_initial_state() {
             "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
             "overlayUrl": null,
             "publicOverlayUrl": null,
-            "settings": {
-                "username": "",
-                "target": 100,
-                "overlay": {
-                    "showBackground": true,
-                    "showProgress": true,
-                    "accentColor": "#e82634",
-                    "textColor": "#ffffff",
-                    "backgroundColor": "#0c0c10",
-                    "backgroundOpacity": 80,
-                    "position": "center",
-                    "size": 92,
-                    "flagAnimation": "none",
-                    "targetEffect": "none"
-                }
-            }
+            "settings": serde_json::to_value(Settings::default()).unwrap()
         })
     );
 }
@@ -142,25 +131,24 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
     );
 
     let state = invoke(&app, "get_state", json!({})).unwrap();
+    let counter = primary_counter(&state["settings"]);
+    assert_eq!(counter["target"], json!(25));
     assert_eq!(
-        state["settings"],
+        counter["overlay"],
         json!({
-            "username": "",
-            "target": 25,
-            "overlay": {
-                "showBackground": false,
-                "showProgress": true,
-                "accentColor": "#e82634",
-                "textColor": "#ffffff",
-                "backgroundColor": "#0c0c10",
-                "backgroundOpacity": 80,
-                "position": "center",
-                "size": 92,
-                "flagAnimation": "none",
-                "targetEffect": "none"
-            }
+            "showBackground": false,
+            "showProgress": true,
+            "accentColor": "#e82634",
+            "textColor": "#ffffff",
+            "backgroundColor": "#0c0c10",
+            "backgroundOpacity": 80,
+            "position": "center",
+            "size": 92,
+            "flagAnimation": "none",
+            "targetEffect": "none"
         })
     );
+    assert_ne!(state["settings"]["profiles"][0]["updatedAt"], json!("1970-01-01T00:00:00.000Z"));
     let saved = app.saved.lock().unwrap();
     assert_eq!(saved.len(), 2);
     assert_eq!(serde_json::to_value(saved.last().unwrap()).unwrap(), state["settings"]);

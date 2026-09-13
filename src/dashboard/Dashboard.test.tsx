@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { migrateSettingsV1 } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppError, AppState } from '../../shared/appState';
 import type { FlagCountActions } from '../api/useFlagCount';
@@ -19,7 +20,7 @@ const baseState: AppState = {
   votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
 
 type RenderOptions = {

@@ -1,5 +1,6 @@
 import type { AppError, AppState } from '../../../shared/appState';
-import type { OverlaySettings, Settings } from '../../../shared/settings';
+import { primaryCounter, updatePrimaryCounter, type Settings } from '../../../shared/profiles';
+import type { OverlaySettings } from '../../../shared/settings';
 import { MAX_TARGET, MIN_TARGET, isValidTarget, type VoteSnapshot } from '../../../shared/voting';
 import { SidecarApp } from '../app';
 import { describeError } from '../logging';
@@ -12,6 +13,8 @@ export type Logger = (level: LogLevel, message: string) => void;
 export type SettingsSaver = {
   save: (settings: Settings) => Promise<void>;
 };
+
+const now = (): string => new Date().toISOString();
 
 /**
  * Server-side counterpart of the Tauri backend: drives the sidecar app, persists the settings
@@ -35,8 +38,11 @@ export class WebController {
 
   /** Applies the saved target and overlay settings to the new round. */
   async start(): Promise<void> {
-    await this.app.handleCommand({ type: 'setTarget', target: this.settings.target });
-    await this.app.handleCommand({ type: 'setOverlaySettings', overlay: this.settings.overlay });
+    const counter = primaryCounter(this.settings);
+    if (counter.target !== null) {
+      await this.app.handleCommand({ type: 'setTarget', target: counter.target });
+    }
+    await this.app.handleCommand({ type: 'setOverlaySettings', overlay: counter.overlay });
   }
 
   getState(): AppState {
@@ -49,7 +55,7 @@ export class WebController {
       overlayUrl: null,
       // The web version's own /overlay is already public.
       publicOverlayUrl: null,
-      settings: { ...this.settings, overlay: { ...this.settings.overlay } }
+      settings: structuredClone(this.settings)
     };
   }
 
@@ -90,7 +96,7 @@ export class WebController {
     }
     // Like the desktop app, the outcome arrives as status and error events, not as the response.
     this.run({ type: 'connect', username });
-    await this.updateSettings({ username });
+    await this.updateSettings((settings) => ({ ...settings, username }));
     return null;
   }
 
@@ -118,7 +124,7 @@ export class WebController {
     if (typeof target !== 'number' || !isValidTarget(target)) {
       return { code: 'invalid-target', message: `Target must be an integer between ${MIN_TARGET} and ${MAX_TARGET}` };
     }
-    await this.updateSettings({ target });
+    await this.updateSettings((settings) => updatePrimaryCounter(settings, (counter) => ({ ...counter, target }), now()));
     await this.app.handleCommand({ type: 'setTarget', target });
     return null;
   }
@@ -128,7 +134,7 @@ export class WebController {
     if (!overlay) {
       return { code: 'invalid-overlay-settings', message: 'Invalid overlay settings' };
     }
-    await this.updateSettings({ overlay });
+    await this.updateSettings((settings) => updatePrimaryCounter(settings, (counter) => ({ ...counter, overlay }), now()));
     await this.app.handleCommand({ type: 'setOverlaySettings', overlay });
     return null;
   }
@@ -143,8 +149,8 @@ export class WebController {
     });
   }
 
-  private async updateSettings(changes: Partial<Settings>): Promise<void> {
-    this.settings = { ...this.settings, ...changes };
+  private async updateSettings(change: (settings: Settings) => Settings): Promise<void> {
+    this.settings = change(this.settings);
     this.emitState();
     try {
       await this.store.save(this.settings);

@@ -3,6 +3,7 @@ import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { migrateSettingsV1, primaryCounter, type Settings } from '../../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { AppError } from '../../../shared/appState';
 import { channelIdForKey } from '../relay/relayChannel';
@@ -21,10 +22,13 @@ afterEach(async () => {
 });
 
 async function start(overrides: Partial<WebServerOptions> = {}) {
-  const saved: unknown[] = [];
+  const saved: Settings[] = [];
   const controller = new WebController(
     () => ({ connect: async () => undefined, disconnect: async () => undefined }),
-    { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
+    migrateSettingsV1(
+      { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
+      '2026-01-01T00:00:00.000Z'
+    ),
     { save: async (settings) => void saved.push(settings) },
     () => undefined
   );
@@ -295,8 +299,10 @@ describe('startWebServer', () => {
     const state = JSON.parse((await send(server.port, '/api/state', { headers: { cookie } })).body);
     expect(state.votes.target).toBe(25);
     expect(state.votes.count).toBe(0);
-    expect(state.settings).toMatchObject({ username: 'streamer', target: 25 });
-    expect(saved.at(-1)).toMatchObject({ username: 'streamer', target: 25 });
+    expect(state.settings.username).toBe('streamer');
+    expect(primaryCounter(state.settings).target).toBe(25);
+    expect(saved.at(-1)).toMatchObject({ username: 'streamer' });
+    expect(primaryCounter(saved.at(-1) as Settings).target).toBe(25);
   });
 
   it('rejects invalid input with an app error', async () => {

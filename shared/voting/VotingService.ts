@@ -1,8 +1,7 @@
 import { containsRedFlag, containsWhiteFlag } from './redFlag';
+import { DEFAULT_TARGET, MAX_TARGET, MIN_TARGET, isValidTarget } from './target';
 
-export const DEFAULT_TARGET = 100;
-export const MIN_TARGET = 1;
-export const MAX_TARGET = 100_000;
+export { DEFAULT_TARGET, MAX_TARGET, MIN_TARGET, isValidTarget };
 
 export type VoteState = {
   voters: Set<string>;
@@ -29,10 +28,6 @@ export type VotingServiceOptions = {
   target?: number;
   createRoundId?: () => string;
 };
-
-export function isValidTarget(target: number): boolean {
-  return Number.isInteger(target) && target >= MIN_TARGET && target <= MAX_TARGET;
-}
 
 /**
  * Counts one vote per user per round for comments containing 🚩.

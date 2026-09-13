@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { migrateSettingsV1 } from '../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../shared/settings';
 import type { AppState } from '../shared/appState';
 import { App } from './App';
@@ -17,7 +18,7 @@ const backendState: AppState = {
   votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
   overlayUrl: OVERLAY_URL,
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
 
 type Call = { cmd: string; payload: Record<string, unknown> | undefined };

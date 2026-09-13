@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { migrateSettingsV1 } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppState } from '../../shared/appState';
 
@@ -17,7 +18,7 @@ const state: AppState = {
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: migrateSettingsV1({ username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
 
 describe('flagcountApi', () => {

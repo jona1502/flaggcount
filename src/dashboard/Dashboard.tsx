@@ -1,4 +1,5 @@
 import type { AppError, AppState } from '../../shared/appState';
+import { primaryCounter } from '../../shared/profiles';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
@@ -90,7 +91,7 @@ export function Dashboard({
           <OverlayPanel
             overlayUrl={state.overlayUrl}
             publicOverlayUrl={state.publicOverlayUrl}
-            settings={state.settings.overlay}
+            settings={primaryCounter(state.settings).overlay}
             disabled={pending}
             onCopy={onCopyText}
             onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}

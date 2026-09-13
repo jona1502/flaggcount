@@ -1,4 +1,4 @@
-import type { Settings } from './settings';
+import type { Settings } from './profiles';
 import type { VoteSnapshot } from './voting';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
