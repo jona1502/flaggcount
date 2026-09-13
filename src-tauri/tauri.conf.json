@@ -16,9 +16,10 @@
         "label": "main",
         "title": "FlagCount",
         "width": 960,
-        "height": 720,
+        "height": 820,
         "minWidth": 640,
-        "minHeight": 480
+        "minHeight": 520,
+        "center": true
       }
     ],
     "security": {
@@ -27,8 +28,26 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "jona1502",
+    "copyright": "© 2026 jona1502",
+    "category": "Utility",
+    "shortDescription": "Zählt rote Flaggen im TikTok-Live-Chat",
+    "longDescription": "FlagCount zählt rote Flaggen im TikTok-Live-Chat mit einer Stimme pro Zuschauer je Runde und zeigt das Ergebnis im Dashboard und als OBS-Overlay.",
     "externalBin": ["binaries/flagcount-sidecar"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"]
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["German", "English"],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    }
   }
 }

@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:sidecar": "node scripts/build-sidecar.mjs",
+    "package:windows": "tauri build --bundles nsis",
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p sidecar/tsconfig.json && tsc --noEmit -p sidecar/tsconfig.browser.json && tsc --noEmit -p shared/tsconfig.json",
