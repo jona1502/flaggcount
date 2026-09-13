@@ -7,3 +7,6 @@ coverage/
 *.key
 *.key.pub
 .DS_Store
+dist-web/
+server-dist/
+data/

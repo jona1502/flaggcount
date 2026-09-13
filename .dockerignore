@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+src-tauri
+dist
+dist-web
+server-dist
+sidecar/dist
+data
+coverage
+.env
+.env.*
+*.log
+.DS_Store
+.vscode
+.idea

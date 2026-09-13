@@ -1,22 +1,16 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
-import type { VoteSnapshot } from '../../../shared/voting';
-import { OVERLAY_CSP, OVERLAY_CSS, OVERLAY_SCRIPT, renderOverlayPage } from '../overlay/overlayAssets';
+import { sendJson } from './http';
+import { createOverlayHandler, isOverlayPath, type OverlaySource } from './overlayRoutes';
 
 export const LOOPBACK_HOST = '127.0.0.1';
 /** Stable default so the streaming overlay URL survives app restarts. */
 export const DEFAULT_OVERLAY_PORT = 3847;
-const HEARTBEAT_MS = 15_000;
 
-export type LocalServerOptions = {
+export type LocalServerOptions = OverlaySource & {
   token: string;
   getState: () => unknown;
-  getVotes: () => VoteSnapshot;
-  subscribeVotes: (listener: (votes: VoteSnapshot) => void) => () => void;
-  getOverlaySettings?: () => OverlaySettings;
-  subscribeOverlaySettings?: (listener: (overlay: OverlaySettings) => void) => () => void;
   heartbeatMs?: number;
 };
 
@@ -49,26 +43,6 @@ function isAllowedHost(host: string | undefined, port: number): boolean {
   return host === `${LOOPBACK_HOST}:${port}` || host === `localhost:${port}`;
 }
 
-const BASE_HEADERS = {
-  'Cache-Control': 'no-store',
-  'X-Content-Type-Options': 'nosniff'
-};
-
-function send(
-  response: ServerResponse,
-  status: number,
-  contentType: string,
-  body: string,
-  headers: Record<string, string> = {}
-): void {
-  response.writeHead(status, { ...BASE_HEADERS, 'Content-Type': contentType, ...headers });
-  response.end(body);
-}
-
-function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  send(response, status, 'application/json; charset=utf-8', JSON.stringify(body));
-}
-
 function listen(server: Server, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -85,66 +59,7 @@ function listen(server: Server, port: number): Promise<void> {
  */
 export async function startLocalServer(options: LocalServerOptions, preferredPort = 0): Promise<LocalServer> {
   let boundPort = 0;
-  const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS;
-  const getOverlaySettings = options.getOverlaySettings ?? (() => DEFAULT_OVERLAY_SETTINGS);
-
-  const streamOverlay = (request: IncomingMessage, response: ServerResponse): void => {
-    response.writeHead(200, {
-      ...BASE_HEADERS,
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      Connection: 'keep-alive'
-    });
-    const pushVotes = (votes: VoteSnapshot): void => {
-      response.write(`event: votes\ndata: ${JSON.stringify(votes)}\n\n`);
-    };
-    const pushSettings = (overlay: OverlaySettings): void => {
-      response.write(`event: settings\ndata: ${JSON.stringify(overlay)}\n\n`);
-    };
-
-    response.write('retry: 2000\n\n');
-    pushSettings(getOverlaySettings());
-    pushVotes(options.getVotes());
-    const unsubscribeVotes = options.subscribeVotes(pushVotes);
-    const unsubscribeSettings = options.subscribeOverlaySettings?.(pushSettings);
-    const heartbeat = setInterval(() => response.write(': ping\n\n'), heartbeatMs);
-
-    request.on('close', () => {
-      clearInterval(heartbeat);
-      unsubscribeVotes();
-      unsubscribeSettings?.();
-    });
-  };
-
-  const handleOverlay = (pathname: string, request: IncomingMessage, response: ServerResponse): void => {
-    if (request.method !== 'GET') {
-      response.setHeader('Allow', 'GET');
-      sendJson(response, 405, { error: 'method-not-allowed' });
-      return;
-    }
-
-    switch (pathname) {
-      case '/overlay':
-        send(
-          response,
-          200,
-          'text/html; charset=utf-8',
-          renderOverlayPage(options.getVotes(), getOverlaySettings()),
-          { 'Content-Security-Policy': OVERLAY_CSP }
-        );
-        return;
-      case '/overlay/overlay.css':
-        send(response, 200, 'text/css; charset=utf-8', OVERLAY_CSS);
-        return;
-      case '/overlay/overlay.js':
-        send(response, 200, 'text/javascript; charset=utf-8', OVERLAY_SCRIPT);
-        return;
-      case '/overlay/events':
-        streamOverlay(request, response);
-        return;
-      default:
-        sendJson(response, 404, { error: 'not-found' });
-    }
-  };
+  const handleOverlay = createOverlayHandler(options, options.heartbeatMs);
 
   const handleRequest = (request: IncomingMessage, response: ServerResponse): void => {
     // The socket only listens on loopback; the Host check additionally blocks DNS rebinding.
@@ -154,7 +69,7 @@ export async function startLocalServer(options: LocalServerOptions, preferredPor
     }
 
     const { pathname } = new URL(request.url ?? '/', `http://${LOOPBACK_HOST}`);
-    if (pathname === '/overlay' || pathname.startsWith('/overlay/')) {
+    if (isOverlayPath(pathname)) {
       handleOverlay(pathname, request, response);
       return;
     }

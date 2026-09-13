@@ -1,0 +1,59 @@
+name: CI
+
+# Vorlage: hetzner/github-actions-templates/ci.yml
+# Die Job-ID MUSS "verify" heissen - darauf zeigt "needs: verify" in deploy.yml.
+
+on:
+  workflow_call:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Tests
+        run: npm run test --if-present
+
+  image:
+    # Faengt kaputte Dockerfiles im PR ab, statt erst nach dem Merge.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (ohne Push)
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

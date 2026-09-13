@@ -52,12 +52,18 @@ export function classifyTikTokError(error: unknown): LiveConnectionError {
   return new LiveConnectionError('unknown', message);
 }
 
-export const createTikTokConnection: LiveConnectionFactory = (username, handlers) => {
+export type TikTokConnectionOptions = {
+  /** Optional Euler Stream API key for TikTok's sign server; raises its rate limit. */
+  signApiKey?: string;
+};
+
+export const createTikTokConnectionFactory = (options: TikTokConnectionOptions = {}): LiveConnectionFactory => (username, handlers) => {
   const connection = new TikTokLiveConnection(username, {
     // Only comments written after connecting count, not the recent chat history.
     processInitialData: false,
     fetchRoomInfoOnConnect: true,
-    enableExtendedGiftInfo: false
+    enableExtendedGiftInfo: false,
+    ...(options.signApiKey ? { signApiKey: options.signApiKey } : {})
   });
 
   connection.on(WebcastEvent.CHAT, (message) => handlers.onChat(message));
@@ -81,3 +87,5 @@ export const createTikTokConnection: LiveConnectionFactory = (username, handlers
     }
   };
 };
+
+export const createTikTokConnection: LiveConnectionFactory = createTikTokConnectionFactory();
