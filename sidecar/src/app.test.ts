@@ -22,10 +22,17 @@ function createApp() {
   const chat = (userId: string, comment: string): void => {
     connections.at(-1)?.onChat({ user: { id: userId, displayId: `handle-${userId}` }, content: comment });
   };
+  const reply = (userId: string, mentionedNickname: string, comment: string): void => {
+    connections.at(-1)?.onChat({
+      user: { id: userId, displayId: `handle-${userId}` },
+      atUser: { id: 'mentioned', nickname: mentionedNickname },
+      content: comment
+    });
+  };
   const ofType = <T extends SidecarEvent['type']>(type: T) =>
     events.filter((event): event is Extract<SidecarEvent, { type: T }> => event.type === type);
 
-  return { app, events, chat, ofType };
+  return { app, events, chat, reply, ofType };
 }
 
 describe('SidecarApp', () => {
@@ -51,6 +58,17 @@ describe('SidecarApp', () => {
 
     expect(ofType('votes').map((event) => event.votes.count)).toEqual([1, 2]);
     expect(app.getState().votes.count).toBe(2);
+  });
+
+  it('does not count a flag that only belongs to the replied-to name', async () => {
+    const { app, reply, ofType } = createApp();
+    await app.handleCommand({ type: 'connect', username: 'streamer' });
+
+    reply('1', 'Rudi 🚩', '@Rudi 🚩 Hallo');
+    reply('2', 'Rudi 🚩', '@Rudi 🚩 Ich stimme 🚩');
+
+    expect(ofType('votes').map((event) => event.votes.count)).toEqual([1]);
+    expect(app.getState().votes.count).toBe(1);
   });
 
   it('publishes a lower count when a viewer withdraws with a white flag', async () => {

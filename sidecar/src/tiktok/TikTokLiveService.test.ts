@@ -103,6 +103,19 @@ describe('TikTokLiveService', () => {
     );
   });
 
+  it('does not forward flags that only occur inside a reply mention', async () => {
+    const { service, listener, connections } = createHarness();
+    await service.connect('streamer');
+
+    connections[0]?.handlers.onChat({
+      user: { id: '1', displayId: 'viewer' },
+      atUser: { id: '2', nickname: 'Rudi 🚩' },
+      content: '@Rudi 🚩 Hallo'
+    });
+
+    expect(listener.onChat).toHaveBeenCalledWith(expect.objectContaining({ comment: ' Hallo' }));
+  });
+
   it('reports classified errors when connecting fails', async () => {
     const { service, listener, connections, statuses } = createHarness({
       connect: async () => {
