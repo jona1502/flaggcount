@@ -53,6 +53,11 @@ function createFakeApi() {
     deactivateLicense: vi.fn(async () => undefined),
     openCustomerPortal: vi.fn(async () => undefined),
     openProPage: vi.fn(async () => undefined),
+    createProfile: vi.fn(async (_name: string) => 'p-1'),
+    duplicateProfile: vi.fn(async (_profileId: string) => 'p-2'),
+    renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
+    deleteProfile: vi.fn(async (_profileId: string) => undefined),
+    switchProfile: vi.fn(async (_profileId: string) => undefined),
     copyText: vi.fn(async (_text: string) => undefined),
     onStateChanged: vi.fn(async (handler: (state: AppState) => void): Promise<() => void> => {
       stateHandler = handler;

@@ -12,6 +12,11 @@ export type FlagCountActions = {
   resetVotes: () => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  createProfile: (name: string) => Promise<void>;
+  duplicateProfile: (profileId: string) => Promise<void>;
+  renameProfile: (profileId: string, name: string) => Promise<void>;
+  deleteProfile: (profileId: string) => Promise<void>;
+  switchProfile: (profileId: string) => Promise<void>;
   activateLicense: (code: string, replaceInstallationId?: string) => Promise<void>;
   refreshLicense: () => Promise<void>;
   deactivateLicense: () => Promise<void>;
@@ -104,6 +109,17 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       resetVotes: () => run(() => api.resetVotes()),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
+      createProfile: (name) =>
+        run(async () => {
+          await api.createProfile(name);
+        }),
+      duplicateProfile: (profileId) =>
+        run(async () => {
+          await api.duplicateProfile(profileId);
+        }),
+      renameProfile: (profileId, name) => run(() => api.renameProfile(profileId, name)),
+      deleteProfile: (profileId) => run(() => api.deleteProfile(profileId)),
+      switchProfile: (profileId) => run(() => api.switchProfile(profileId)),
       activateLicense: (code, replaceInstallationId) => run(() => api.activateLicense(code, replaceInstallationId)),
       refreshLicense: () => run(() => api.refreshLicense()),
       deactivateLicense: () => run(() => api.deactivateLicense()),

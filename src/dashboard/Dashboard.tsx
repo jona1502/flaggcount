@@ -1,8 +1,10 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
+import { effectiveProfile, entitlementsFor } from '../../shared/entitlements';
 import { primaryCounter } from '../../shared/profiles';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { LicensePanel } from '../pro/LicensePanel';
+import { ProfilesPanel } from '../profiles/ProfilesPanel';
 import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
 import { OverlayPanel } from './OverlayPanel';
@@ -21,14 +23,15 @@ type DashboardProps = {
   updater?: UpdaterController;
   /** Only the web version has a login to sign out of. */
   onLogout?: () => void;
-  /** FlagCount Pro is managed in the desktop app only. */
+  /** Profiles and FlagCount Pro are managed in the desktop app only. */
   proAvailable?: boolean;
 };
 
-type Section = 'live' | 'pro';
+type Section = 'live' | 'profiles' | 'pro';
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'live', label: 'Live' },
+  { id: 'profiles', label: 'Profile' },
   { id: 'pro', label: 'Pro' }
 ];
 
@@ -45,7 +48,7 @@ export function Dashboard({
   proAvailable = false
 }: DashboardProps): React.JSX.Element {
   const [section, setSection] = useState<Section>('live');
-  const tabs = useRef<Record<Section, HTMLButtonElement | null>>({ live: null, pro: null });
+  const tabs = useRef<Partial<Record<Section, HTMLButtonElement | null>>>({});
   const sections = proAvailable ? SECTIONS : SECTIONS.filter((item) => item.id === 'live');
   const current = sections.some((item) => item.id === section) ? section : 'live';
 
@@ -58,6 +61,77 @@ export function Dashboard({
     if (!next) return;
     setSection(next.id);
     tabs.current[next.id]?.focus();
+  };
+
+  const renderSection = (appState: AppState): React.JSX.Element => {
+    if (current === 'pro') {
+      return (
+        <div role="tabpanel" id="section-pro" aria-labelledby="tab-pro">
+          <LicensePanel
+            license={appState.license}
+            available={appState.sidecarRunning}
+            pending={pending}
+            onActivate={(code, replaceInstallationId) => void actions.activateLicense(code, replaceInstallationId)}
+            onRefresh={() => void actions.refreshLicense()}
+            onDeactivate={() => void actions.deactivateLicense()}
+            onOpenPortal={() => void actions.openCustomerPortal()}
+            onOpenProPage={() => void actions.openProPage()}
+          />
+        </div>
+      );
+    }
+    if (current === 'profiles') {
+      return (
+        <div role="tabpanel" id="section-profiles" aria-labelledby="tab-profiles">
+          <ProfilesPanel
+            settings={appState.settings}
+            license={appState.license}
+            disabled={pending}
+            onCreate={(name) => void actions.createProfile(name)}
+            onDuplicate={(profileId) => void actions.duplicateProfile(profileId)}
+            onRename={(profileId, name) => void actions.renameProfile(profileId, name)}
+            onDelete={(profileId) => void actions.deleteProfile(profileId)}
+            onSwitch={(profileId) => void actions.switchProfile(profileId)}
+            onShowPro={() => setSection('pro')}
+          />
+        </div>
+      );
+    }
+
+    // The profile that actually runs: after a downgrade that is the first one, not the chosen one.
+    const running = effectiveProfile(appState.settings, entitlementsFor(appState.license.plan, appState.license.features));
+    const counter = running.counters[0] ?? primaryCounter(appState.settings);
+    return (
+      <div
+        className="dashboard-grid"
+        {...(sections.length > 1 ? { role: 'tabpanel', id: 'section-live', 'aria-labelledby': 'tab-live' } : {})}
+      >
+        <ConnectionPanel
+          connection={appState.connection}
+          savedUsername={appState.settings.username}
+          sidecarRunning={appState.sidecarRunning}
+          pending={pending}
+          onConnect={(username) => void actions.connect(username)}
+          onDisconnect={() => void actions.disconnect()}
+        />
+        <VotesPanel
+          votes={appState.votes}
+          disabled={!appState.sidecarRunning || pending}
+          onAddManualVote={() => void actions.addManualVote()}
+          onRemoveManualVote={() => void actions.removeManualVote()}
+          onSetTarget={(target) => void actions.setTarget(target)}
+          onReset={() => void actions.resetVotes()}
+        />
+        <OverlayPanel
+          overlayUrl={appState.overlayUrl}
+          publicOverlayUrl={appState.publicOverlayUrl}
+          settings={counter.overlay}
+          disabled={pending}
+          onCopy={onCopyText}
+          onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
+        />
+      </div>
+    );
   };
 
   return (
@@ -115,62 +189,13 @@ export function Dashboard({
               onKeyDown={moveFocus}
             >
               {item.label}
-              {item.id === 'pro' && state.license.plan === 'pro' && (
-                <span className="plan-badge" aria-label="aktiv">
-                  aktiv
-                </span>
-              )}
+              {item.id === 'pro' && state.license.plan === 'pro' && <span className="plan-badge">aktiv</span>}
             </button>
           ))}
         </nav>
       )}
 
-      {state === null ? (
-        <p className="loading">Status wird geladen …</p>
-      ) : current === 'pro' ? (
-        <div role="tabpanel" id="section-pro" aria-labelledby="tab-pro">
-          <LicensePanel
-            license={state.license}
-            available={state.sidecarRunning}
-            pending={pending}
-            onActivate={(code, replaceInstallationId) => void actions.activateLicense(code, replaceInstallationId)}
-            onRefresh={() => void actions.refreshLicense()}
-            onDeactivate={() => void actions.deactivateLicense()}
-            onOpenPortal={() => void actions.openCustomerPortal()}
-            onOpenProPage={() => void actions.openProPage()}
-          />
-        </div>
-      ) : (
-        <div
-          className="dashboard-grid"
-          {...(sections.length > 1 ? { role: 'tabpanel', id: 'section-live', 'aria-labelledby': 'tab-live' } : {})}
-        >
-          <ConnectionPanel
-            connection={state.connection}
-            savedUsername={state.settings.username}
-            sidecarRunning={state.sidecarRunning}
-            pending={pending}
-            onConnect={(username) => void actions.connect(username)}
-            onDisconnect={() => void actions.disconnect()}
-          />
-          <VotesPanel
-            votes={state.votes}
-            disabled={!state.sidecarRunning || pending}
-            onAddManualVote={() => void actions.addManualVote()}
-            onRemoveManualVote={() => void actions.removeManualVote()}
-            onSetTarget={(target) => void actions.setTarget(target)}
-            onReset={() => void actions.resetVotes()}
-          />
-          <OverlayPanel
-            overlayUrl={state.overlayUrl}
-            publicOverlayUrl={state.publicOverlayUrl}
-            settings={primaryCounter(state.settings).overlay}
-            disabled={pending}
-            onCopy={onCopyText}
-            onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
-          />
-        </div>
-      )}
+      {state === null ? <p className="loading">Status wird geladen …</p> : renderSection(state)}
     </main>
   );
 }

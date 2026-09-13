@@ -524,10 +524,21 @@ impl Settings {
     }
 
     pub fn update_primary_counter(&mut self, now: &str, change: impl FnOnce(&mut CounterDefinition)) {
+        let profile_id = self.active_profile_id.clone();
+        self.update_profile_counter(&profile_id, now, change);
+    }
+
+    /// Changes the first counter of a profile; an unknown id changes the first profile.
+    pub fn update_profile_counter(
+        &mut self,
+        profile_id: &str,
+        now: &str,
+        change: impl FnOnce(&mut CounterDefinition),
+    ) {
         let index = self
             .profiles
             .iter()
-            .position(|profile| profile.id == self.active_profile_id)
+            .position(|profile| profile.id == profile_id)
             .unwrap_or(0);
         if let Some(profile) = self.profiles.get_mut(index) {
             if let Some(counter) = profile.counters.first_mut() {

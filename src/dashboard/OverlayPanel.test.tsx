@@ -149,7 +149,12 @@ describe('OverlayPanel', () => {
       refreshLicense: vi.fn(async () => undefined),
       deactivateLicense: vi.fn(async () => undefined),
       openCustomerPortal: vi.fn(async () => undefined),
-      openProPage: vi.fn(async () => undefined)
+      openProPage: vi.fn(async () => undefined),
+      createProfile: vi.fn(async (_name: string) => undefined),
+      duplicateProfile: vi.fn(async (_profileId: string) => undefined),
+      renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
+      deleteProfile: vi.fn(async (_profileId: string) => undefined),
+      switchProfile: vi.fn(async (_profileId: string) => undefined)
     } satisfies FlagCountActions;
     const onCopyText = vi.fn(async (_text: string) => undefined);
     const user = userEvent.setup();

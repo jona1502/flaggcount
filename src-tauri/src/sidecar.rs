@@ -11,6 +11,8 @@ use serde_json::Value;
 use crate::license::{
     is_allowed_external_url, LicenseCredentials, LicenseState, LicenseVault, StoredLicense,
 };
+use crate::entitlements::profile_limit;
+use crate::profiles::effective_profile;
 use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
@@ -281,10 +283,11 @@ pub fn restart_delay(attempt: u32) -> Duration {
 /// a crash, back to the stream the user was connected to.
 pub fn startup_commands(
     settings: &Settings,
+    license_state: &LicenseState,
     license: &StoredLicense,
     reconnect_to: Option<&str>,
 ) -> Vec<SidecarCommand> {
-    let mut commands: Vec<SidecarCommand> = configure_counters(settings).into_iter().collect();
+    let mut commands: Vec<SidecarCommand> = configure_counters(settings, license_state).into_iter().collect();
     commands.push(SidecarCommand::ConfigureLicense {
         installation_id: license.installation_id.clone(),
         credentials: license.credentials.clone(),
@@ -298,13 +301,25 @@ pub fn startup_commands(
     commands
 }
 
-/// Sends the counters of the active profile to the sidecar.
-pub fn configure_counters(settings: &Settings) -> Option<SidecarCommand> {
-    settings
-        .active_profile()
-        .map(|profile| SidecarCommand::ConfigureCounters {
-            counters: profile.counters.clone(),
-        })
+/// Sends the counters of the profile the plan allows: the active one, or the first after a downgrade.
+pub fn configure_counters(settings: &Settings, license: &LicenseState) -> Option<SidecarCommand> {
+    effective_profile(settings, license).map(|profile| SidecarCommand::ConfigureCounters {
+        counters: profile.counters.clone(),
+    })
+}
+
+/// Becoming Pro runs the chosen profile at once. Losing Pro waits for the next change or start, so a
+/// running stream keeps its counters.
+pub fn counters_after_license_change(
+    settings: &Settings,
+    before: &LicenseState,
+    after: &LicenseState,
+) -> Option<SidecarCommand> {
+    let previous = effective_profile(settings, before).map(|profile| profile.id.as_str());
+    let current = effective_profile(settings, after).map(|profile| profile.id.as_str());
+    (previous != current && profile_limit(after) > profile_limit(before))
+        .then(|| configure_counters(settings, after))
+        .flatten()
 }
 
 /// The stream the user wants to be connected to, so a restarted sidecar can resume it.
@@ -364,6 +379,23 @@ impl Sidecar {
         if let Ok(mut inner) = self.inner.lock() {
             inner.license = license;
         }
+    }
+
+    /// Applies a change that may be refused, e.g. by the plan's limits. On an error nothing changes.
+    pub fn try_update_settings<R: Runtime, T>(
+        &self,
+        app: &AppHandle<R>,
+        change: impl FnOnce(&mut Settings, &LicenseState) -> Result<T, AppError>,
+    ) -> Result<(T, Settings), AppError> {
+        let (value, state) = {
+            let mut inner = self.lock()?;
+            let mut settings = inner.state.settings.clone();
+            let value = change(&mut settings, &inner.state.license)?;
+            inner.state.settings = settings;
+            (value, inner.state.clone())
+        };
+        emit_state(app, &state);
+        Ok((value, state.settings))
     }
 
     /// Changes the settings, notifies the UI and returns the result for saving.
@@ -479,6 +511,8 @@ impl Sidecar {
             };
             let inner = &mut *guard;
             let is_ready = matches!(event, SidecarEvent::Ready { .. });
+            let license_before =
+                matches!(event, SidecarEvent::License { .. }).then(|| inner.state.license.clone());
 
             if let SidecarEvent::Status { connection } = &event {
                 // Once a connection has been closed for good, a restart must not reopen it.
@@ -501,17 +535,21 @@ impl Sidecar {
                 StateUpdate::OpenUrl(url) => Outcome::OpenUrl(url),
                 StateUpdate::None => Outcome::Nothing,
             };
-            let startup = if is_ready {
+            let follow_up = license_before.and_then(|before| {
+                counters_after_license_change(&inner.state.settings, &before, &inner.state.license)
+            });
+            let mut startup = if is_ready {
                 let reconnect = std::mem::take(&mut inner.restore_pending);
                 let reconnect_to = if reconnect {
                     inner.desired.username.as_deref()
                 } else {
                     None
                 };
-                startup_commands(&inner.state.settings, &inner.license, reconnect_to)
+                startup_commands(&inner.state.settings, &inner.state.license, &inner.license, reconnect_to)
             } else {
                 Vec::new()
             };
+            startup.extend(follow_up);
             (outcome, startup)
         };
 
@@ -998,7 +1036,7 @@ mod tests {
         };
 
         assert_eq!(
-            startup_commands(&settings, &license, None),
+            startup_commands(&settings, &LicenseState::default(), &license, None),
             [
                 SidecarCommand::ConfigureCounters {
                     counters: vec![CounterDefinition::red_flags(25, overlay)],
@@ -1011,11 +1049,33 @@ mod tests {
             ]
         );
         assert_eq!(
-            startup_commands(&settings, &license, Some("streamer")).last(),
+            startup_commands(&settings, &LicenseState::default(), &license, Some("streamer")).last(),
             Some(&SidecarCommand::Connect {
                 username: "streamer".into()
             })
         );
+    }
+
+    #[test]
+    fn runs_the_chosen_profile_as_soon_as_pro_becomes_active_but_never_on_a_downgrade() {
+        let pro = LicenseState {
+            plan: "pro".into(),
+            status: "active".into(),
+            features: vec![crate::entitlements::MULTIPLE_PROFILES.into()],
+            ..LicenseState::default()
+        };
+        let free = LicenseState::default();
+        let mut settings = Settings::default();
+        crate::profiles::create_profile(&mut settings, &pro, "Quiz", "quiz".into(), "now").unwrap();
+        settings.profiles[1].counters[0].target = Some(7);
+        crate::profiles::switch_profile(&mut settings, &pro, "quiz").unwrap();
+
+        assert!(matches!(
+            counters_after_license_change(&settings, &free, &pro),
+            Some(SidecarCommand::ConfigureCounters { counters }) if counters[0].target == Some(7)
+        ));
+        assert_eq!(counters_after_license_change(&settings, &pro, &free), None);
+        assert_eq!(counters_after_license_change(&settings, &pro, &pro), None);
     }
 
     #[test]

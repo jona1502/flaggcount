@@ -17,6 +17,11 @@ export const flagcountApi = {
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
+  createProfile: (name: string): Promise<string> => invoke<string>('create_profile', { name }),
+  duplicateProfile: (profileId: string): Promise<string> => invoke<string>('duplicate_profile', { profileId }),
+  renameProfile: (profileId: string, name: string): Promise<void> => invoke('rename_profile', { profileId, name }),
+  deleteProfile: (profileId: string): Promise<void> => invoke('delete_profile', { profileId }),
+  switchProfile: (profileId: string): Promise<void> => invoke('switch_profile', { profileId }),
   activateLicense: (code: string, replaceInstallationId?: string): Promise<void> =>
     invoke('activate_license', { code, replaceInstallationId: replaceInstallationId ?? null }),
   refreshLicense: (): Promise<void> => invoke('refresh_license'),

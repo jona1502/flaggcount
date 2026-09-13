@@ -202,3 +202,37 @@ fn validates_license_input_before_it_reaches_the_sidecar() {
     }
 }
 
+#[test]
+fn manages_profiles_within_the_free_plan() {
+    let app = create_app();
+
+    assert_eq!(error_code(invoke(&app, "create_profile", json!({ "name": "Quiz" }))), "pro-required");
+    assert_eq!(
+        error_code(invoke(&app, "duplicate_profile", json!({ "profileId": "default" }))),
+        "pro-required"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "rename_profile", json!({ "profileId": "default", "name": "   " }))),
+        "invalid-profile"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "switch_profile", json!({ "profileId": "missing" }))),
+        "invalid-profile"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "delete_profile", json!({ "profileId": "default" }))),
+        "invalid-profile"
+    );
+    assert!(app.saved.lock().unwrap().is_empty());
+
+    assert_eq!(
+        invoke(&app, "rename_profile", json!({ "profileId": "default", "name": " Hauptprofil " })),
+        Ok(Value::Null)
+    );
+    assert_eq!(invoke(&app, "switch_profile", json!({ "profileId": "default" })), Ok(Value::Null));
+
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    assert_eq!(state["settings"]["profiles"][0]["name"], json!("Hauptprofil"));
+    assert_eq!(app.saved.lock().unwrap().len(), 1);
+}
+

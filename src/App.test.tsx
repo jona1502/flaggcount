@@ -174,3 +174,18 @@ describe('FlagCount Pro in the Tauri app', () => {
   });
 });
 
+describe('Stream profiles in the Tauri app', () => {
+  it('renames the profile from the Profile section', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Standard umbenennen' }));
+    const input = screen.getByLabelText('Neuer Name für Standard');
+    await user.clear(input);
+    await user.type(input, 'Hauptprofil');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(payloadOf('rename_profile')).toEqual({ profileId: 'default', name: 'Hauptprofil' });
+  });
+});
+

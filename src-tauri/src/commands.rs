@@ -1,8 +1,8 @@
 use tauri::{AppHandle, Runtime, State};
 
-use crate::settings::{self, OverlaySettings, SettingsSaver, MAX_TARGET, MIN_TARGET};
-use crate::license;
-use crate::settings::Settings;
+use crate::license::{self, LicenseState};
+use crate::profiles::{self, effective_profile};
+use crate::settings::{self, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
 use crate::sidecar::{configure_counters, open_external, AppError, AppState, Sidecar, SidecarCommand};
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
@@ -28,15 +28,33 @@ pub fn validate_overlay(overlay: OverlaySettings) -> Result<OverlaySettings, App
         .ok_or_else(|| AppError::new("invalid-overlay-settings", "Invalid overlay settings"))
 }
 
-/// Settings are saved first; a sidecar that is (re)starting applies them once it is ready.
-fn send_counters(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
-    let Some(command) = configure_counters(settings) else {
-        return Ok(());
-    };
-    match sidecar.send(&command) {
+/// A sidecar that is (re)starting applies saved settings once it is ready, so that is no error here.
+fn ignore_unavailable(result: Result<(), AppError>) -> Result<(), AppError> {
+    match result {
         Err(error) if error.code == "sidecar-unavailable" => Ok(()),
         result => result,
     }
+}
+
+/// Settings are saved first; the sidecar then runs the counters of the profile the plan allows.
+fn send_counters(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
+    match configure_counters(settings, &sidecar.state().license) {
+        Some(command) => ignore_unavailable(sidecar.send(&command)),
+        None => Ok(()),
+    }
+}
+
+/// Changes the first counter of the profile that is actually running.
+fn update_running_counter(
+    settings: &mut Settings,
+    license: &LicenseState,
+    now: &str,
+    change: impl FnOnce(&mut settings::CounterDefinition),
+) {
+    let profile_id = effective_profile(settings, license)
+        .map(|profile| profile.id.clone())
+        .unwrap_or_default();
+    settings.update_profile_counter(&profile_id, now, change);
 }
 
 #[tauri::command]
@@ -89,9 +107,10 @@ pub fn set_target<R: Runtime>(
 ) -> Result<(), AppError> {
     let target = validate_target(target)?;
     let now = settings::now_timestamp();
-    let settings = sidecar.update_settings(&app, |settings| {
-        settings.update_primary_counter(&now, |counter| counter.target = Some(target))
-    });
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        update_running_counter(settings, license, &now, |counter| counter.target = Some(target));
+        Ok(())
+    })?;
     saver.save(&settings);
     send_counters(&sidecar, &settings)
 }
@@ -105,11 +124,97 @@ pub fn set_overlay_settings<R: Runtime>(
 ) -> Result<(), AppError> {
     let overlay = validate_overlay(overlay)?;
     let now = settings::now_timestamp();
-    let settings = sidecar.update_settings(&app, |settings| {
-        settings.update_primary_counter(&now, |counter| counter.overlay = overlay)
-    });
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        update_running_counter(settings, license, &now, |counter| counter.overlay = overlay);
+        Ok(())
+    })?;
     saver.save(&settings);
     send_counters(&sidecar, &settings)
+}
+
+#[tauri::command]
+pub fn create_profile<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    name: String,
+) -> Result<String, AppError> {
+    let now = settings::now_timestamp();
+    let (id, settings) = sidecar.try_update_settings(&app, |settings, license| {
+        profiles::create_profile(settings, license, &name, profiles::new_profile_id(), &now)
+    })?;
+    saver.save(&settings);
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn duplicate_profile<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    profile_id: String,
+) -> Result<String, AppError> {
+    let now = settings::now_timestamp();
+    let (id, settings) = sidecar.try_update_settings(&app, |settings, license| {
+        profiles::duplicate_profile(settings, license, &profile_id, profiles::new_profile_id(), &now)
+    })?;
+    saver.save(&settings);
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn rename_profile<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    profile_id: String,
+    name: String,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        profiles::rename_profile(settings, license, &profile_id, &name, &now)
+    })?;
+    saver.save(&settings);
+    Ok(())
+}
+
+/// Switching the running profile ends the running rounds, which the UI confirms beforehand.
+fn run_other_profile(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
+    send_counters(sidecar, settings)?;
+    ignore_unavailable(sidecar.send(&SidecarCommand::Reset))
+}
+
+#[tauri::command]
+pub fn delete_profile<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    profile_id: String,
+) -> Result<(), AppError> {
+    let (active_changed, settings) =
+        sidecar.try_update_settings(&app, |settings, _license| profiles::delete_profile(settings, &profile_id))?;
+    saver.save(&settings);
+    if active_changed {
+        run_other_profile(&sidecar, &settings)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn switch_profile<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    profile_id: String,
+) -> Result<(), AppError> {
+    let (changed, settings) = sidecar.try_update_settings(&app, |settings, license| {
+        profiles::switch_profile(settings, license, &profile_id)
+    })?;
+    if changed {
+        saver.save(&settings);
+        run_other_profile(&sidecar, &settings)?;
+    }
+    Ok(())
 }
 
 /// Activation goes through the sidecar, which talks to the license service and verifies the answer.

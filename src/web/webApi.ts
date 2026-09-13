@@ -151,6 +151,12 @@ export const webApi: FlagCountApi = {
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
+  // Profiles are managed in the desktop app; the web version runs a single profile.
+  createProfile: () => Promise.reject(DESKTOP_ONLY),
+  duplicateProfile: () => Promise.reject(DESKTOP_ONLY),
+  renameProfile: () => Promise.reject(DESKTOP_ONLY),
+  deleteProfile: () => Promise.reject(DESKTOP_ONLY),
+  switchProfile: () => Promise.reject(DESKTOP_ONLY),
   // FlagCount Pro is managed in the desktop app.
   activateLicense: () => Promise.reject(DESKTOP_ONLY),
   refreshLicense: () => Promise.reject(DESKTOP_ONLY),

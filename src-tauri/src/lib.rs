@@ -1,5 +1,7 @@
 pub mod commands;
+pub mod entitlements;
 pub mod license;
+pub mod profiles;
 pub mod settings;
 pub mod sidecar;
 
@@ -23,6 +25,11 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::reset_votes,
             commands::set_target,
             commands::set_overlay_settings,
+            commands::create_profile,
+            commands::duplicate_profile,
+            commands::rename_profile,
+            commands::delete_profile,
+            commands::switch_profile,
             commands::activate_license,
             commands::refresh_license,
             commands::deactivate_license,

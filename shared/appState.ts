@@ -29,6 +29,8 @@ export type AppErrorCode =
   | 'invalid-overlay-settings'
   | 'invalid-code'
   | 'invalid-installation'
+  | 'invalid-profile'
+  | 'pro-required'
   | 'sidecar-unavailable'
   | 'unknown';
 
