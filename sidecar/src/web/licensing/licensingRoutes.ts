@@ -47,8 +47,10 @@ export type LicensingHandler = {
 };
 
 export type LicensingHandlerOptions = {
-  /** `null` while billing is not configured: every route answers 503. */
-  service: LicenseService | null;
+  /** `null` while billing is not configured or not connected yet: every route answers 503. */
+  service: LicenseService | null | (() => LicenseService | null);
+  /** Billing is configured, so a missing service means its database is unavailable. */
+  required?: boolean;
   logger: StructuredLogger;
   clientAddress: (request: IncomingMessage) => string;
   limits?: Partial<Record<LicensingRoute, Limit>>;
@@ -104,7 +106,9 @@ function noContent(response: ServerResponse, status = 204): void {
  * cookies, strict rate limits, and logs that contain neither codes, secrets, addresses nor IPs.
  */
 export function createLicensingHandler(options: LicensingHandlerOptions): LicensingHandler {
-  const { service, logger } = options;
+  const { logger } = options;
+  const currentService = (): LicenseService | null =>
+    typeof options.service === 'function' ? options.service() : options.service;
   const now = options.now ?? Date.now;
   const limiters = new Map(
     (Object.keys(LICENSING_PATHS) as LicensingRoute[]).map((route) => [
@@ -214,6 +218,7 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
           sendJson(response, 405, { error: 'method-not-allowed' });
           return true;
         }
+        const service = currentService();
         if (!service) {
           sendJson(response, 503, { error: 'billing-unavailable' });
           return true;
@@ -239,7 +244,8 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
     },
 
     async ready() {
-      if (!service) return true;
+      const service = currentService();
+      if (!service) return !options.required;
       try {
         await service.ping();
         return true;

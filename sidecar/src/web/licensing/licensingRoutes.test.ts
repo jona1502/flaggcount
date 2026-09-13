@@ -166,4 +166,12 @@ describe('licensing routes', () => {
     expect((await send(port, LICENSING_PATHS.activate, json({}))).status).toBe(503);
     expect((await send(port, '/readyz', { method: 'GET', headers: {} })).status).toBe(200);
   });
+
+  it('is not ready while configured billing has no database connection', async () => {
+    const { port } = await start({ service: () => null, required: true });
+
+    expect((await send(port, '/readyz', { method: 'GET', headers: {} })).status).toBe(503);
+    expect((await send(port, '/healthz', { method: 'GET', headers: {} })).status).toBe(200);
+    expect((await send(port, LICENSING_PATHS.refresh, json({}))).status).toBe(503);
+  });
 });

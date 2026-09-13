@@ -6,7 +6,10 @@ import { createLatestRelease } from './latestRelease';
 import { RelayChannels } from './relayChannels';
 import { SettingsStore } from './settingsStore';
 import { WebController } from './webController';
-import { startWebServer } from './webServer';
+import { readLicensingConfig, startLicensing, type RunningLicensing } from './licensing/licensingConfig';
+import { createLicensingHandler } from './licensing/licensingRoutes';
+import { createJsonLogger } from './structuredLog';
+import { clientAddress, startWebServer } from './webServer';
 
 // Entry point of the web version (Docker). Configuration comes from the environment, see .env.example.
 const MIN_PASSWORD_LENGTH = 12;
@@ -40,6 +43,21 @@ async function main(): Promise<void> {
   const controller = new WebController(createTikTokConnectionFactory({ signApiKey }), await store.load(), store, log);
   await controller.start();
 
+  // Billing is optional: without its configuration, or while its database is down, the dashboard,
+  // the overlays and the relay keep working and the license API answers 503.
+  const jsonLogger = createJsonLogger();
+  const licensingConfig = readLicensingConfig(process.env);
+  if (licensingConfig.kind === 'invalid') {
+    log('warn', `FlagCount Pro billing is disabled: ${licensingConfig.problems.join('; ')}`);
+  }
+  let licensing: RunningLicensing | null = null;
+  const licensingHandler = createLicensingHandler({
+    service: () => licensing?.service ?? null,
+    required: licensingConfig.kind === 'enabled',
+    logger: jsonLogger,
+    clientAddress
+  });
+
   const server = await startWebServer({
     backend: controller,
     password,
@@ -47,6 +65,7 @@ async function main(): Promise<void> {
     latestRelease: createLatestRelease({ repo: releaseRepo }),
     releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
     relay: new RelayChannels(),
+    licensing: licensingHandler,
     host,
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`)
@@ -58,8 +77,22 @@ async function main(): Promise<void> {
     if (stopping) return;
     stopping = true;
     log('info', 'Shutting down');
-    void Promise.allSettled([controller.shutdown(), server.close()]).finally(() => process.exit(0));
+    void Promise.allSettled([controller.shutdown(), server.close(), licensing?.close()]).finally(() => process.exit(0));
   };
+
+  const connectLicensing = async (attempt = 1): Promise<void> => {
+    if (licensingConfig.kind !== 'enabled' || stopping) return;
+    try {
+      licensing = await startLicensing(licensingConfig.settings, jsonLogger);
+      log('info', `FlagCount Pro billing is enabled (Paddle ${licensingConfig.settings.paddle.environment})`);
+    } catch (error) {
+      const delayMs = Math.min(60_000, 2_000 * 2 ** (attempt - 1));
+      // Only the error class: database errors can contain connection details.
+      log('error', `Starting the license service failed (${error instanceof Error ? error.name : 'error'}), retrying in ${delayMs} ms`);
+      setTimeout(() => void connectLicensing(attempt + 1), delayMs).unref();
+    }
+  };
+  void connectLicensing();
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 }
