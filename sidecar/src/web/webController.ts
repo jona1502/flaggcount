@@ -97,6 +97,11 @@ export class WebController {
     return null;
   }
 
+  async addManualVote(): Promise<AppError | null> {
+    await this.app.handleCommand({ type: 'addManualVote' });
+    return null;
+  }
+
   async resetVotes(): Promise<AppError | null> {
     await this.app.handleCommand({ type: 'reset' });
     return null;

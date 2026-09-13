@@ -16,6 +16,7 @@ export type WebBackend = OverlaySource & {
   subscribeErrors: (listener: (error: AppError) => void) => () => void;
   connect: (username: unknown) => CommandResult;
   disconnect: () => CommandResult;
+  addManualVote: () => CommandResult;
   resetVotes: () => CommandResult;
   setTarget: (target: unknown) => CommandResult;
   setOverlaySettings: (overlay: unknown) => CommandResult;
@@ -202,6 +203,7 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   const commands = new Map<string, (body: unknown) => CommandResult>([
     ['/api/connect', (body) => backend.connect(field(body, 'username'))],
     ['/api/disconnect', () => backend.disconnect()],
+    ['/api/manual-vote', () => backend.addManualVote()],
     ['/api/reset', () => backend.resetVotes()],
     ['/api/target', (body) => backend.setTarget(field(body, 'target'))],
     ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))]

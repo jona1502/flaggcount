@@ -89,6 +89,7 @@ export const webApi: FlagCountApi = {
   getState: async () => withOverlayUrl((await (await request('/api/state')).json()) as AppState),
   connect: (username: string) => post('/api/connect', { username }),
   disconnect: () => post('/api/disconnect'),
+  addManualVote: () => post('/api/manual-vote'),
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
