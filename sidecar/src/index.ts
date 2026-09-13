@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
 import { describeError } from './logging';
-import { parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
+import { PROTOCOL_VERSION, parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
 import { startOverlayRelay, type OverlayRelay } from './relay/overlayRelay';
 import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
     void Promise.allSettled([app.shutdown(), server.close()]).finally(() => process.exit(0));
   });
 
-  send({ type: 'ready', port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
+  send({ type: 'ready', protocolVersion: PROTOCOL_VERSION, port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
   await app.handleCommand({ type: 'getState' });
 }
 

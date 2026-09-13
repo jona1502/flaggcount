@@ -1,5 +1,5 @@
 import type { AppError, AppState } from '../../../shared/appState';
-import { primaryCounter, updatePrimaryCounter, type Settings } from '../../../shared/profiles';
+import { activeProfile, updatePrimaryCounter, type Settings } from '../../../shared/profiles';
 import type { OverlaySettings } from '../../../shared/settings';
 import { MAX_TARGET, MIN_TARGET, isValidTarget, type VoteSnapshot } from '../../../shared/voting';
 import { SidecarApp } from '../app';
@@ -36,21 +36,18 @@ export class WebController {
     this.app = new SidecarApp(createConnection, (event) => this.handleEvent(event));
   }
 
-  /** Applies the saved target and overlay settings to the new round. */
+  /** Applies the counters of the saved profile to the new round. */
   async start(): Promise<void> {
-    const counter = primaryCounter(this.settings);
-    if (counter.target !== null) {
-      await this.app.handleCommand({ type: 'setTarget', target: counter.target });
-    }
-    await this.app.handleCommand({ type: 'setOverlaySettings', overlay: counter.overlay });
+    await this.configureCounters();
   }
 
   getState(): AppState {
-    const { connection, votes } = this.app.getState();
+    const { connection, votes, counters } = this.app.getState();
     return {
       sidecarRunning: true,
       connection,
       votes,
+      counters,
       // The browser knows its public origin better than the server behind the proxy.
       overlayUrl: null,
       // The web version's own /overlay is already public.
@@ -125,7 +122,7 @@ export class WebController {
       return { code: 'invalid-target', message: `Target must be an integer between ${MIN_TARGET} and ${MAX_TARGET}` };
     }
     await this.updateSettings((settings) => updatePrimaryCounter(settings, (counter) => ({ ...counter, target }), now()));
-    await this.app.handleCommand({ type: 'setTarget', target });
+    await this.configureCounters();
     return null;
   }
 
@@ -135,12 +132,16 @@ export class WebController {
       return { code: 'invalid-overlay-settings', message: 'Invalid overlay settings' };
     }
     await this.updateSettings((settings) => updatePrimaryCounter(settings, (counter) => ({ ...counter, overlay }), now()));
-    await this.app.handleCommand({ type: 'setOverlaySettings', overlay });
+    await this.configureCounters();
     return null;
   }
 
   shutdown(): Promise<void> {
     return this.app.shutdown();
+  }
+
+  private configureCounters(): Promise<void> {
+    return this.app.handleCommand({ type: 'configureCounters', counters: activeProfile(this.settings).counters });
   }
 
   private run(command: SidecarCommand): void {
@@ -161,8 +162,9 @@ export class WebController {
 
   private handleEvent(event: SidecarEvent): void {
     switch (event.type) {
+      // Every vote change emits `counters`; `votes` only repeats the first counter.
       case 'status':
-      case 'votes':
+      case 'counters':
         this.emitState();
         break;
       case 'error':
@@ -173,6 +175,7 @@ export class WebController {
       case 'log':
         this.log(event.level, event.message);
         break;
+      case 'votes':
       case 'ready':
         break;
     }

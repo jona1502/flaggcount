@@ -1,7 +1,8 @@
 use tauri::{AppHandle, Runtime, State};
 
 use crate::settings::{self, OverlaySettings, SettingsSaver, MAX_TARGET, MIN_TARGET};
-use crate::sidecar::{AppError, AppState, Sidecar, SidecarCommand};
+use crate::settings::Settings;
+use crate::sidecar::{configure_counters, AppError, AppState, Sidecar, SidecarCommand};
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
 pub fn validate_username(username: &str) -> Result<String, AppError> {
@@ -27,8 +28,11 @@ pub fn validate_overlay(overlay: OverlaySettings) -> Result<OverlaySettings, App
 }
 
 /// Settings are saved first; a sidecar that is (re)starting applies them once it is ready.
-fn send_setting(sidecar: &Sidecar, command: &SidecarCommand) -> Result<(), AppError> {
-    match sidecar.send(command) {
+fn send_counters(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
+    let Some(command) = configure_counters(settings) else {
+        return Ok(());
+    };
+    match sidecar.send(&command) {
         Err(error) if error.code == "sidecar-unavailable" => Ok(()),
         result => result,
     }
@@ -84,10 +88,11 @@ pub fn set_target<R: Runtime>(
 ) -> Result<(), AppError> {
     let target = validate_target(target)?;
     let now = settings::now_timestamp();
-    saver.save(&sidecar.update_settings(&app, |settings| {
+    let settings = sidecar.update_settings(&app, |settings| {
         settings.update_primary_counter(&now, |counter| counter.target = Some(target))
-    }));
-    send_setting(&sidecar, &SidecarCommand::SetTarget { target })
+    });
+    saver.save(&settings);
+    send_counters(&sidecar, &settings)
 }
 
 #[tauri::command]
@@ -98,12 +103,12 @@ pub fn set_overlay_settings<R: Runtime>(
     overlay: OverlaySettings,
 ) -> Result<(), AppError> {
     let overlay = validate_overlay(overlay)?;
-    let saved = overlay.clone();
     let now = settings::now_timestamp();
-    saver.save(&sidecar.update_settings(&app, |settings| {
-        settings.update_primary_counter(&now, |counter| counter.overlay = saved)
-    }));
-    send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
+    let settings = sidecar.update_settings(&app, |settings| {
+        settings.update_primary_counter(&now, |counter| counter.overlay = overlay)
+    });
+    saver.save(&settings);
+    send_counters(&sidecar, &settings)
 }
 
 #[cfg(test)]

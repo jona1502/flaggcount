@@ -1,5 +1,6 @@
 import { request as httpRequest } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRedFlagCounter } from '../../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { SidecarApp } from '../app';
@@ -154,7 +155,7 @@ describe('sidecar data flow', () => {
     const overlay = await openOverlayStream(sidecar.server.port);
     await sidecar.command('{"type":"connect","username":"streamer"}');
 
-    await sidecar.command('{"type":"setTarget","target":3}');
+    await sidecar.command(JSON.stringify({ type: 'configureCounters', counters: [createRedFlagCounter(3)] }));
     ['1', '2', '3'].forEach((userId) => sidecar.chat(userId, '🚩'));
 
     const page = await get(sidecar.server.port, '/overlay');
@@ -169,7 +170,12 @@ describe('sidecar data flow', () => {
     const sidecar = await startSidecar();
     const overlay = await openOverlayStream(sidecar.server.port);
 
-    await sidecar.command('{"type":"setOverlaySettings","overlay":{"showBackground":false,"showProgress":false}}');
+    await sidecar.command(
+      JSON.stringify({
+        type: 'configureCounters',
+        counters: [createRedFlagCounter(100, { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false })]
+      })
+    );
 
     await vi.waitFor(() =>
       expect(overlay.settings()).toEqual([

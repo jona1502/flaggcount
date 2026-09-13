@@ -6,7 +6,10 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-use crate::settings::{OverlaySettings, Settings, DEFAULT_TARGET};
+use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
+
+/// Line protocol version this app speaks; the sidecar reports its own on `ready`.
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -32,8 +35,8 @@ pub enum SidecarCommand {
     AddManualVote,
     RemoveManualVote,
     Reset,
-    SetTarget { target: u32 },
-    SetOverlaySettings { overlay: OverlaySettings },
+    /// The counters of the active profile; running rounds of counters that keep their id continue.
+    ConfigureCounters { counters: Vec<CounterDefinition> },
     GetState,
 }
 
@@ -84,6 +87,28 @@ impl Default for VoteSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OptionSnapshot {
+    pub option_id: String,
+    pub label: String,
+    pub count: u32,
+}
+
+/// Aggregated counts of one counter; the sidecar never sends viewer identities.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterSnapshot {
+    pub counter_id: String,
+    pub name: String,
+    pub mode: CounterMode,
+    pub options: Vec<OptionSnapshot>,
+    pub total_count: u32,
+    pub target: Option<u32>,
+    pub target_reached: bool,
+    pub round_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppError {
     pub code: String,
     pub message: String,
@@ -111,7 +136,9 @@ impl AppError {
 pub struct AppState {
     pub sidecar_running: bool,
     pub connection: ConnectionState,
+    /// The first counter in the single-count format of 0.2.
     pub votes: VoteSnapshot,
+    pub counters: Vec<CounterSnapshot>,
     pub overlay_url: Option<String>,
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
@@ -136,6 +163,8 @@ pub enum LogLevel {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SidecarEvent {
     Ready {
+        #[serde(default, rename = "protocolVersion")]
+        protocol_version: Option<u32>,
         port: u16,
         token: String,
         #[serde(default, rename = "publicOverlayUrl")]
@@ -143,6 +172,7 @@ pub enum SidecarEvent {
     },
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
+    Counters { counters: Vec<CounterSnapshot> },
     Error { error: AppError },
     Log { level: LogLevel, message: String },
 }
@@ -167,10 +197,16 @@ pub fn apply_event(
 ) -> StateUpdate {
     match event {
         SidecarEvent::Ready {
+            protocol_version,
             port,
             token,
             public_overlay_url,
         } => {
+            if protocol_version != Some(PROTOCOL_VERSION) {
+                log::warn!(
+                    "the sidecar speaks protocol version {protocol_version:?}, expected {PROTOCOL_VERSION}"
+                );
+            }
             *session = Some(SidecarSession { port, token });
             state.overlay_url = Some(overlay_url(port));
             state.public_overlay_url = public_overlay_url.filter(|url| url.starts_with("https://"));
@@ -182,6 +218,10 @@ pub fn apply_event(
         }
         SidecarEvent::Votes { votes } => {
             state.votes = votes;
+            StateUpdate::State
+        }
+        SidecarEvent::Counters { counters } => {
+            state.counters = counters;
             StateUpdate::State
         }
         SidecarEvent::Error { error } => StateUpdate::Error(error),
@@ -199,21 +239,22 @@ pub fn restart_delay(attempt: u32) -> Duration {
 /// Commands that bring a freshly started sidecar in line with the saved settings, and, after
 /// a crash, back to the stream the user was connected to.
 pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<SidecarCommand> {
-    let mut commands = Vec::new();
-    if let Some(counter) = settings.primary_counter() {
-        if let Some(target) = counter.target {
-            commands.push(SidecarCommand::SetTarget { target });
-        }
-        commands.push(SidecarCommand::SetOverlaySettings {
-            overlay: counter.overlay.clone(),
-        });
-    }
+    let mut commands: Vec<SidecarCommand> = configure_counters(settings).into_iter().collect();
     if let Some(username) = reconnect_to {
         commands.push(SidecarCommand::Connect {
             username: username.to_string(),
         });
     }
     commands
+}
+
+/// Sends the counters of the active profile to the sidecar.
+pub fn configure_counters(settings: &Settings) -> Option<SidecarCommand> {
+    settings
+        .active_profile()
+        .map(|profile| SidecarCommand::ConfigureCounters {
+            counters: profile.counters.clone(),
+        })
 }
 
 /// The stream the user wants to be connected to, so a restarted sidecar can resume it.
@@ -518,6 +559,7 @@ fn emit_error<R: Runtime>(app: &AppHandle<R>, error: &AppError) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::OverlaySettings;
     use serde_json::json;
 
     fn parse(line: &str) -> SidecarEvent {
@@ -538,30 +580,36 @@ mod tests {
             (SidecarCommand::RemoveManualVote, json!({ "type": "removeManualVote" })),
             (SidecarCommand::Reset, json!({ "type": "reset" })),
             (
-                SidecarCommand::SetTarget { target: 25 },
-                json!({ "type": "setTarget", "target": 25 }),
-            ),
-            (
-                SidecarCommand::SetOverlaySettings {
-                    overlay: OverlaySettings {
-                        show_background: false,
-                        ..OverlaySettings::default()
-                    },
+                SidecarCommand::ConfigureCounters {
+                    counters: vec![CounterDefinition::red_flags(25, OverlaySettings::default())],
                 },
                 json!({
-                    "type": "setOverlaySettings",
-                    "overlay": {
-                        "showBackground": false,
-                        "showProgress": true,
-                        "accentColor": "#e82634",
-                        "textColor": "#ffffff",
-                        "backgroundColor": "#0c0c10",
-                        "backgroundOpacity": 80,
-                        "position": "center",
-                        "size": 92,
-                        "flagAnimation": "none",
-                        "targetEffect": "none"
-                    }
+                    "type": "configureCounters",
+                    "counters": [{
+                        "id": "red-flags",
+                        "name": "Rote Flaggen",
+                        "mode": "single",
+                        "target": 25,
+                        "options": [{
+                            "id": "red-flag",
+                            "label": "Rote Flagge",
+                            "triggers": [{ "kind": "emoji", "value": "\u{1F6A9}", "match": "contains" }],
+                            "accentColor": "#e82634"
+                        }],
+                        "withdrawalTriggers": [{ "kind": "emoji", "value": "\u{1F3F3}\u{FE0F}", "match": "contains" }],
+                        "overlay": {
+                            "showBackground": true,
+                            "showProgress": true,
+                            "accentColor": "#e82634",
+                            "textColor": "#ffffff",
+                            "backgroundColor": "#0c0c10",
+                            "backgroundOpacity": 80,
+                            "position": "center",
+                            "size": 92,
+                            "flagAnimation": "none",
+                            "targetEffect": "none"
+                        }
+                    }]
                 }),
             ),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
@@ -581,7 +629,7 @@ mod tests {
             &mut state,
             &mut session,
             parse(
-                r#"{"type":"ready","port":4321,"token":"secret","publicOverlayUrl":"https://overlay.example/o/abc"}"#,
+                r#"{"type":"ready","protocolVersion":2,"port":4321,"token":"secret","publicOverlayUrl":"https://overlay.example/o/abc"}"#,
             ),
         );
 
@@ -647,6 +695,26 @@ mod tests {
         );
         assert_eq!(state.votes.count, 3);
         assert_eq!(state.votes.round_id, "r1");
+    }
+
+    #[test]
+    fn applies_counter_snapshots() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        let update = apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"counters","counters":[{"counterId":"poll","name":"Umfrage","mode":"poll","options":[{"optionId":"a","label":"A","count":2},{"optionId":"b","label":"B","count":1}],"totalCount":3,"target":null,"targetReached":false,"roundId":"r2"}]}"#,
+            ),
+        );
+
+        assert!(matches!(update, StateUpdate::State));
+        assert_eq!(state.counters.len(), 1);
+        assert_eq!(state.counters[0].mode, CounterMode::Poll);
+        assert_eq!(state.counters[0].options[1].count, 1);
+        assert_eq!(state.counters[0].target, None);
     }
 
     #[test]
@@ -719,6 +787,7 @@ mod tests {
                 "sidecarRunning": false,
                 "connection": { "status": "disconnected", "username": null },
                 "votes": { "count": 0, "target": 100, "roundId": "", "targetReached": false },
+                "counters": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
                 "settings": serde_json::to_value(Settings::default()).unwrap()
@@ -750,10 +819,9 @@ mod tests {
 
         assert_eq!(
             startup_commands(&settings, None),
-            [
-                SidecarCommand::SetTarget { target: 25 },
-                SidecarCommand::SetOverlaySettings { overlay },
-            ]
+            [SidecarCommand::ConfigureCounters {
+                counters: vec![CounterDefinition::red_flags(25, overlay)],
+            }]
         );
         assert_eq!(
             startup_commands(&settings, Some("streamer")).last(),
@@ -770,7 +838,7 @@ mod tests {
         desired.remember(&SidecarCommand::Connect {
             username: "streamer".into(),
         });
-        desired.remember(&SidecarCommand::SetTarget { target: 5 });
+        desired.remember(&SidecarCommand::GetState);
         assert_eq!(desired.username.as_deref(), Some("streamer"));
 
         desired.remember(&SidecarCommand::Disconnect);

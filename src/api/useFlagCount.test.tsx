@@ -14,6 +14,7 @@ const initialState: AppState = {
   connection: { status: 'disconnected', username: null },
   votes: { count: 0, target: 100, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
+  counters: [],
   publicOverlayUrl: null,
   settings: migrateSettingsV1({ username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };

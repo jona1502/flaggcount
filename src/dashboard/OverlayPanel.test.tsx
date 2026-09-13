@@ -131,6 +131,7 @@ describe('OverlayPanel', () => {
       connection: { status: 'disconnected', username: null },
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
       overlayUrl: OVERLAY_URL,
+      counters: [],
       publicOverlayUrl: null,
       settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
     };

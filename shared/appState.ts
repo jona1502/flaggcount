@@ -1,5 +1,5 @@
 import type { Settings } from './profiles';
-import type { VoteSnapshot } from './voting';
+import type { CounterSnapshot, VoteSnapshot } from './voting';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -38,7 +38,10 @@ export type AppError = {
 export type AppState = {
   sidecarRunning: boolean;
   connection: ConnectionState;
+  /** The first counter of the active profile in the single-count format of 0.2. */
   votes: VoteSnapshot;
+  /** Aggregated counts of every counter of the active profile. */
+  counters: CounterSnapshot[];
   /** URL for a streaming browser/link source; `null` while the sidecar is not running. */
   overlayUrl: string | null;
   /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */

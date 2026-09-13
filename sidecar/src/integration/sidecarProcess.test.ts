@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { createRedFlagCounter } from '../../../shared/profiles';
 import type { SidecarEvent } from '../protocol';
 
 let bundleDir: string;
@@ -85,11 +86,12 @@ describe('sidecar process', () => {
     const ready = sidecar.lastOf('ready');
     if (!ready) throw new Error('sidecar did not start');
     expect(ready.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(ready.protocolVersion).toBe(2);
     await vi.waitFor(() => expect(sidecar.lastOf('votes')).toBeDefined(), waitOptions);
     expect(sidecar.lastOf('status')?.connection).toEqual({ status: 'disconnected', username: null });
     const firstRound = sidecar.lastOf('votes')?.votes.roundId;
 
-    sidecar.send('{"type":"setTarget","target":7}');
+    sidecar.send(JSON.stringify({ type: 'configureCounters', counters: [createRedFlagCounter(7)] }));
     await vi.waitFor(() => expect(sidecar.lastOf('votes')?.votes.target).toBe(7), waitOptions);
 
     sidecar.send('{"type":"addManualVote"}');
