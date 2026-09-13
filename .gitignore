@@ -4,4 +4,6 @@ sidecar/dist/
 src-tauri/binaries/
 coverage/
 *.log
+*.key
+*.key.pub
 .DS_Store
