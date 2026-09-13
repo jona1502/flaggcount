@@ -112,7 +112,8 @@ async function main(): Promise<void> {
       subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
       getBoard: (scope) => app.getBoard(scope),
       subscribeBoard: (listener) => app.subscribeBoard(listener),
-      onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' })
+      onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' }),
+      assetDirectory: process.env['FLAGCOUNT_DATA_DIR'] ? `${process.env['FLAGCOUNT_DATA_DIR']}\\overlay-assets` : undefined
     },
     DEFAULT_OVERLAY_PORT
   );

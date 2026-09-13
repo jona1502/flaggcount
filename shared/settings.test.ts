@@ -12,6 +12,9 @@ describe('parseOverlaySettings', () => {
   it('accepts every appearance option and normalizes colors', () => {
     const custom = {
       theme: 'neon',
+      font: 'inter',
+      logoAsset: '0123456789abcdef0123456789abcdef.png',
+      backgroundAsset: null,
       showBackground: true,
       showProgress: false,
       accentColor: '#00FF88',

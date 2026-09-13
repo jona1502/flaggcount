@@ -141,6 +141,9 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
         counter["overlay"],
         json!({
             "theme": "standard",
+            "font": "system",
+            "logoAsset": null,
+            "backgroundAsset": null,
             "showBackground": false,
             "showProgress": true,
             "accentColor": "#e82634",

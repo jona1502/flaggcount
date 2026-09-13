@@ -2,6 +2,7 @@ export const OVERLAY_POSITIONS = ['top', 'center', 'bottom'] as const;
 export const FLAG_ANIMATIONS = ['none', 'wave', 'bounce', 'pulse'] as const;
 export const TARGET_EFFECTS = ['none', 'glow', 'confetti'] as const;
 export const OVERLAY_THEMES = ['standard', 'minimal', 'glass', 'neon', 'scoreboard', 'vertical-poll'] as const;
+export const OVERLAY_FONTS = ['system', 'inter', 'space-grotesk', 'roboto-slab'] as const;
 export const MIN_OVERLAY_SIZE = 20;
 export const MAX_OVERLAY_SIZE = 100;
 
@@ -11,9 +12,13 @@ export type FlagAnimation = (typeof FLAG_ANIMATIONS)[number];
 /** Plays once the target is reached. */
 export type TargetEffect = (typeof TARGET_EFFECTS)[number];
 export type OverlayTheme = (typeof OVERLAY_THEMES)[number];
+export type OverlayFont = (typeof OVERLAY_FONTS)[number];
 
 export type OverlaySettings = {
   theme: OverlayTheme;
+  font: OverlayFont;
+  logoAsset: string | null;
+  backgroundAsset: string | null;
   /** Panel behind the numbers; off for a fully transparent overlay. */
   showBackground: boolean;
   showProgress: boolean;
@@ -43,6 +48,9 @@ export type SettingsV1 = {
 /** Matches the original overlay, so nothing changes until the streamer customizes it. */
 export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   theme: 'standard',
+  font: 'system',
+  logoAsset: null,
+  backgroundAsset: null,
   showBackground: true,
   showProgress: true,
   accentColor: '#e82634',
@@ -68,9 +76,14 @@ const isOneOf =
   (options: readonly string[]) =>
   (value: unknown): boolean =>
     typeof value === 'string' && options.includes(value);
+const isAssetName = (value: unknown): boolean =>
+  value === null || (typeof value === 'string' && /^[a-f0-9]{32}\.(?:png|jpg|webp)$/.test(value));
 
 const OVERLAY_FIELDS: { [Key in keyof OverlaySettings]: (value: unknown) => boolean } = {
   theme: isOneOf(OVERLAY_THEMES),
+  font: isOneOf(OVERLAY_FONTS),
+  logoAsset: isAssetName,
+  backgroundAsset: isAssetName,
   showBackground: isBoolean,
   showProgress: isBoolean,
   accentColor: isColor,

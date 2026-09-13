@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-import-overlay-asset"
+description = "Enables importing a validated overlay raster image."
+commands.allow = ["import_overlay_asset"]
+
+[[permission]]
+identifier = "deny-import-overlay-asset"
+description = "Denies importing an overlay image."
+commands.deny = ["import_overlay_asset"]

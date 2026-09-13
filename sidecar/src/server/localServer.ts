@@ -1,7 +1,9 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import { sendJson } from './http';
+import { send, sendJson } from './http';
 import { createOverlayHandler, isOverlayPath, type OverlaySource } from './overlayRoutes';
 
 export const LOOPBACK_HOST = '127.0.0.1';
@@ -13,6 +15,7 @@ export type LocalServerOptions = OverlaySource & {
   getState: () => unknown;
   heartbeatMs?: number;
   onOverlayOpened?: () => void;
+  assetDirectory?: string;
 };
 
 export type LocalServer = {
@@ -70,6 +73,14 @@ export async function startLocalServer(options: LocalServerOptions, preferredPor
     }
 
     const { pathname } = new URL(request.url ?? '/', `http://${LOOPBACK_HOST}`);
+    const asset = pathname.match(/^\/overlay\/assets\/([a-f0-9]{32}\.(png|jpg|webp))$/);
+    if (asset && options.assetDirectory && request.method === 'GET') {
+      try {
+        const bytes = readFileSync(join(options.assetDirectory, asset[1]!));
+        send(response, 200, asset[2] === 'png' ? 'image/png' : asset[2] === 'jpg' ? 'image/jpeg' : 'image/webp', bytes, { 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+      } catch { sendJson(response, 404, { error: 'not-found' }); }
+      return;
+    }
     if (isOverlayPath(pathname)) {
       if (pathname === '/overlay' && request.method === 'GET') options.onOverlayOpened?.();
       handleOverlay(pathname, request, response);

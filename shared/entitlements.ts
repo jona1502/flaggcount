@@ -143,6 +143,9 @@ const WHITE_FLAG_KEYS = [triggerKey({ kind: 'emoji', value: WHITE_FLAG, match: '
 export function requiredFeatures(counter: CounterDefinition): Feature[] {
   const features: Feature[] = [];
   if (counter.overlay.theme !== 'standard') features.push('premium-templates');
+  if (counter.overlay.font !== 'system' || counter.overlay.logoAsset !== null || counter.overlay.backgroundAsset !== null) {
+    features.push('custom-branding');
+  }
   if (counter.mode === 'poll') {
     features.push('multi-option-polls');
   }

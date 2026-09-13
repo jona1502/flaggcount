@@ -9,6 +9,7 @@ pub const PARALLEL_COUNTERS: &str = "parallel-counters";
 pub const MULTI_OPTION_POLLS: &str = "multi-option-polls";
 pub const CUSTOM_TRIGGERS: &str = "custom-triggers";
 pub const PREMIUM_TEMPLATES: &str = "premium-templates";
+pub const CUSTOM_BRANDING: &str = "custom-branding";
 
 /// A feature is usable while a verified Pro license lists it.
 pub fn has_feature(license: &LicenseState, feature: &str) -> bool {

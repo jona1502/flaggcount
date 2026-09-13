@@ -155,6 +155,7 @@ export function Dashboard({
           onCopy={onCopyText}
           onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
           premiumThemesAllowed={canUse(entitlements, 'premium-templates')}
+          onImportAsset={canUse(entitlements, 'custom-branding') ? actions.importOverlayAsset : undefined}
           counterOverlays={{
             counters: appState.counters.map(({ counterId, name }) => ({ counterId, name })),
             onlineUrls: appState.counterOverlayUrls ?? {},

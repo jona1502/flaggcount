@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Runtime, State};
 
 use crate::license::{self, LicenseState};
+use crate::entitlements::{has_feature, CUSTOM_BRANDING, PREMIUM_TEMPLATES};
 use crate::profiles::{self, effective_profile};
 use crate::settings::{self, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
 use crate::sidecar::{configure_counters, open_external, AppError, AppState, Sidecar, SidecarCommand};
@@ -151,6 +152,14 @@ pub fn set_overlay_settings<R: Runtime>(
     let overlay = validate_overlay(overlay)?;
     let now = settings::now_timestamp();
     let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        if overlay.theme != settings::OverlayTheme::Standard && !has_feature(license, PREMIUM_TEMPLATES) {
+            return Err(profiles::pro_required("Premium overlay templates require FlagCount Pro"));
+        }
+        if (overlay.font != settings::OverlayFont::System || overlay.logo_asset.is_some() || overlay.background_asset.is_some())
+            && !has_feature(license, CUSTOM_BRANDING)
+        {
+            return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
+        }
         update_running_counter(settings, license, &now, |counter| counter.overlay = overlay);
         Ok(())
     })?;
@@ -293,6 +302,14 @@ pub fn deactivate_license(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 #[tauri::command]
 pub fn open_customer_portal(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::OpenCustomerPortal)
+}
+
+#[tauri::command]
+pub fn import_overlay_asset<R: Runtime>(app: AppHandle<R>, sidecar: State<'_, Sidecar>, kind: String, bytes: Vec<u8>) -> Result<String, AppError> {
+    if !has_feature(&sidecar.state().license, CUSTOM_BRANDING) {
+        return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
+    }
+    crate::branding::import(&app, &kind, &bytes)
 }
 
 #[tauri::command]

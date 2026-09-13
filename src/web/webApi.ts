@@ -151,6 +151,7 @@ export const webApi: FlagCountApi = {
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
+  importOverlayAsset: () => Promise.reject(DESKTOP_ONLY),
   setTelemetryEnabled: (enabled: boolean) => post('/api/telemetry', { enabled }),
   // Profiles are managed in the desktop app; the web version runs a single profile.
   createProfile: () => Promise.reject(DESKTOP_ONLY),

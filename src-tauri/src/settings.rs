@@ -91,12 +91,25 @@ pub enum OverlayTheme {
     VerticalPoll,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OverlayFont {
+    #[default]
+    System,
+    Inter,
+    SpaceGrotesk,
+    RobotoSlab,
+}
+
 /// Appearance of the streaming overlay. Missing fields take their defaults, so settings saved
 /// by older versions keep loading.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct OverlaySettings {
     pub theme: OverlayTheme,
+    pub font: OverlayFont,
+    pub logo_asset: Option<String>,
+    pub background_asset: Option<String>,
     pub show_background: bool,
     pub show_progress: bool,
     /// Progress bar and highlights, `#rrggbb`.
@@ -117,6 +130,9 @@ impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
             theme: OverlayTheme::Standard,
+            font: OverlayFont::System,
+            logo_asset: None,
+            background_asset: None,
             show_background: true,
             show_progress: true,
             accent_color: "#e82634".into(),
@@ -146,7 +162,13 @@ impl OverlaySettings {
         }
         let in_range = self.background_opacity <= MAX_BACKGROUND_OPACITY
             && (MIN_OVERLAY_SIZE..=MAX_OVERLAY_SIZE).contains(&self.size);
-        in_range.then_some(self)
+        let valid_asset = |asset: &Option<String>| asset.as_ref().is_none_or(|name| {
+            let Some((stem, extension)) = name.rsplit_once('.') else { return false; };
+            stem.len() == 32
+                && stem.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+                && matches!(extension, "png" | "jpg" | "webp")
+        });
+        (in_range && valid_asset(&self.logo_asset) && valid_asset(&self.background_asset)).then_some(self)
     }
 }
 

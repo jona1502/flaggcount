@@ -5,11 +5,13 @@ import {
   MAX_OVERLAY_SIZE,
   MIN_OVERLAY_SIZE,
   OVERLAY_POSITIONS,
+  OVERLAY_FONTS,
   OVERLAY_THEMES,
   TARGET_EFFECTS,
   type FlagAnimation,
   type OverlayPosition,
   type OverlaySettings,
+  type OverlayFont,
   type OverlayTheme,
   type TargetEffect
 } from '../../shared/settings';
@@ -24,6 +26,7 @@ type OverlayDesignerProps = {
   /** Color pickers and sliders save after this pause, so dragging does not save every step. */
   saveDelayMs?: number;
   premiumThemesAllowed?: boolean;
+  onImportAsset?: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
 };
 
 const POSITION_LABELS: Record<OverlayPosition, string> = {
@@ -52,6 +55,9 @@ const THEME_LABELS: Record<OverlayTheme, string> = {
   neon: 'Neon · Pro',
   scoreboard: 'Scoreboard · Pro',
   'vertical-poll': 'Vertikale Umfrage · Pro'
+};
+const FONT_LABELS: Record<OverlayFont, string> = {
+  system: 'Systemstandard', inter: 'Inter', 'space-grotesk': 'Space Grotesk', 'roboto-slab': 'Roboto Slab'
 };
 
 function isDefault(settings: OverlaySettings): boolean {
@@ -139,7 +145,8 @@ export function OverlayDesigner({
   disabled,
   onChange,
   saveDelayMs = 300,
-  premiumThemesAllowed = false
+  premiumThemesAllowed = false,
+  onImportAsset
 }: OverlayDesignerProps): React.JSX.Element {
   const [draft, setDraft] = useState(settings);
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; next: OverlaySettings } | null>(null);
@@ -183,6 +190,12 @@ export function OverlayDesigner({
 
   const change = <Key extends keyof OverlaySettings>(key: Key, value: OverlaySettings[Key], delayed = false): void =>
     save({ ...draft, [key]: value }, delayed);
+
+  const importAsset = async (kind: 'logo' | 'background', file: File | undefined): Promise<void> => {
+    if (!file || !onImportAsset) return;
+    const name = await onImportAsset(kind, [...new Uint8Array(await file.arrayBuffer())]);
+    change(kind === 'logo' ? 'logoAsset' : 'backgroundAsset', name);
+  };
 
   return (
     <div className="designer">
@@ -298,6 +311,16 @@ export function OverlayDesigner({
               onChange={(value) => change('targetEffect', value)}
             />
           </div>
+        </fieldset>
+
+        <fieldset className="designer-group" disabled={!onImportAsset || disabled}>
+          <legend>Branding <span className="pro-tag">Pro</span></legend>
+          <SelectField id="overlay-font" label="Schrift" value={draft.font} options={OVERLAY_FONTS} labels={FONT_LABELS} onChange={(value) => change('font', value)} />
+          <label htmlFor="overlay-logo">Logo (PNG, JPEG oder WebP, max. 2 MB)</label>
+          <input id="overlay-logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void importAsset('logo', event.target.files?.[0])} />
+          <label htmlFor="overlay-background">Hintergrundbild (max. 5 MB)</label>
+          <input id="overlay-background" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void importAsset('background', event.target.files?.[0])} />
+          {(draft.logoAsset || draft.backgroundAsset) && <button type="button" className="button secondary" onClick={() => save({ ...draft, logoAsset: null, backgroundAsset: null }, false)}>Branding-Bilder entfernen</button>}
         </fieldset>
 
         <button

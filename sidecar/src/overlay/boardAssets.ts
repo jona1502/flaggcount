@@ -91,6 +91,10 @@ body {
 .card[data-theme='vertical-poll'] .option { display: flex; min-height: 260px; flex-direction: column-reverse; }
 .card[data-theme='vertical-poll'] .option .bar { flex: 1; width: 54px; margin: 8px auto; }
 .card[data-theme='vertical-poll'] .option .bar-fill { width: 100% !important; transform-origin: bottom; }
+.card[data-font='inter'] { font-family: Inter, 'Segoe UI', sans-serif; }
+.card[data-font='space-grotesk'] { font-family: 'Space Grotesk', 'Segoe UI', sans-serif; }
+.card[data-font='roboto-slab'] { font-family: 'Roboto Slab', Georgia, serif; }
+.brand-logo { display: block; max-width: 180px; max-height: 90px; margin: 0 0 12px auto; object-fit: contain; }
 
 .card-title {
   margin: 0 0 12px;
@@ -233,6 +237,8 @@ export const BOARD_SCRIPT = `(function () {
     card.setAttribute('data-background', overlay.showBackground ? 'true' : 'false');
     card.setAttribute('data-progress', overlay.showProgress ? 'true' : 'false');
     card.setAttribute('data-theme', String(overlay.theme || 'standard'));
+    card.setAttribute('data-font', String(overlay.font || 'system'));
+    if (overlay.backgroundAsset) card.style.backgroundImage = 'url(/overlay/assets/' + encodeURIComponent(overlay.backgroundAsset) + ')';
     if (HEX_COLOR.test(overlay.accentColor)) card.style.setProperty('--accent', overlay.accentColor);
     if (HEX_COLOR.test(overlay.textColor)) card.style.setProperty('--text', overlay.textColor);
     var opacity = Number(overlay.backgroundOpacity);
@@ -253,6 +259,12 @@ export const BOARD_SCRIPT = `(function () {
   function renderCounter(view) {
     var card = element('section', 'card');
     applyDesign(card, view.overlay);
+    if (view.overlay && view.overlay.logoAsset) {
+      var logo = element('img', 'brand-logo');
+      logo.src = '/overlay/assets/' + encodeURIComponent(view.overlay.logoAsset);
+      logo.alt = '';
+      card.appendChild(logo);
+    }
     card.setAttribute('data-reached', view.targetReached ? 'true' : 'false');
     card.appendChild(element('h1', 'card-title', String(view.name)));
 
