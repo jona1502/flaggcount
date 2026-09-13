@@ -35,8 +35,8 @@ describe('parseCommand', () => {
 
 describe('serializeEvent', () => {
   it('writes exactly one JSON line', () => {
-    expect(serializeEvent({ type: 'ready', port: 1234, token: 'abc' })).toBe(
-      '{"type":"ready","port":1234,"token":"abc"}\n'
+    expect(serializeEvent({ type: 'ready', port: 1234, token: 'abc', publicOverlayUrl: null })).toBe(
+      '{"type":"ready","port":1234,"token":"abc","publicOverlayUrl":null}\n'
     );
   });
 });

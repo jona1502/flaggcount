@@ -2,6 +2,9 @@ import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
 import { describeError } from './logging';
 import { parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
+import { startOverlayRelay, type OverlayRelay } from './relay/overlayRelay';
+import { DEFAULT_RELAY_URL } from './relay/relayChannel';
+import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
 
@@ -24,6 +27,35 @@ process.stdout.on('error', () => process.exit(0));
 process.on('uncaughtException', (error) => log('error', `Uncaught exception: ${describeError(error)}`));
 process.on('unhandledRejection', (reason) => log('error', `Unhandled promise rejection: ${describeError(reason)}`));
 
+/**
+ * Mirrors the overlay to the FlagCount server, so streaming tools that cannot open local
+ * addresses (e.g. TikTok LIVE Studio) get a public URL. Tauri passes the data directory.
+ */
+async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
+  const dataDir = process.env['FLAGCOUNT_DATA_DIR'];
+  if (!dataDir) {
+    return null;
+  }
+  let key: string;
+  try {
+    key = await loadOrCreateRelayKey(dataDir);
+  } catch (error) {
+    log('warn', `Online overlay unavailable: the relay key could not be loaded (${describeError(error)})`);
+    return null;
+  }
+  return startOverlayRelay({
+    baseUrl: process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL,
+    key,
+    source: {
+      getVotes: () => app.getVotes(),
+      subscribeVotes: (listener) => app.subscribeVotes(listener),
+      getOverlaySettings: () => app.getOverlaySettings(),
+      subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener)
+    },
+    log
+  });
+}
+
 async function main(): Promise<void> {
   const app = new SidecarApp(createTikTokConnection, send);
 
@@ -43,6 +75,7 @@ async function main(): Promise<void> {
   if (server.port !== DEFAULT_OVERLAY_PORT) {
     log('warn', `Port ${DEFAULT_OVERLAY_PORT} is in use; the overlay uses port ${server.port} instead`);
   }
+  const relay = await startRelay(app);
 
   const commands = createInterface({ input: process.stdin });
 
@@ -59,10 +92,11 @@ async function main(): Promise<void> {
 
   // The sidecar only lives as long as the Tauri app keeps its stdin open.
   commands.on('close', () => {
+    relay?.stop();
     void Promise.allSettled([app.shutdown(), server.close()]).finally(() => process.exit(0));
   });
 
-  send({ type: 'ready', port: server.port, token });
+  send({ type: 'ready', port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
   await app.handleCommand({ type: 'getState' });
 }
 

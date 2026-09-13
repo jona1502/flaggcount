@@ -34,7 +34,8 @@ export type LogLevel = 'info' | 'warn' | 'error';
 
 /** Events sent by the sidecar to Tauri, one JSON object per stdout line. */
 export type SidecarEvent =
-  | { type: 'ready'; port: number; token: string }
+  /** `publicOverlayUrl` is the online overlay mirrored by the relay; `null` if it is unavailable. */
+  | { type: 'ready'; port: number; token: string; publicOverlayUrl: string | null }
   | { type: 'status'; connection: ConnectionState }
   | { type: 'votes'; votes: VoteSnapshot }
   | { type: 'error'; error: AppError }
