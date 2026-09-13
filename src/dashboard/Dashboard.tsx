@@ -4,6 +4,7 @@ import { effectiveProfile, entitlementsFor } from '../../shared/entitlements';
 import { primaryCounter } from '../../shared/profiles';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { LicensePanel } from '../pro/LicensePanel';
+import { CounterEditor } from '../profiles/CounterEditor';
 import { ProfilesPanel } from '../profiles/ProfilesPanel';
 import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
@@ -80,9 +81,12 @@ export function Dashboard({
         </div>
       );
     }
+    // The profile that actually runs: after a downgrade that is the first one, not the chosen one.
+    const running = effectiveProfile(appState.settings, entitlementsFor(appState.license.plan, appState.license.features));
+
     if (current === 'profiles') {
       return (
-        <div role="tabpanel" id="section-profiles" aria-labelledby="tab-profiles">
+        <div role="tabpanel" id="section-profiles" aria-labelledby="tab-profiles" className="section-stack">
           <ProfilesPanel
             settings={appState.settings}
             license={appState.license}
@@ -94,12 +98,17 @@ export function Dashboard({
             onSwitch={(profileId) => void actions.switchProfile(profileId)}
             onShowPro={() => setSection('pro')}
           />
+          <CounterEditor
+            counters={running.counters}
+            license={appState.license}
+            disabled={pending}
+            readOnly={false}
+            onSave={(counters) => void actions.saveCounters(counters)}
+            onShowPro={() => setSection('pro')}
+          />
         </div>
       );
     }
-
-    // The profile that actually runs: after a downgrade that is the first one, not the chosen one.
-    const running = effectiveProfile(appState.settings, entitlementsFor(appState.license.plan, appState.license.features));
     const counter = running.counters[0] ?? primaryCounter(appState.settings);
     return (
       <div

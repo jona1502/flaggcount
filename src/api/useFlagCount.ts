@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { AppError, AppState } from '../../shared/appState';
+import type { CounterDefinition } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
 
@@ -17,6 +18,7 @@ export type FlagCountActions = {
   renameProfile: (profileId: string, name: string) => Promise<void>;
   deleteProfile: (profileId: string) => Promise<void>;
   switchProfile: (profileId: string) => Promise<void>;
+  saveCounters: (counters: CounterDefinition[]) => Promise<void>;
   activateLicense: (code: string, replaceInstallationId?: string) => Promise<void>;
   refreshLicense: () => Promise<void>;
   deactivateLicense: () => Promise<void>;
@@ -120,6 +122,7 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       renameProfile: (profileId, name) => run(() => api.renameProfile(profileId, name)),
       deleteProfile: (profileId) => run(() => api.deleteProfile(profileId)),
       switchProfile: (profileId) => run(() => api.switchProfile(profileId)),
+      saveCounters: (counters) => run(() => api.saveCounters(counters)),
       activateLicense: (code, replaceInstallationId) => run(() => api.activateLicense(code, replaceInstallationId)),
       refreshLicense: () => run(() => api.refreshLicense()),
       deactivateLicense: () => run(() => api.deactivateLicense()),

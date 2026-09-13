@@ -4,7 +4,7 @@
 use std::sync::{Arc, Mutex};
 
 use flagcount_lib::license::LicenseState;
-use flagcount_lib::settings::{Settings, SettingsSaver};
+use flagcount_lib::settings::{CounterDefinition, OverlaySettings, Settings, SettingsSaver};
 use flagcount_lib::with_commands;
 use serde_json::{json, Value};
 use tauri::ipc::{CallbackFn, InvokeBody};
@@ -236,3 +236,24 @@ fn manages_profiles_within_the_free_plan() {
     assert_eq!(app.saved.lock().unwrap().len(), 1);
 }
 
+#[test]
+fn saves_counters_the_free_plan_allows_and_refuses_pro_counters() {
+    let app = create_app();
+    let mut counter = serde_json::to_value(CounterDefinition::red_flags(100, OverlaySettings::default())).unwrap();
+    counter["name"] = json!("Flaggen-Runde");
+
+    assert_eq!(invoke(&app, "save_counters", json!({ "counters": [counter.clone()] })), Ok(Value::Null));
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    assert_eq!(state["settings"]["profiles"][0]["counters"][0]["name"], json!("Flaggen-Runde"));
+
+    let mut poll = counter.clone();
+    poll["id"] = json!("poll");
+    poll["mode"] = json!("poll");
+    poll["options"] = json!([
+        { "id": "a", "label": "A", "triggers": [{ "kind": "text", "value": "a", "match": "word" }], "accentColor": "#112233" },
+        { "id": "b", "label": "B", "triggers": [{ "kind": "text", "value": "b", "match": "word" }], "accentColor": "#445566" }
+    ]);
+    assert_eq!(error_code(invoke(&app, "save_counters", json!({ "counters": [poll] }))), "pro-required");
+    assert_eq!(error_code(invoke(&app, "save_counters", json!({ "counters": [] }))), "invalid-counters");
+    assert_eq!(app.saved.lock().unwrap().len(), 1);
+}

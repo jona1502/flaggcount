@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-counters"
+description = "Enables the save_counters command without any pre-configured scope."
+commands.allow = ["save_counters"]
+
+[[permission]]
+identifier = "deny-save-counters"
+description = "Denies the save_counters command without any pre-configured scope."
+commands.deny = ["save_counters"]

@@ -157,6 +157,7 @@ export const webApi: FlagCountApi = {
   renameProfile: () => Promise.reject(DESKTOP_ONLY),
   deleteProfile: () => Promise.reject(DESKTOP_ONLY),
   switchProfile: () => Promise.reject(DESKTOP_ONLY),
+  saveCounters: () => Promise.reject(DESKTOP_ONLY),
   // FlagCount Pro is managed in the desktop app.
   activateLicense: () => Promise.reject(DESKTOP_ONLY),
   refreshLicense: () => Promise.reject(DESKTOP_ONLY),

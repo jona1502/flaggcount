@@ -5,11 +5,11 @@ use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::entitlements::profile_limit;
+use crate::entitlements::{counter_limit, has_feature, profile_limit, CUSTOM_TRIGGERS, MULTI_OPTION_POLLS};
 use crate::license::LicenseState;
 use crate::settings::{
-    CounterDefinition, OverlaySettings, Settings, StreamProfile, DEFAULT_TARGET, MAX_NAME_LENGTH,
-    MAX_PROFILES,
+    CounterDefinition, CounterMode, OverlaySettings, Settings, StreamProfile, Trigger, DEFAULT_TARGET,
+    MAX_COUNTERS, MAX_NAME_LENGTH, MAX_PROFILES, RED_FLAG, WHITE_FLAG,
 };
 use crate::sidecar::AppError;
 
@@ -165,6 +165,66 @@ pub fn switch_profile(settings: &mut Settings, license: &LicenseState, profile_i
     Ok(true)
 }
 
+/// Anything beyond 🚩 to vote and 🏳️ (or nothing) to withdraw needs custom triggers.
+fn uses_custom_triggers(counter: &CounterDefinition) -> bool {
+    let red_flag = Trigger::emoji(RED_FLAG).key();
+    let white_flag = Trigger::emoji(WHITE_FLAG).key();
+    let custom_votes = counter
+        .options
+        .iter()
+        .any(|option| option.triggers.len() != 1 || option.triggers[0].key() != red_flag);
+    let custom_withdrawal = match counter.withdrawal_triggers.as_slice() {
+        [] => false,
+        [trigger] => trigger.key() != white_flag,
+        _ => true,
+    };
+    custom_votes || custom_withdrawal
+}
+
+/// Replaces the counters of the running profile after checking them and the plan's limits.
+pub fn replace_counters(
+    settings: &mut Settings,
+    license: &LicenseState,
+    counters: Vec<CounterDefinition>,
+    now: &str,
+) -> Result<(), AppError> {
+    let invalid = || AppError::new("invalid-counters", "The counters are invalid");
+    if !(1..=MAX_COUNTERS).contains(&counters.len()) {
+        return Err(invalid());
+    }
+    let counters = counters
+        .into_iter()
+        .map(CounterDefinition::validated)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(invalid)?;
+    let mut ids = std::collections::HashSet::new();
+    if !counters.iter().all(|counter| ids.insert(counter.id.as_str())) {
+        return Err(invalid());
+    }
+
+    if counters.len() > counter_limit(license) {
+        return Err(pro_required("Parallel counters require FlagCount Pro"));
+    }
+    if counters.iter().any(|counter| counter.mode == CounterMode::Poll) && !has_feature(license, MULTI_OPTION_POLLS) {
+        return Err(pro_required("Polls require FlagCount Pro"));
+    }
+    if counters.iter().any(uses_custom_triggers) && !has_feature(license, CUSTOM_TRIGGERS) {
+        return Err(pro_required("Custom triggers require FlagCount Pro"));
+    }
+
+    let profile_id = effective_profile(settings, license)
+        .map(|profile| profile.id.clone())
+        .ok_or_else(invalid)?;
+    let profile = settings
+        .profiles
+        .iter_mut()
+        .find(|profile| profile.id == profile_id)
+        .ok_or_else(invalid)?;
+    profile.counters = counters;
+    profile.updated_at = now.into();
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +343,89 @@ mod tests {
         assert!(delete_profile(&mut settings, "p1").unwrap());
         assert_eq!(settings.active_profile_id, "default");
         assert_eq!(delete_profile(&mut settings, "default").unwrap_err().code, "invalid-profile");
+    }
+
+    fn full_pro() -> LicenseState {
+        LicenseState {
+            plan: "pro".into(),
+            status: "active".into(),
+            features: vec![
+                MULTIPLE_PROFILES.into(),
+                crate::entitlements::PARALLEL_COUNTERS.into(),
+                MULTI_OPTION_POLLS.into(),
+                CUSTOM_TRIGGERS.into(),
+            ],
+            ..LicenseState::default()
+        }
+    }
+
+    fn poll(id: &str) -> CounterDefinition {
+        let mut counter = CounterDefinition::red_flags(10, OverlaySettings::default());
+        counter.id = id.into();
+        counter.mode = CounterMode::Poll;
+        counter.target = None;
+        counter.withdrawal_triggers.clear();
+        counter.options = ["a", "b"]
+            .iter()
+            .map(|word| crate::settings::PollOption {
+                id: format!("{id}-{word}"),
+                label: word.to_uppercase(),
+                triggers: vec![Trigger {
+                    kind: crate::settings::TriggerKind::Text,
+                    value: format!("{id}{word}"),
+                    matching: crate::settings::TriggerMatch::Word,
+                }],
+                accent_color: "#112233".into(),
+            })
+            .collect();
+        counter
+    }
+
+    #[test]
+    fn free_can_rename_and_retarget_the_red_flag_counter_only() {
+        let free = LicenseState::default();
+        let mut settings = Settings::default();
+        let mut flags = CounterDefinition::red_flags(30, OverlaySettings::default());
+        flags.name = "Flaggen".into();
+
+        replace_counters(&mut settings, &free, vec![flags.clone()], NOW).unwrap();
+        assert_eq!(settings.profiles[0].counters, vec![flags.clone()]);
+        assert_eq!(settings.profiles[0].updated_at, NOW);
+
+        let mut custom = flags.clone();
+        custom.options[0].triggers = vec![Trigger::emoji("\u{1F525}")];
+        let mut second = flags.clone();
+        second.id = "second".into();
+        for (counters, expected) in [
+            (vec![poll("p")], "pro-required"),
+            (vec![custom], "pro-required"),
+            (vec![flags.clone(), second], "pro-required"),
+        ] {
+            assert_eq!(replace_counters(&mut settings, &free, counters, NOW).unwrap_err().code, expected);
+        }
+        assert_eq!(settings.profiles[0].counters, vec![flags]);
+    }
+
+    #[test]
+    fn pro_saves_up_to_four_valid_counters() {
+        let mut settings = Settings::default();
+        let counters: Vec<_> = ["a", "b", "c", "d"].iter().map(|id| poll(id)).collect();
+
+        replace_counters(&mut settings, &full_pro(), counters.clone(), NOW).unwrap();
+        assert_eq!(settings.profiles[0].counters.len(), 4);
+
+        let mut too_many = counters.clone();
+        too_many.push(poll("e"));
+        let mut duplicate_ids = counters[..2].to_vec();
+        duplicate_ids[1].id = "a".into();
+        let mut ambiguous = poll("x");
+        ambiguous.options[1].triggers = ambiguous.options[0].triggers.clone();
+        for counters in [too_many, duplicate_ids, vec![ambiguous], Vec::new()] {
+            assert_eq!(
+                replace_counters(&mut settings, &full_pro(), counters, NOW).unwrap_err().code,
+                "invalid-counters"
+            );
+        }
     }
 
     #[test]

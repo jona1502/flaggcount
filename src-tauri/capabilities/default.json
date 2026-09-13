@@ -22,6 +22,7 @@
     "allow-rename-profile",
     "allow-delete-profile",
     "allow-switch-profile",
+    "allow-save-counters",
     "allow-activate-license",
     "allow-refresh-license",
     "allow-deactivate-license",

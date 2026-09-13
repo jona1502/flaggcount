@@ -50,7 +50,8 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     duplicateProfile: vi.fn(async (_profileId: string) => undefined),
     renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
     deleteProfile: vi.fn(async (_profileId: string) => undefined),
-    switchProfile: vi.fn(async (_profileId: string) => undefined)
+    switchProfile: vi.fn(async (_profileId: string) => undefined),
+    saveCounters: vi.fn(async () => undefined)
   } satisfies FlagCountActions;
   const onDismissError = vi.fn();
   const onCopyText = vi.fn(async (_text: string) => undefined);

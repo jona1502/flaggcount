@@ -189,3 +189,17 @@ describe('Stream profiles in the Tauri app', () => {
   });
 });
 
+describe('Counters in the Tauri app', () => {
+  it('saves the renamed counter of the running profile', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    const name = screen.getByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Flaggen-Runde');
+    await user.click(screen.getByRole('button', { name: 'Zähler speichern' }));
+
+    const saved = payloadOf('save_counters') as { counters: { name: string }[] } | undefined;
+    expect(saved?.counters.map((counter) => counter.name)).toEqual(['Flaggen-Runde']);
+  });
+});

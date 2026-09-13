@@ -30,6 +30,7 @@ export type AppErrorCode =
   | 'invalid-code'
   | 'invalid-installation'
   | 'invalid-profile'
+  | 'invalid-counters'
   | 'pro-required'
   | 'sidecar-unavailable'
   | 'unknown';

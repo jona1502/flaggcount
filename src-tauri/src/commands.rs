@@ -178,6 +178,22 @@ pub fn rename_profile<R: Runtime>(
     Ok(())
 }
 
+/// Saves the counters of the running profile; rounds of counters that keep their id continue.
+#[tauri::command]
+pub fn save_counters<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    counters: Vec<settings::CounterDefinition>,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        profiles::replace_counters(settings, license, counters, &now)
+    })?;
+    saver.save(&settings);
+    send_counters(&sidecar, &settings)
+}
+
 /// Switching the running profile ends the running rounds, which the UI confirms beforehand.
 fn run_other_profile(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
     send_counters(sidecar, settings)?;

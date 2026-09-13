@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { AppError, AppState } from '../../shared/appState';
+import type { CounterDefinition } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 
 export const STATE_CHANGED_EVENT = 'state-changed';
@@ -22,6 +23,7 @@ export const flagcountApi = {
   renameProfile: (profileId: string, name: string): Promise<void> => invoke('rename_profile', { profileId, name }),
   deleteProfile: (profileId: string): Promise<void> => invoke('delete_profile', { profileId }),
   switchProfile: (profileId: string): Promise<void> => invoke('switch_profile', { profileId }),
+  saveCounters: (counters: CounterDefinition[]): Promise<void> => invoke('save_counters', { counters }),
   activateLicense: (code: string, replaceInstallationId?: string): Promise<void> =>
     invoke('activate_license', { code, replaceInstallationId: replaceInstallationId ?? null }),
   refreshLicense: (): Promise<void> => invoke('refresh_license'),

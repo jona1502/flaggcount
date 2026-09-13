@@ -19,6 +19,7 @@ fn main() {
             "rename_profile",
             "delete_profile",
             "switch_profile",
+            "save_counters",
             "activate_license",
             "refresh_license",
             "deactivate_license",

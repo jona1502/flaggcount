@@ -30,6 +30,7 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::rename_profile,
             commands::delete_profile,
             commands::switch_profile,
+            commands::save_counters,
             commands::activate_license,
             commands::refresh_license,
             commands::deactivate_license,

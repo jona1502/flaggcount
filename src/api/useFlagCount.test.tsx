@@ -58,6 +58,7 @@ function createFakeApi() {
     renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
     deleteProfile: vi.fn(async (_profileId: string) => undefined),
     switchProfile: vi.fn(async (_profileId: string) => undefined),
+    saveCounters: vi.fn(async () => undefined),
     copyText: vi.fn(async (_text: string) => undefined),
     onStateChanged: vi.fn(async (handler: (state: AppState) => void): Promise<() => void> => {
       stateHandler = handler;

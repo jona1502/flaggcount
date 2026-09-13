@@ -154,7 +154,8 @@ describe('OverlayPanel', () => {
       duplicateProfile: vi.fn(async (_profileId: string) => undefined),
       renameProfile: vi.fn(async (_profileId: string, _name: string) => undefined),
       deleteProfile: vi.fn(async (_profileId: string) => undefined),
-      switchProfile: vi.fn(async (_profileId: string) => undefined)
+      switchProfile: vi.fn(async (_profileId: string) => undefined),
+      saveCounters: vi.fn(async () => undefined)
     } satisfies FlagCountActions;
     const onCopyText = vi.fn(async (_text: string) => undefined);
     const user = userEvent.setup();
