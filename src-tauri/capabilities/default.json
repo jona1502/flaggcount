@@ -20,6 +20,7 @@
     "allow-import-overlay-asset",
     "allow-set-telemetry-enabled",
     "allow-clear-history",
+    "allow-export-history-csv",
     "allow-create-profile",
     "allow-duplicate-profile",
     "allow-rename-profile",

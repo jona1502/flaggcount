@@ -1,0 +1,5 @@
+# Automatically generated - DO NOT EDIT!
+[[permission]]
+identifier = "allow-export-history-csv"
+description = "Allows writing an aggregated history CSV to Downloads."
+commands.allow = ["export_history_csv"]

@@ -90,7 +90,7 @@ export function Dashboard({
     const running = effectiveProfile(appState.settings, entitlements);
 
     if (current === 'history') {
-      return <div role="tabpanel" id="section-history" aria-labelledby="tab-history"><HistoryPanel records={appState.history ?? []} available={canUse(entitlements, 'history')} disabled={pending} onClear={() => void actions.clearHistory()} /></div>;
+      return <div role="tabpanel" id="section-history" aria-labelledby="tab-history"><HistoryPanel records={appState.history ?? []} available={canUse(entitlements, 'history')} exportAvailable={canUse(entitlements, 'csv-export')} disabled={pending} onClear={() => void actions.clearHistory()} onExport={actions.exportHistoryCsv} /></div>;
     }
 
     if (current === 'profiles') {

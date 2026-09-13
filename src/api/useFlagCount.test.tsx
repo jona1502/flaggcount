@@ -51,6 +51,7 @@ function createFakeApi() {
     setTelemetryEnabled: vi.fn(async (_enabled: boolean) => undefined),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
     clearHistory: vi.fn(async () => undefined),
+    exportHistoryCsv: vi.fn(async () => 'history.csv'),
     activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
     refreshLicense: vi.fn(async () => undefined),
     deactivateLicense: vi.fn(async () => undefined),

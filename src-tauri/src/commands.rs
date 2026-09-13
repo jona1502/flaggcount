@@ -1,7 +1,7 @@
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::license::{self, LicenseState};
-use crate::entitlements::{has_feature, CUSTOM_BRANDING, PREMIUM_TEMPLATES};
+use crate::entitlements::{has_feature, CSV_EXPORT, CUSTOM_BRANDING, PREMIUM_TEMPLATES};
 use crate::profiles::{self, effective_profile};
 use crate::settings::{self, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
 use crate::sidecar::{configure_counters, open_external, AppError, AppState, Sidecar, SidecarCommand};
@@ -326,6 +326,21 @@ pub fn set_telemetry_enabled<R: Runtime>(
 #[tauri::command]
 pub fn clear_history(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::ClearHistory)
+}
+
+#[tauri::command]
+pub fn export_history_csv<R: Runtime>(app: AppHandle<R>, sidecar: State<'_, Sidecar>, csv: String) -> Result<String, AppError> {
+    if !has_feature(&sidecar.state().license, CSV_EXPORT) {
+        return Err(profiles::pro_required("CSV export requires FlagCount Pro"));
+    }
+    if !csv.starts_with('\u{feff}') || csv.len() > 10_000_000 {
+        return Err(AppError::new("invalid-export", "Invalid history export"));
+    }
+    let directory = app.path().download_dir().map_err(|_| AppError::new("export-unavailable", "Downloads folder is unavailable"))?;
+    let name = format!("flagcount-history-{}.csv", settings::now_timestamp().replace([':', '.'], "-"));
+    let path = directory.join(name);
+    std::fs::write(&path, csv).map_err(|_| AppError::new("export-unavailable", "History export could not be written"))?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 /// Prices, terms and checkout live on the website, so they are always shown before a purchase.
