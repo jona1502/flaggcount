@@ -56,6 +56,18 @@ export type LicenseInfo = {
   features: Feature[];
 };
 
+/** Another computer that uses the same license, shown when the installation limit is reached. */
+export type InstallationSummary = {
+  installationId: string;
+  activatedAt: string;
+  lastSeenAt: string;
+};
+
+export type LicenseState = LicenseInfo & {
+  /** Only filled after an activation failed because all installations are in use. */
+  installations: InstallationSummary[];
+};
+
 export const FREE_LICENSE: LicenseInfo = Object.freeze({
   plan: 'free',
   status: 'none',
@@ -185,3 +197,5 @@ export function evaluateEntitlement(
     entitlements
   };
 }
+
+export const FREE_LICENSE_STATE: LicenseState = Object.freeze({ ...FREE_LICENSE, installations: [] }) as LicenseState;

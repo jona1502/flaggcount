@@ -2,6 +2,7 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppError, AppState } from '../../shared/appState';
+import { FREE_LICENSE_STATE } from '../../shared/licensing';
 import { migrateSettingsV1 } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import type { FlagCountApi } from './flagcount';
@@ -15,6 +16,7 @@ const initialState: AppState = {
   votes: { count: 0, target: 100, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   counters: [],
+  license: FREE_LICENSE_STATE,
   publicOverlayUrl: null,
   settings: migrateSettingsV1({ username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
@@ -46,6 +48,11 @@ function createFakeApi() {
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
+    activateLicense: vi.fn(async (_code: string, _replace?: string) => undefined),
+    refreshLicense: vi.fn(async () => undefined),
+    deactivateLicense: vi.fn(async () => undefined),
+    openCustomerPortal: vi.fn(async () => undefined),
+    openProPage: vi.fn(async () => undefined),
     copyText: vi.fn(async (_text: string) => undefined),
     onStateChanged: vi.fn(async (handler: (state: AppState) => void): Promise<() => void> => {
       stateHandler = handler;

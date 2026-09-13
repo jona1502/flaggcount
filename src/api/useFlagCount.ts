@@ -12,6 +12,11 @@ export type FlagCountActions = {
   resetVotes: () => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  activateLicense: (code: string, replaceInstallationId?: string) => Promise<void>;
+  refreshLicense: () => Promise<void>;
+  deactivateLicense: () => Promise<void>;
+  openCustomerPortal: () => Promise<void>;
+  openProPage: () => Promise<void>;
 };
 
 export type FlagCountController = {
@@ -98,7 +103,12 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       removeManualVote: () => run(() => api.removeManualVote()),
       resetVotes: () => run(() => api.resetVotes()),
       setTarget: (target) => run(() => api.setTarget(target)),
-      setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay))
+      setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
+      activateLicense: (code, replaceInstallationId) => run(() => api.activateLicense(code, replaceInstallationId)),
+      refreshLicense: () => run(() => api.refreshLicense()),
+      deactivateLicense: () => run(() => api.deactivateLicense()),
+      openCustomerPortal: () => run(() => api.openCustomerPortal()),
+      openProPage: () => run(() => api.openProPage())
     }),
     [api, run]
   );

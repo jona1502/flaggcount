@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { FREE_LICENSE_STATE } from '../shared/licensing';
 import { migrateSettingsV1 } from '../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../shared/settings';
 import type { AppState } from '../shared/appState';
@@ -18,6 +19,7 @@ const backendState: AppState = {
   votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
   overlayUrl: OVERLAY_URL,
   counters: [],
+  license: FREE_LICENSE_STATE,
   publicOverlayUrl: null,
   settings: migrateSettingsV1({ username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }, '2026-01-01T00:00:00.000Z')
 };
@@ -157,3 +159,18 @@ describe('App with the Tauri backend', () => {
     expect((await screen.findByRole('alert')).textContent).toContain(ERROR_MESSAGES['sidecar-unavailable']);
   });
 });
+
+describe('FlagCount Pro in the Tauri app', () => {
+  it('activates a license and opens the Pro page from the Pro section', async () => {
+    const user = await renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Pro' }));
+    await user.type(screen.getByLabelText('Aktivierungscode'), ' FC-7K2QM-9XH4D-PZ1RT-W8C3N ');
+    await user.click(screen.getByRole('button', { name: 'Aktivieren' }));
+    await user.click(screen.getByRole('button', { name: 'Preise & Pro ansehen' }));
+
+    expect(payloadOf('activate_license')).toEqual({ code: 'FC-7K2QM-9XH4D-PZ1RT-W8C3N', replaceInstallationId: null });
+    expect(commands()).toContain('open_pro_page');
+  });
+});
+

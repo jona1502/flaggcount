@@ -12,6 +12,8 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
     'Die Verbindung zum Livestream konnte nicht wiederhergestellt werden. Bitte verbinde dich erneut.',
   'invalid-target': 'Das Stimmenziel muss eine ganze Zahl zwischen 1 und 100.000 sein.',
   'invalid-overlay-settings': 'Die Overlay-Einstellungen sind ungültig. Bitte prüfe Farben, Größe und Deckkraft.',
+  'invalid-code': 'Dieser Aktivierungscode ist ungültig. Bitte prüfe ihn in deiner Kauf-E-Mail.',
+  'invalid-installation': 'Dieser Computer konnte der Lizenz nicht zugeordnet werden. Bitte starte FlagCount neu.',
   'sidecar-unavailable': 'Der Verbindungsdienst läuft nicht. Bitte starte FlagCount neu.',
   unknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.'
 };

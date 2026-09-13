@@ -1,14 +1,16 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
+import type { LicenseState, SignedEntitlement } from '../../shared/licensing';
 import { parseCounterDefinitions, type CounterDefinition } from '../../shared/profiles';
 import { parseOverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
+import type { LicenseCredentials } from './license/licenseManager';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
 export type ConnectionErrorCode = AppErrorCode;
 export type ConnectionError = AppError;
 
 /** Bumped whenever commands or events change incompatibly; the sidecar reports it on `ready`. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /**
  * Stable, library-independent representation of a TikTok chat comment.
@@ -40,6 +42,12 @@ export type SidecarCommand =
   | { type: 'reset'; counterId?: string }
   /** The counters of the active profile; running rounds of counters that keep their id continue. */
   | { type: 'configureCounters'; counters: CounterDefinition[] }
+  /** The stored license, sent once after every start. The secret only travels over this private pipe. */
+  | { type: 'configureLicense'; installationId: string; credentials: LicenseCredentials | null; entitlement: unknown }
+  | { type: 'activateLicense'; code: string; replaceInstallationId?: string }
+  | { type: 'refreshLicense' }
+  | { type: 'deactivateLicense' }
+  | { type: 'openCustomerPortal' }
   | { type: 'getState' };
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -53,6 +61,12 @@ export type SidecarEvent =
   | { type: 'votes'; votes: VoteSnapshot }
   /** Aggregated counts of every counter: never viewer identities or chat content. */
   | { type: 'counters'; counters: CounterSnapshot[] }
+  /** License status for the UI: never the code or the secret. */
+  | { type: 'license'; license: LicenseState }
+  /** For Tauri to store: the secret goes to the Windows Credential Manager. `null` removes it. */
+  | { type: 'licenseCredentials'; credentials: LicenseCredentials | null; entitlement: SignedEntitlement | null }
+  /** A page Tauri opens in the browser after checking that it belongs to FlagCount or Paddle. */
+  | { type: 'openUrl'; url: string }
   | { type: 'error'; error: AppError }
   /** Sanitized log line: never usernames, chat content, URLs or tokens. */
   | { type: 'log'; level: LogLevel; message: string };
@@ -60,6 +74,9 @@ export type SidecarEvent =
 export { parseOverlaySettings };
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const INSTALLATION_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+const MAX_CODE_LENGTH = 64;
+const MAX_SECRET_LENGTH = 128;
 
 function parseIds<Key extends string>(record: Record<string, unknown>, keys: readonly Key[]): Partial<Record<Key, string>> | null {
   const ids: Partial<Record<Key, string>> = {};
@@ -70,6 +87,19 @@ function parseIds<Key extends string>(record: Record<string, unknown>, keys: rea
     ids[key] = value;
   }
   return ids;
+}
+
+function parseCredentials(value: unknown): LicenseCredentials | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const { licenseId, secret } = value as Record<string, unknown>;
+  return typeof licenseId === 'string' &&
+    ID_PATTERN.test(licenseId) &&
+    typeof secret === 'string' &&
+    secret.length > 0 &&
+    secret.length <= MAX_SECRET_LENGTH
+    ? { licenseId, secret }
+    : undefined;
 }
 
 export function parseCommand(line: string): SidecarCommand | null {
@@ -100,7 +130,26 @@ export function parseCommand(line: string): SidecarCommand | null {
       const target = parseIds(record, ['counterId'] as const);
       return target ? { type: 'reset', ...target } : null;
     }
+    case 'configureLicense': {
+      const installationId = record['installationId'];
+      const credentials = parseCredentials(record['credentials']);
+      if (typeof installationId !== 'string' || !INSTALLATION_ID_PATTERN.test(installationId) || credentials === undefined) {
+        return null;
+      }
+      return { type: 'configureLicense', installationId, credentials, entitlement: record['entitlement'] ?? null };
+    }
+    case 'activateLicense': {
+      const { code, replaceInstallationId } = record;
+      if (typeof code !== 'string' || code.trim() === '' || code.length > MAX_CODE_LENGTH) return null;
+      if (replaceInstallationId === undefined || replaceInstallationId === null) return { type: 'activateLicense', code };
+      return typeof replaceInstallationId === 'string' && INSTALLATION_ID_PATTERN.test(replaceInstallationId)
+        ? { type: 'activateLicense', code, replaceInstallationId }
+        : null;
+    }
     case 'disconnect':
+    case 'refreshLicense':
+    case 'deactivateLicense':
+    case 'openCustomerPortal':
     case 'getState':
       return { type: record['type'] };
     default:

@@ -17,6 +17,12 @@ export const flagcountApi = {
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
+  activateLicense: (code: string, replaceInstallationId?: string): Promise<void> =>
+    invoke('activate_license', { code, replaceInstallationId: replaceInstallationId ?? null }),
+  refreshLicense: (): Promise<void> => invoke('refresh_license'),
+  deactivateLicense: (): Promise<void> => invoke('deactivate_license'),
+  openCustomerPortal: (): Promise<void> => invoke('open_customer_portal'),
+  openProPage: (): Promise<void> => invoke('open_pro_page'),
   copyText: (text: string): Promise<void> => writeText(text),
 
   onStateChanged: (handler: (state: AppState) => void): Promise<UnlistenFn> =>

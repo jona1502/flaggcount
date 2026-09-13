@@ -1254,3 +1254,135 @@ input[readonly] {
     animation-duration: 1.5s;
   }
 }
+
+/* Sections */
+.app-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-tab {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-tab:hover {
+  color: #f4f4f6;
+}
+
+.app-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: #fff;
+}
+
+.plan-badge {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(62 207 142 / 0.14);
+  color: var(--success);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* FlagCount Pro */
+.license-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 680px;
+}
+
+.license-panel h2,
+.license-panel h3 {
+  margin: 0;
+}
+
+.license-panel h3 {
+  font-size: 0.92rem;
+}
+
+.license-status {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.license-status[data-plan='pro'] {
+  border-color: rgb(62 207 142 / 0.45);
+}
+
+.license-status[data-status='grace'],
+.license-status[data-status='expired'],
+.license-status[data-status='invalid'] {
+  border-color: rgb(245 165 36 / 0.5);
+}
+
+.license-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.license-panel code {
+  font-family: Consolas, 'Cascadia Mono', monospace;
+}
+
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.license-installations ul,
+.pro-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.license-installations p {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+}
+
+.license-installations li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.pro-offer {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.pro-features li {
+  display: grid;
+  gap: 2px;
+  font-size: 0.84rem;
+}
+
+.pro-features span {
+  color: var(--muted);
+}
+
+.pro-offer .button {
+  justify-self: start;
+}
+

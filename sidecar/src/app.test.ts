@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { FREE_ENTITLEMENTS, PRO_ENTITLEMENTS, type Entitlements } from '../../shared/entitlements';
+import { FREE_LICENSE_STATE } from '../../shared/licensing';
 import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import { SidecarApp } from './app';
@@ -18,7 +20,7 @@ const teams: CounterDefinition = {
   overlay: { ...DEFAULT_OVERLAY_SETTINGS }
 };
 
-function createApp() {
+function createApp(entitlements: Entitlements = PRO_ENTITLEMENTS) {
   const events: SidecarEvent[] = [];
   const connections: LiveConnectionHandlers[] = [];
   let rounds = 0;
@@ -29,7 +31,7 @@ function createApp() {
       return { connect: async () => undefined, disconnect: async () => undefined };
     },
     (event) => events.push(event),
-    { counters: [createRedFlagCounter(10)], createRoundId: () => `round-${++rounds}` }
+    { counters: [createRedFlagCounter(10)], createRoundId: () => `round-${++rounds}`, entitlements }
   );
 
   const chat = (userId: string, comment: string): void => {
@@ -250,7 +252,25 @@ describe('SidecarApp', () => {
             roundId: 'round-1'
           }
         ]
-      }
+      },
+      { type: 'license', license: FREE_LICENSE_STATE }
     ]);
+  });
+
+  it('runs only what the plan allows and never cuts running counters when Pro ends', async () => {
+    const { app } = createApp(FREE_ENTITLEMENTS);
+    const running = () => app.getCounters().map((counter) => counter.counterId);
+
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+    expect(running()).toEqual(['red-flags']);
+
+    app.setEntitlements(PRO_ENTITLEMENTS);
+    expect(running()).toEqual(['red-flags', 'teams']);
+
+    app.setEntitlements(FREE_ENTITLEMENTS);
+    expect(running()).toEqual(['red-flags', 'teams']);
+
+    await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
+    expect(running()).toEqual(['red-flags']);
   });
 });

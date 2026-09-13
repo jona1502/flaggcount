@@ -6,10 +6,15 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
+use serde_json::Value;
+
+use crate::license::{
+    is_allowed_external_url, LicenseCredentials, LicenseState, LicenseVault, StoredLicense,
+};
 use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -37,6 +42,22 @@ pub enum SidecarCommand {
     Reset,
     /// The counters of the active profile; running rounds of counters that keep their id continue.
     ConfigureCounters { counters: Vec<CounterDefinition> },
+    /// The stored license, sent after every start. The secret only travels over the private stdin pipe.
+    #[serde(rename_all = "camelCase")]
+    ConfigureLicense {
+        installation_id: String,
+        credentials: Option<LicenseCredentials>,
+        entitlement: Option<Value>,
+    },
+    #[serde(rename_all = "camelCase")]
+    ActivateLicense {
+        code: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        replace_installation_id: Option<String>,
+    },
+    RefreshLicense,
+    DeactivateLicense,
+    OpenCustomerPortal,
     GetState,
 }
 
@@ -143,6 +164,8 @@ pub struct AppState {
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
     pub settings: Settings,
+    /// Plan and license status; never the activation code or secret.
+    pub license: LicenseState,
 }
 
 /// URL of the streaming browser/link source served by the sidecar.
@@ -173,6 +196,13 @@ pub enum SidecarEvent {
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
     Counters { counters: Vec<CounterSnapshot> },
+    License { license: LicenseState },
+    /// Credentials and entitlement to store on this computer; `None` removes them.
+    LicenseCredentials {
+        credentials: Option<LicenseCredentials>,
+        entitlement: Option<Value>,
+    },
+    OpenUrl { url: String },
     Error { error: AppError },
     Log { level: LogLevel, message: String },
 }
@@ -187,6 +217,8 @@ pub enum StateUpdate {
     State,
     Error(AppError),
     Log(LogLevel, String),
+    Credentials(Option<LicenseCredentials>, Option<Value>),
+    OpenUrl(String),
     None,
 }
 
@@ -224,6 +256,15 @@ pub fn apply_event(
             state.counters = counters;
             StateUpdate::State
         }
+        SidecarEvent::License { license } => {
+            state.license = license;
+            StateUpdate::State
+        }
+        SidecarEvent::LicenseCredentials {
+            credentials,
+            entitlement,
+        } => StateUpdate::Credentials(credentials, entitlement),
+        SidecarEvent::OpenUrl { url } => StateUpdate::OpenUrl(url),
         SidecarEvent::Error { error } => StateUpdate::Error(error),
         SidecarEvent::Log { level, message } => {
             StateUpdate::Log(level, message.chars().take(MAX_LOG_MESSAGE_CHARS).collect())
@@ -238,8 +279,17 @@ pub fn restart_delay(attempt: u32) -> Duration {
 
 /// Commands that bring a freshly started sidecar in line with the saved settings, and, after
 /// a crash, back to the stream the user was connected to.
-pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<SidecarCommand> {
+pub fn startup_commands(
+    settings: &Settings,
+    license: &StoredLicense,
+    reconnect_to: Option<&str>,
+) -> Vec<SidecarCommand> {
     let mut commands: Vec<SidecarCommand> = configure_counters(settings).into_iter().collect();
+    commands.push(SidecarCommand::ConfigureLicense {
+        installation_id: license.installation_id.clone(),
+        credentials: license.credentials.clone(),
+        entitlement: license.entitlement.clone(),
+    });
     if let Some(username) = reconnect_to {
         commands.push(SidecarCommand::Connect {
             username: username.to_string(),
@@ -278,6 +328,7 @@ struct Inner {
     child: Option<CommandChild>,
     session: Option<SidecarSession>,
     state: AppState,
+    license: StoredLicense,
     desired: DesiredConnection,
     stopping: bool,
     started_at: Option<Instant>,
@@ -289,6 +340,8 @@ enum Outcome {
     State(AppState),
     Error(AppError),
     Log(LogLevel, String),
+    SaveLicense(StoredLicense),
+    OpenUrl(String),
     Nothing,
 }
 
@@ -303,6 +356,13 @@ impl Sidecar {
     pub fn init_settings(&self, settings: Settings) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.state.settings = settings;
+        }
+    }
+
+    /// Uses the stored license for every sidecar start.
+    pub fn init_license(&self, license: StoredLicense) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.license = license;
         }
     }
 
@@ -433,6 +493,12 @@ impl Sidecar {
                 StateUpdate::State => Outcome::State(inner.state.clone()),
                 StateUpdate::Error(error) => Outcome::Error(error),
                 StateUpdate::Log(level, message) => Outcome::Log(level, message),
+                StateUpdate::Credentials(credentials, entitlement) => {
+                    inner.license.credentials = credentials;
+                    inner.license.entitlement = entitlement;
+                    Outcome::SaveLicense(inner.license.clone())
+                }
+                StateUpdate::OpenUrl(url) => Outcome::OpenUrl(url),
                 StateUpdate::None => Outcome::Nothing,
             };
             let startup = if is_ready {
@@ -442,7 +508,7 @@ impl Sidecar {
                 } else {
                     None
                 };
-                startup_commands(&inner.state.settings, reconnect_to)
+                startup_commands(&inner.state.settings, &inner.license, reconnect_to)
             } else {
                 Vec::new()
             };
@@ -456,6 +522,12 @@ impl Sidecar {
                 emit_error(app, &error);
             }
             Outcome::Log(level, message) => log_sidecar_message(level, &message),
+            Outcome::SaveLicense(license) => self.save_license(app, &license),
+            Outcome::OpenUrl(url) => {
+                if let Err(error) = open_external(app, &url) {
+                    emit_error(app, &error);
+                }
+            }
             Outcome::Nothing => {}
         }
 
@@ -528,11 +600,43 @@ impl Sidecar {
         }
     }
 
+    /// Pro keeps working for this session if storing fails; the UI shows why it will not survive a restart.
+    fn save_license<R: Runtime>(&self, app: &AppHandle<R>, license: &StoredLicense) {
+        let saved = app
+            .try_state::<LicenseVault>()
+            .map_or(Err(()), |vault| vault.save(license));
+        if saved.is_ok() {
+            return;
+        }
+        log::warn!("could not store the license on this computer");
+        let state = match self.inner.lock() {
+            Ok(mut inner) => {
+                inner.state.license.last_error = Some("secret-storage".into());
+                inner.state.clone()
+            }
+            Err(_) => return,
+        };
+        emit_state(app, &state);
+    }
+
     fn lock(&self) -> Result<MutexGuard<'_, Inner>, AppError> {
         self.inner
             .lock()
             .map_err(|_| AppError::new("unknown", "sidecar state is poisoned"))
     }
+}
+
+/// Opens a FlagCount or Paddle page in the default browser; anything else is refused.
+#[allow(deprecated)]
+pub fn open_external<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<(), AppError> {
+    if !is_allowed_external_url(url) {
+        log::warn!("refused to open a link to an unexpected site");
+        return Err(AppError::new("unknown", "This link cannot be opened"));
+    }
+    app.shell().open(url, None).map_err(|_| {
+        log::warn!("could not open the browser");
+        AppError::new("unknown", "The browser could not be opened")
+    })
 }
 
 /// The sidecar only sends sanitized messages built from fixed templates and error codes.
@@ -612,6 +716,39 @@ mod tests {
                     }]
                 }),
             ),
+            (
+                SidecarCommand::ConfigureLicense {
+                    installation_id: "inst-0123456789abcdef".into(),
+                    credentials: Some(LicenseCredentials {
+                        license_id: "license-1".into(),
+                        secret: "secret".into(),
+                    }),
+                    entitlement: None,
+                },
+                json!({
+                    "type": "configureLicense",
+                    "installationId": "inst-0123456789abcdef",
+                    "credentials": { "licenseId": "license-1", "secret": "secret" },
+                    "entitlement": null
+                }),
+            ),
+            (
+                SidecarCommand::ActivateLicense {
+                    code: "FC-1".into(),
+                    replace_installation_id: None,
+                },
+                json!({ "type": "activateLicense", "code": "FC-1" }),
+            ),
+            (
+                SidecarCommand::ActivateLicense {
+                    code: "FC-1".into(),
+                    replace_installation_id: Some("inst-fedcba9876543210".into()),
+                },
+                json!({ "type": "activateLicense", "code": "FC-1", "replaceInstallationId": "inst-fedcba9876543210" }),
+            ),
+            (SidecarCommand::RefreshLicense, json!({ "type": "refreshLicense" })),
+            (SidecarCommand::DeactivateLicense, json!({ "type": "deactivateLicense" })),
+            (SidecarCommand::OpenCustomerPortal, json!({ "type": "openCustomerPortal" })),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
         ];
 
@@ -695,6 +832,43 @@ mod tests {
         );
         assert_eq!(state.votes.count, 3);
         assert_eq!(state.votes.round_id, "r1");
+    }
+
+    #[test]
+    fn passes_the_license_status_on_but_keeps_its_secret_out_of_the_ui_state() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        let status = apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"license","license":{"plan":"pro","status":"active","reference":"FC-1","expiresAt":"2026-10-13T10:00:00.000Z","refreshAfter":"2026-09-20T10:00:00.000Z","needsRefresh":false,"lastError":null,"features":["history"],"installations":[]}}"#,
+            ),
+        );
+        assert!(matches!(status, StateUpdate::State));
+        assert!(state.license.is_pro());
+
+        match apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"licenseCredentials","credentials":{"licenseId":"license-1","secret":"top-secret"},"entitlement":{"version":1}}"#,
+            ),
+        ) {
+            StateUpdate::Credentials(Some(credentials), Some(_)) => {
+                assert_eq!(credentials.license_id, "license-1")
+            }
+            _ => panic!("expected credentials"),
+        }
+        assert!(!serde_json::to_string(&state).unwrap().contains("top-secret"));
+
+        let open = apply_event(
+            &mut state,
+            &mut session,
+            parse(r#"{"type":"openUrl","url":"https://customer-portal.paddle.com/cpl_01"}"#),
+        );
+        assert!(matches!(open, StateUpdate::OpenUrl(url) if url == "https://customer-portal.paddle.com/cpl_01"));
     }
 
     #[test]
@@ -790,7 +964,8 @@ mod tests {
                 "counters": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
-                "settings": serde_json::to_value(Settings::default()).unwrap()
+                "settings": serde_json::to_value(Settings::default()).unwrap(),
+                "license": serde_json::to_value(LicenseState::default()).unwrap()
             })
         );
     }
@@ -817,14 +992,26 @@ mod tests {
             counter.overlay = overlay.clone();
         });
 
+        let license = StoredLicense {
+            installation_id: "inst-0123456789abcdef".into(),
+            ..StoredLicense::default()
+        };
+
         assert_eq!(
-            startup_commands(&settings, None),
-            [SidecarCommand::ConfigureCounters {
-                counters: vec![CounterDefinition::red_flags(25, overlay)],
-            }]
+            startup_commands(&settings, &license, None),
+            [
+                SidecarCommand::ConfigureCounters {
+                    counters: vec![CounterDefinition::red_flags(25, overlay)],
+                },
+                SidecarCommand::ConfigureLicense {
+                    installation_id: "inst-0123456789abcdef".into(),
+                    credentials: None,
+                    entitlement: None,
+                },
+            ]
         );
         assert_eq!(
-            startup_commands(&settings, Some("streamer")).last(),
+            startup_commands(&settings, &license, Some("streamer")).last(),
             Some(&SidecarCommand::Connect {
                 username: "streamer".into()
             })

@@ -1,8 +1,9 @@
 use tauri::{AppHandle, Runtime, State};
 
 use crate::settings::{self, OverlaySettings, SettingsSaver, MAX_TARGET, MIN_TARGET};
+use crate::license;
 use crate::settings::Settings;
-use crate::sidecar::{configure_counters, AppError, AppState, Sidecar, SidecarCommand};
+use crate::sidecar::{configure_counters, open_external, AppError, AppState, Sidecar, SidecarCommand};
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
 pub fn validate_username(username: &str) -> Result<String, AppError> {
@@ -109,6 +110,48 @@ pub fn set_overlay_settings<R: Runtime>(
     });
     saver.save(&settings);
     send_counters(&sidecar, &settings)
+}
+
+/// Activation goes through the sidecar, which talks to the license service and verifies the answer.
+#[tauri::command]
+pub fn activate_license(
+    sidecar: State<'_, Sidecar>,
+    code: String,
+    replace_installation_id: Option<String>,
+) -> Result<(), AppError> {
+    let code = license::normalize_activation_code(&code)
+        .ok_or_else(|| AppError::new("invalid-code", "Invalid activation code"))?;
+    if replace_installation_id
+        .as_deref()
+        .is_some_and(|id| !license::is_installation_id(id))
+    {
+        return Err(AppError::new("invalid-installation", "Invalid installation"));
+    }
+    sidecar.send(&SidecarCommand::ActivateLicense {
+        code,
+        replace_installation_id,
+    })
+}
+
+#[tauri::command]
+pub fn refresh_license(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::RefreshLicense)
+}
+
+#[tauri::command]
+pub fn deactivate_license(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::DeactivateLicense)
+}
+
+#[tauri::command]
+pub fn open_customer_portal(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::OpenCustomerPortal)
+}
+
+/// Prices, terms and checkout live on the website, so they are always shown before a purchase.
+#[tauri::command]
+pub fn open_pro_page<R: Runtime>(app: AppHandle<R>) -> Result<(), AppError> {
+    open_external(&app, license::PRO_PAGE_URL)
 }
 
 #[cfg(test)]

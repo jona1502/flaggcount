@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-customer-portal"
+description = "Enables the open_customer_portal command without any pre-configured scope."
+commands.allow = ["open_customer_portal"]
+
+[[permission]]
+identifier = "deny-open-customer-portal"
+description = "Denies the open_customer_portal command without any pre-configured scope."
+commands.deny = ["open_customer_portal"]

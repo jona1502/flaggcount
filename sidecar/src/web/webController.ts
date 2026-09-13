@@ -1,4 +1,5 @@
 import type { AppError, AppState } from '../../../shared/appState';
+import { FREE_LICENSE_STATE } from '../../../shared/licensing';
 import { activeProfile, updatePrimaryCounter, type Settings } from '../../../shared/profiles';
 import type { OverlaySettings } from '../../../shared/settings';
 import { MAX_TARGET, MIN_TARGET, isValidTarget, type VoteSnapshot } from '../../../shared/voting';
@@ -52,7 +53,9 @@ export class WebController {
       overlayUrl: null,
       // The web version's own /overlay is already public.
       publicOverlayUrl: null,
-      settings: structuredClone(this.settings)
+      settings: structuredClone(this.settings),
+      // Pro is managed in the desktop app only.
+      license: FREE_LICENSE_STATE
     };
   }
 
@@ -176,6 +179,9 @@ export class WebController {
         this.log(event.level, event.message);
         break;
       case 'votes':
+      case 'license':
+      case 'licenseCredentials':
+      case 'openUrl':
       case 'ready':
         break;
     }

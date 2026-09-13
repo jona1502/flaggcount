@@ -14,6 +14,11 @@ fn main() {
             "reset_votes",
             "set_target",
             "set_overlay_settings",
+            "activate_license",
+            "refresh_license",
+            "deactivate_license",
+            "open_customer_portal",
+            "open_pro_page",
         ]),
     ))
     .expect("failed to run tauri-build");

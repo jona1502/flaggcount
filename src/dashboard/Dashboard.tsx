@@ -1,6 +1,8 @@
+import { useRef, useState, type KeyboardEvent } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
 import { primaryCounter } from '../../shared/profiles';
 import type { FlagCountActions } from '../api/useFlagCount';
+import { LicensePanel } from '../pro/LicensePanel';
 import { ConnectionPanel } from './ConnectionPanel';
 import { ErrorBanner } from './ErrorBanner';
 import { OverlayPanel } from './OverlayPanel';
@@ -19,7 +21,16 @@ type DashboardProps = {
   updater?: UpdaterController;
   /** Only the web version has a login to sign out of. */
   onLogout?: () => void;
+  /** FlagCount Pro is managed in the desktop app only. */
+  proAvailable?: boolean;
 };
+
+type Section = 'live' | 'pro';
+
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'live', label: 'Live' },
+  { id: 'pro', label: 'Pro' }
+];
 
 export function Dashboard({
   state,
@@ -30,8 +41,25 @@ export function Dashboard({
   onCopyText,
   version,
   updater,
-  onLogout
+  onLogout,
+  proAvailable = false
 }: DashboardProps): React.JSX.Element {
+  const [section, setSection] = useState<Section>('live');
+  const tabs = useRef<Record<Section, HTMLButtonElement | null>>({ live: null, pro: null });
+  const sections = proAvailable ? SECTIONS : SECTIONS.filter((item) => item.id === 'live');
+  const current = sections.some((item) => item.id === section) ? section : 'live';
+
+  // Arrow keys move between tabs, as in any tab list.
+  const moveFocus = (event: KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+    event.preventDefault();
+    const index = sections.findIndex((item) => item.id === current);
+    const next = sections[(index + (event.key === 'ArrowRight' ? 1 : sections.length - 1)) % sections.length];
+    if (!next) return;
+    setSection(next.id);
+    tabs.current[next.id]?.focus();
+  };
+
   return (
     <main className="app">
       <header className="app-header">
@@ -68,10 +96,55 @@ export function Dashboard({
 
       <ErrorBanner error={error} onDismiss={onDismissError} />
 
+      {state !== null && sections.length > 1 && (
+        <nav className="app-tabs" role="tablist" aria-label="Bereiche">
+          {sections.map((item) => (
+            <button
+              key={item.id}
+              ref={(element) => {
+                tabs.current[item.id] = element;
+              }}
+              type="button"
+              role="tab"
+              id={`tab-${item.id}`}
+              className="app-tab"
+              aria-selected={current === item.id}
+              aria-controls={`section-${item.id}`}
+              tabIndex={current === item.id ? 0 : -1}
+              onClick={() => setSection(item.id)}
+              onKeyDown={moveFocus}
+            >
+              {item.label}
+              {item.id === 'pro' && state.license.plan === 'pro' && (
+                <span className="plan-badge" aria-label="aktiv">
+                  aktiv
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {state === null ? (
         <p className="loading">Status wird geladen …</p>
+      ) : current === 'pro' ? (
+        <div role="tabpanel" id="section-pro" aria-labelledby="tab-pro">
+          <LicensePanel
+            license={state.license}
+            available={state.sidecarRunning}
+            pending={pending}
+            onActivate={(code, replaceInstallationId) => void actions.activateLicense(code, replaceInstallationId)}
+            onRefresh={() => void actions.refreshLicense()}
+            onDeactivate={() => void actions.deactivateLicense()}
+            onOpenPortal={() => void actions.openCustomerPortal()}
+            onOpenProPage={() => void actions.openProPage()}
+          />
+        </div>
       ) : (
-        <div className="dashboard-grid">
+        <div
+          className="dashboard-grid"
+          {...(sections.length > 1 ? { role: 'tabpanel', id: 'section-live', 'aria-labelledby': 'tab-live' } : {})}
+        >
           <ConnectionPanel
             connection={state.connection}
             savedUsername={state.settings.username}

@@ -3,6 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use flagcount_lib::license::LicenseState;
 use flagcount_lib::settings::{Settings, SettingsSaver};
 use flagcount_lib::with_commands;
 use serde_json::{json, Value};
@@ -79,7 +80,8 @@ fn returns_the_initial_state() {
             "counters": [],
             "overlayUrl": null,
             "publicOverlayUrl": null,
-            "settings": serde_json::to_value(Settings::default()).unwrap()
+            "settings": serde_json::to_value(Settings::default()).unwrap(),
+            "license": serde_json::to_value(LicenseState::default()).unwrap()
         })
     );
 }
@@ -176,3 +178,27 @@ fn reports_an_unavailable_sidecar_for_stream_actions() {
         json!("")
     );
 }
+
+#[test]
+fn validates_license_input_before_it_reaches_the_sidecar() {
+    let app = create_app();
+
+    assert_eq!(error_code(invoke(&app, "activate_license", json!({ "code": "   " }))), "invalid-code");
+    assert_eq!(
+        error_code(invoke(
+            &app,
+            "activate_license",
+            json!({ "code": "FC-7K2QM", "replaceInstallationId": "../other" })
+        )),
+        "invalid-installation"
+    );
+    for (cmd, args) in [
+        ("activate_license", json!({ "code": "FC-7K2QM-9XH4D-PZ1RT-W8C3N" })),
+        ("refresh_license", json!({})),
+        ("deactivate_license", json!({})),
+        ("open_customer_portal", json!({})),
+    ] {
+        assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");
+    }
+}
+

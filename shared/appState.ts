@@ -1,3 +1,4 @@
+import type { LicenseState } from './licensing';
 import type { Settings } from './profiles';
 import type { CounterSnapshot, VoteSnapshot } from './voting';
 
@@ -26,6 +27,8 @@ export type AppErrorCode =
   | 'reconnect-failed'
   | 'invalid-target'
   | 'invalid-overlay-settings'
+  | 'invalid-code'
+  | 'invalid-installation'
   | 'sidecar-unavailable'
   | 'unknown';
 
@@ -47,4 +50,6 @@ export type AppState = {
   /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */
   publicOverlayUrl: string | null;
   settings: Settings;
+  /** Plan and license status; never the activation code or secret. */
+  license: LicenseState;
 };

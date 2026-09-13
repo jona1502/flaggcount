@@ -1,5 +1,8 @@
 import { createInterface } from 'node:readline';
 import { SidecarApp } from './app';
+import { LicenseManager } from './license/licenseManager';
+import { licensePublicKeys } from './license/publicKeys';
+import { createEntitlementVerifier } from './license/signature';
 import { describeError } from './logging';
 import { PROTOCOL_VERSION, parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
 import { startOverlayRelay, type OverlayRelay } from './relay/overlayRelay';
@@ -57,7 +60,15 @@ async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
 }
 
 async function main(): Promise<void> {
-  const app = new SidecarApp(createTikTokConnection, send);
+  // The license service runs on the same FlagCount server as the online overlay.
+  const license = new LicenseManager({
+    send,
+    baseUrl: process.env['FLAGCOUNT_LICENSE_URL'] || DEFAULT_RELAY_URL,
+    verify: createEntitlementVerifier(licensePublicKeys()),
+    onEntitlements: (entitlements) => app.setEntitlements(entitlements),
+    log
+  });
+  const app = new SidecarApp(createTikTokConnection, send, { license });
 
   // Fresh secret per app start, shared with Tauri only over the private stdout pipe.
   const token = createSessionToken();
