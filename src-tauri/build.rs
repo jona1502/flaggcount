@@ -14,6 +14,7 @@ fn main() {
             "reset_votes",
             "set_target",
             "set_overlay_settings",
+            "set_telemetry_enabled",
         ]),
     ))
     .expect("failed to run tauri-build");

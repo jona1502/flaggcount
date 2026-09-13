@@ -14,7 +14,7 @@ const initialState: AppState = {
   votes: { count: 0, target: 100, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
 };
 
 const connectedState: AppState = {
@@ -44,6 +44,7 @@ function createFakeApi() {
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
+    setTelemetryEnabled: vi.fn(async (_enabled: boolean) => undefined),
     copyText: vi.fn(async (_text: string) => undefined),
     onStateChanged: vi.fn(async (handler: (state: AppState) => void): Promise<() => void> => {
       stateHandler = handler;

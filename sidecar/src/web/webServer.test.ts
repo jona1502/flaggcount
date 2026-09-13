@@ -24,7 +24,7 @@ async function start(overrides: Partial<WebServerOptions> = {}) {
   const saved: unknown[] = [];
   const controller = new WebController(
     () => ({ connect: async () => undefined, disconnect: async () => undefined }),
-    { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
+    { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false },
     { save: async (settings) => void saved.push(settings) },
     () => undefined
   );
@@ -131,6 +131,39 @@ describe('isCorrectPassword', () => {
 });
 
 describe('startWebServer', () => {
+  it('accepts only aggregate telemetry without requiring a dashboard session', async () => {
+    const received: unknown[] = [];
+    const { server } = await start({ onTelemetry: (event) => received.push(event) });
+    const valid = {
+      event: { version: 1, name: 'round_completed', voteCountBucket: '10-49' },
+      appVersion: '0.2.3',
+      platform: 'windows',
+      osMajor: '11'
+    };
+
+    expect((await send(server.port, '/api/v1/analytics/events', post(valid))).status).toBe(204);
+    expect(received).toEqual([valid]);
+
+    const identifying = { ...valid, username: 'creator' };
+    expect((await send(server.port, '/api/v1/analytics/events', post(identifying))).status).toBe(400);
+    expect(received).toHaveLength(1);
+  });
+
+  it('rate limits telemetry independently of dashboard login', async () => {
+    const { server } = await start({ maxTelemetryEventsPerMinute: 1 });
+    const event = {
+      event: { version: 1, name: 'app_started' },
+      appVersion: '0.2.3',
+      platform: 'windows',
+      osMajor: '11'
+    };
+
+    expect((await send(server.port, '/api/v1/analytics/events', post(event))).status).toBe(204);
+    const limited = await send(server.port, '/api/v1/analytics/events', post(event));
+    expect(limited.status).toBe(429);
+    expect(limited.headers['retry-after']).toBe('60');
+  });
+
   it('serves the health check and the overlay without a login', async () => {
     const { server } = await start();
 
@@ -291,12 +324,13 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/connect', post({ username: '@Streamer' }, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/manual-vote', post({}, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/manual-vote/remove', post({}, { cookie }))).status).toBe(204);
+    expect((await send(server.port, '/api/telemetry', post({ enabled: true }, { cookie }))).status).toBe(204);
 
     const state = JSON.parse((await send(server.port, '/api/state', { headers: { cookie } })).body);
     expect(state.votes.target).toBe(25);
     expect(state.votes.count).toBe(0);
-    expect(state.settings).toMatchObject({ username: 'streamer', target: 25 });
-    expect(saved.at(-1)).toMatchObject({ username: 'streamer', target: 25 });
+    expect(state.settings).toMatchObject({ username: 'streamer', target: 25, telemetryEnabled: true });
+    expect(saved.at(-1)).toMatchObject({ username: 'streamer', target: 25, telemetryEnabled: true });
   });
 
   it('rejects invalid input with an app error', async () => {

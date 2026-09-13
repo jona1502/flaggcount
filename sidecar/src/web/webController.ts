@@ -37,6 +37,7 @@ export class WebController {
   async start(): Promise<void> {
     await this.app.handleCommand({ type: 'setTarget', target: this.settings.target });
     await this.app.handleCommand({ type: 'setOverlaySettings', overlay: this.settings.overlay });
+    await this.app.handleCommand({ type: 'setTelemetryEnabled', enabled: this.settings.telemetryEnabled });
   }
 
   getState(): AppState {
@@ -130,6 +131,15 @@ export class WebController {
     }
     await this.updateSettings({ overlay });
     await this.app.handleCommand({ type: 'setOverlaySettings', overlay });
+    return null;
+  }
+
+  async setTelemetryEnabled(enabled: unknown): Promise<AppError | null> {
+    if (typeof enabled !== 'boolean') {
+      return { code: 'unknown', message: 'Invalid telemetry setting' };
+    }
+    await this.updateSettings({ telemetryEnabled: enabled });
+    await this.app.handleCommand({ type: 'setTelemetryEnabled', enabled });
     return null;
   }
 

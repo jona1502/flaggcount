@@ -29,6 +29,7 @@ export type SidecarCommand =
   | { type: 'reset' }
   | { type: 'setTarget'; target: number }
   | { type: 'setOverlaySettings'; overlay: OverlaySettings }
+  | { type: 'setTelemetryEnabled'; enabled: boolean }
   | { type: 'getState' };
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -66,6 +67,8 @@ export function parseCommand(line: string): SidecarCommand | null {
       const overlay = parseOverlaySettings(record['overlay']);
       return overlay ? { type: 'setOverlaySettings', overlay } : null;
     }
+    case 'setTelemetryEnabled':
+      return typeof record['enabled'] === 'boolean' ? { type: 'setTelemetryEnabled', enabled: record['enabled'] } : null;
     case 'disconnect':
     case 'addManualVote':
     case 'removeManualVote':

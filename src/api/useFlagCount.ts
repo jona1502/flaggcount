@@ -12,6 +12,7 @@ export type FlagCountActions = {
   resetVotes: () => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  setTelemetryEnabled: (enabled: boolean) => Promise<void>;
 };
 
 export type FlagCountController = {
@@ -98,7 +99,8 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
       removeManualVote: () => run(() => api.removeManualVote()),
       resetVotes: () => run(() => api.resetVotes()),
       setTarget: (target) => run(() => api.setTarget(target)),
-      setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay))
+      setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
+      setTelemetryEnabled: (enabled) => run(() => api.setTelemetryEnabled(enabled))
     }),
     [api, run]
   );

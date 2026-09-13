@@ -49,7 +49,9 @@ async function main(): Promise<void> {
     relay: new RelayChannels(),
     host,
     port,
-    onError: (error) => log('error', `Request failed: ${describeError(error)}`)
+    onError: (error) => log('error', `Request failed: ${describeError(error)}`),
+    onTelemetry: ({ event, appVersion, platform, osMajor }) =>
+      log('info', `Telemetry ${event.name} app=${appVersion} platform=${platform}-${osMajor}`)
   });
   log('info', `FlagCount web server listening on ${host}:${server.port}`);
 

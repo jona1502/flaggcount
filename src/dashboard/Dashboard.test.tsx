@@ -19,7 +19,7 @@ const baseState: AppState = {
   votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
 };
 
 type RenderOptions = {
@@ -36,7 +36,8 @@ function renderDashboard({ state = baseState, error = null, pending = false }: R
     removeManualVote: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
-    setOverlaySettings: vi.fn(async () => undefined)
+    setOverlaySettings: vi.fn(async () => undefined),
+    setTelemetryEnabled: vi.fn(async () => undefined)
   } satisfies FlagCountActions;
   const onDismissError = vi.fn();
   const onCopyText = vi.fn(async (_text: string) => undefined);
@@ -63,6 +64,14 @@ describe('Dashboard', () => {
     renderDashboard({ state: null });
 
     expect(screen.getByText('Status wird geladen …')).toBeTruthy();
+  });
+
+  it('lets the user explicitly opt in to anonymous telemetry', async () => {
+    const { actions, user } = renderDashboard();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Anonyme Nutzungsdaten senden' }));
+
+    expect(actions.setTelemetryEnabled).toHaveBeenCalledWith(true);
   });
 
   describe('connection', () => {

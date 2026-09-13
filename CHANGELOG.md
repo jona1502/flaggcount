@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## Noch nicht veröffentlicht
+
+- Freiwillige, standardmäßig deaktivierte Produkttelemetrie mit sichtbarem Datenschutzschalter ergänzt.
+- Telemetrie strikt auf App-/OS-Version, feste Ereignisse, grobe Stimm-Buckets und bereinigte Fehlercodes begrenzt.
+- Öffentlichen Telemetrie-Endpunkt mit Schema-Prüfung und Rate-Limit ergänzt.
+
 ## 0.2.3 – 2026-09-13
 
 - Zuschauer können ihre Stimme mit einer weißen Flagge (`🏳️`) im Chat zurücknehmen.

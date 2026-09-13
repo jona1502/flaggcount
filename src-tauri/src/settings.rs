@@ -115,6 +115,8 @@ pub struct Settings {
     pub username: String,
     pub target: u32,
     pub overlay: OverlaySettings,
+    /// Privacy-first product telemetry remains off until the user explicitly opts in.
+    pub telemetry_enabled: bool,
 }
 
 impl Default for Settings {
@@ -123,6 +125,7 @@ impl Default for Settings {
             username: String::new(),
             target: DEFAULT_TARGET,
             overlay: OverlaySettings::default(),
+            telemetry_enabled: false,
         }
     }
 }
@@ -139,7 +142,12 @@ pub fn normalize_username(username: &str) -> Option<String> {
 
 impl Settings {
     /// Reads persisted values leniently: anything missing or invalid falls back to its default.
-    pub fn from_values(username: Option<Value>, target: Option<Value>, overlay: Option<Value>) -> Self {
+    pub fn from_values(
+        username: Option<Value>,
+        target: Option<Value>,
+        overlay: Option<Value>,
+        telemetry_enabled: Option<Value>,
+    ) -> Self {
         let defaults = Self::default();
 
         let username = username
@@ -159,18 +167,28 @@ impl Settings {
             .and_then(|value| serde_json::from_value::<OverlaySettings>(value).ok())
             .and_then(OverlaySettings::validated)
             .unwrap_or(defaults.overlay);
+        let telemetry_enabled = telemetry_enabled
+            .as_ref()
+            .and_then(Value::as_bool)
+            .unwrap_or(defaults.telemetry_enabled);
 
         Self {
             username,
             target,
             overlay,
+            telemetry_enabled,
         }
     }
 }
 
 pub fn load<R: Runtime>(app: &AppHandle<R>) -> Settings {
     match app.store(SETTINGS_FILE) {
-        Ok(store) => Settings::from_values(store.get("username"), store.get("target"), store.get("overlay")),
+        Ok(store) => Settings::from_values(
+            store.get("username"),
+            store.get("target"),
+            store.get("overlay"),
+            store.get("telemetryEnabled"),
+        ),
         Err(_) => {
             log::warn!("could not open the settings store, using defaults");
             Settings::default()
@@ -186,6 +204,7 @@ pub fn save<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
             "overlay",
             serde_json::to_value(&settings.overlay).unwrap_or_default(),
         );
+        store.set("telemetryEnabled", settings.telemetry_enabled);
         store.save()
     });
     if result.is_err() {
@@ -213,7 +232,7 @@ mod tests {
 
     #[test]
     fn uses_defaults_when_nothing_is_stored() {
-        assert_eq!(Settings::from_values(None, None, None), Settings::default());
+        assert_eq!(Settings::from_values(None, None, None, None), Settings::default());
         assert_eq!(
             serde_json::to_value(Settings::default()).unwrap(),
             json!({
@@ -230,7 +249,8 @@ mod tests {
                     "size": 92,
                     "flagAnimation": "none",
                     "targetEffect": "none"
-                }
+                },
+                "telemetryEnabled": false
             })
         );
     }
@@ -241,6 +261,7 @@ mod tests {
             Some(json!("  @streamer ")),
             Some(json!(250)),
             Some(json!({ "showBackground": false, "showProgress": true })),
+            Some(json!(true)),
         );
 
         assert_eq!(
@@ -252,6 +273,7 @@ mod tests {
                     show_background: false,
                     ..OverlaySettings::default()
                 },
+                telemetry_enabled: true,
             }
         );
     }
@@ -262,6 +284,7 @@ mod tests {
             None,
             None,
             Some(json!({ "showProgress": false, "accentColor": "#00FF88", "size": 50, "flagAnimation": "wave" })),
+            None,
         )
         .overlay;
         assert_eq!(
@@ -283,7 +306,7 @@ mod tests {
             json!({ "textColor": "#fff" }),
         ] {
             assert_eq!(
-                Settings::from_values(None, None, Some(invalid)).overlay,
+                Settings::from_values(None, None, Some(invalid), None).overlay,
                 OverlaySettings::default()
             );
         }
@@ -300,7 +323,7 @@ mod tests {
 
         for (username, target, overlay) in invalid {
             assert_eq!(
-                Settings::from_values(Some(username), Some(target), Some(overlay)),
+                Settings::from_values(Some(username), Some(target), Some(overlay), Some(json!("yes"))),
                 Settings::default()
             );
         }

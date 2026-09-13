@@ -131,7 +131,7 @@ describe('OverlayPanel', () => {
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
       overlayUrl: OVERLAY_URL,
       publicOverlayUrl: null,
-      settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+      settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
     };
     const actions = {
       connect: vi.fn(async (_username: string) => undefined),
@@ -140,7 +140,8 @@ describe('OverlayPanel', () => {
       removeManualVote: vi.fn(async () => undefined),
       resetVotes: vi.fn(async () => undefined),
       setTarget: vi.fn(async (_target: number) => undefined),
-      setOverlaySettings: vi.fn(async () => undefined)
+      setOverlaySettings: vi.fn(async () => undefined),
+      setTelemetryEnabled: vi.fn(async () => undefined)
     } satisfies FlagCountActions;
     const onCopyText = vi.fn(async (_text: string) => undefined);
     const user = userEvent.setup();

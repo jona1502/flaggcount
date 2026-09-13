@@ -17,7 +17,7 @@ const state: AppState = {
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: { username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
 };
 
 describe('flagcountApi', () => {
@@ -36,6 +36,7 @@ describe('flagcountApi', () => {
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
     await flagcountApi.setOverlaySettings({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true });
+    await flagcountApi.setTelemetryEnabled(true);
 
     expect(vi.mocked(invoke).mock.calls).toEqual([
       ['get_state'],
@@ -45,7 +46,8 @@ describe('flagcountApi', () => {
       ['remove_manual_vote'],
       ['reset_votes'],
       ['set_target', { target: 25 }],
-      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }]
+      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }],
+      ['set_telemetry_enabled', { enabled: true }]
     ]);
   });
 

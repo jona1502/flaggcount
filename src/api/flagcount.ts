@@ -17,6 +17,7 @@ export const flagcountApi = {
   resetVotes: (): Promise<void> => invoke('reset_votes'),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
+  setTelemetryEnabled: (enabled: boolean): Promise<void> => invoke('set_telemetry_enabled', { enabled }),
   copyText: (text: string): Promise<void> => writeText(text),
 
   onStateChanged: (handler: (state: AppState) => void): Promise<UnlistenFn> =>

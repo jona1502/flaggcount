@@ -177,6 +177,22 @@ body {
   grid-column: 1 / -1;
 }
 
+.privacy-panel {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.privacy-panel h2 {
+  margin-bottom: 6px;
+}
+
+.privacy-toggle {
+  flex: none;
+}
+
 label {
   display: block;
   margin-bottom: 5px;
@@ -1226,6 +1242,11 @@ input[readonly] {
 }
 
 @media (max-width: 600px) {
+  .privacy-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .landing-inner {
     padding-inline: 16px;
   }

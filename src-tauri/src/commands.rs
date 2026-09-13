@@ -100,6 +100,17 @@ pub fn set_overlay_settings<R: Runtime>(
     send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
 }
 
+#[tauri::command]
+pub fn set_telemetry_enabled<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    enabled: bool,
+) -> Result<(), AppError> {
+    saver.save(&sidecar.update_settings(&app, |settings| settings.telemetry_enabled = enabled));
+    send_setting(&sidecar, &SidecarCommand::SetTelemetryEnabled { enabled })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

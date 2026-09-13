@@ -14,6 +14,7 @@ describe('parseCommand', () => {
       '{"type":"setOverlaySettings","overlay":{"showBackground":false,"showProgress":true,"extra":1}}',
       { type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }
     ],
+    ['{"type":"setTelemetryEnabled","enabled":true}', { type: 'setTelemetryEnabled', enabled: true }],
     ['{"type":"getState","extra":true}', { type: 'getState' }]
   ])('parses %s', (line, expected) => {
     expect(parseCommand(line)).toEqual(expected);
@@ -29,6 +30,7 @@ describe('parseCommand', () => {
     '{"type":"setTarget","target":"25"}',
     '{"type":"setOverlaySettings"}',
     '{"type":"setOverlaySettings","overlay":{"showBackground":"no","showProgress":true}}',
+    '{"type":"setTelemetryEnabled","enabled":"yes"}',
     '{"type":"shutdown"}'
   ])('rejects %j', (line) => {
     expect(parseCommand(line)).toBeNull();

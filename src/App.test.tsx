@@ -17,7 +17,7 @@ const backendState: AppState = {
   votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
   overlayUrl: OVERLAY_URL,
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
+  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }, telemetryEnabled: false }
 };
 
 type Call = { cmd: string; payload: Record<string, unknown> | undefined };

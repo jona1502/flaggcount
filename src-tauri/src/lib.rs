@@ -20,7 +20,8 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::remove_manual_vote,
             commands::reset_votes,
             commands::set_target,
-            commands::set_overlay_settings
+            commands::set_overlay_settings,
+            commands::set_telemetry_enabled
         ])
 }
 

@@ -14,7 +14,8 @@ export function parseSettings(value: unknown): Settings {
   return {
     username: username ?? '',
     target: typeof target === 'number' && isValidTarget(target) ? target : DEFAULT_TARGET,
-    overlay: parseOverlaySettings(record['overlay']) ?? { ...DEFAULT_OVERLAY_SETTINGS }
+    overlay: parseOverlaySettings(record['overlay']) ?? { ...DEFAULT_OVERLAY_SETTINGS },
+    telemetryEnabled: record['telemetryEnabled'] === true
   };
 }
 

@@ -1,7 +1,7 @@
 // Bundles the Node.js sidecar and compiles it into a standalone executable that
 // Tauri can ship via `bundle.externalBin` (named with the Rust target triple).
 import { execFileSync, execSync } from 'node:child_process';
-import { mkdirSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { build } from 'esbuild';
 
 const pkgCli = createRequire(import.meta.url).resolve('@yao-pkg/pkg/lib-es5/bin.js');
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const packageVersion = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
 process.chdir(projectRoot);
 
 const SIDECAR_NAME = 'flagcount-sidecar';
@@ -49,12 +50,14 @@ if (process.argv.includes('--if-needed')) {
 }
 
 await build({
-  entryPoints: ['./sidecar/src/index.ts'],
+  entryPoints: [join(projectRoot, 'sidecar', 'src', 'index.ts')],
+  absWorkingDir: projectRoot,
   outfile: bundlePath,
   bundle: true,
   platform: 'node',
   format: 'cjs',
   target: 'node22',
+  define: { __FLAGCOUNT_VERSION__: JSON.stringify(packageVersion) },
   logLevel: 'warning'
 });
 

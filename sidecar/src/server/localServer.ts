@@ -12,6 +12,7 @@ export type LocalServerOptions = OverlaySource & {
   token: string;
   getState: () => unknown;
   heartbeatMs?: number;
+  onOverlayOpened?: () => void;
 };
 
 export type LocalServer = {
@@ -70,6 +71,7 @@ export async function startLocalServer(options: LocalServerOptions, preferredPor
 
     const { pathname } = new URL(request.url ?? '/', `http://${LOOPBACK_HOST}`);
     if (isOverlayPath(pathname)) {
+      if (pathname === '/overlay' && request.method === 'GET') options.onOverlayOpened?.();
       handleOverlay(pathname, request, response);
       return;
     }

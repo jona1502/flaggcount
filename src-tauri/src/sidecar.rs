@@ -34,6 +34,7 @@ pub enum SidecarCommand {
     Reset,
     SetTarget { target: u32 },
     SetOverlaySettings { overlay: OverlaySettings },
+    SetTelemetryEnabled { enabled: bool },
     GetState,
 }
 
@@ -205,6 +206,9 @@ pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<
         },
         SidecarCommand::SetOverlaySettings {
             overlay: settings.overlay.clone(),
+        },
+        SidecarCommand::SetTelemetryEnabled {
+            enabled: settings.telemetry_enabled,
         },
     ];
     if let Some(username) = reconnect_to {
@@ -563,6 +567,10 @@ mod tests {
                     }
                 }),
             ),
+            (
+                SidecarCommand::SetTelemetryEnabled { enabled: true },
+                json!({ "type": "setTelemetryEnabled", "enabled": true }),
+            ),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
         ];
 
@@ -723,7 +731,8 @@ mod tests {
                 "settings": {
                     "username": "",
                     "target": 100,
-                    "overlay": serde_json::to_value(OverlaySettings::default()).unwrap()
+                    "overlay": serde_json::to_value(OverlaySettings::default()).unwrap(),
+                    "telemetryEnabled": false
                 }
             })
         );
@@ -748,6 +757,7 @@ mod tests {
                 show_background: false,
                 ..OverlaySettings::default()
             },
+            telemetry_enabled: true,
         };
 
         assert_eq!(
@@ -757,6 +767,7 @@ mod tests {
                 SidecarCommand::SetOverlaySettings {
                     overlay: settings.overlay.clone()
                 },
+                SidecarCommand::SetTelemetryEnabled { enabled: true },
             ]
         );
         assert_eq!(

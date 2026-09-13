@@ -150,6 +150,7 @@ export const webApi: FlagCountApi = {
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
+  setTelemetryEnabled: (enabled: boolean) => post('/api/telemetry', { enabled }),
   copyText: (text: string) => navigator.clipboard.writeText(text),
 
   onStateChanged: (handler) => subscribe(stateListeners, handler),

@@ -88,7 +88,8 @@ fn returns_the_initial_state() {
                     "size": 92,
                     "flagAnimation": "none",
                     "targetEffect": "none"
-                }
+                },
+                "telemetryEnabled": false
             }
         })
     );
@@ -140,6 +141,10 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
         ),
         Ok(Value::Null)
     );
+    assert_eq!(
+        invoke(&app, "set_telemetry_enabled", json!({ "enabled": true })),
+        Ok(Value::Null)
+    );
 
     let state = invoke(&app, "get_state", json!({})).unwrap();
     assert_eq!(
@@ -158,11 +163,12 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
                 "size": 92,
                 "flagAnimation": "none",
                 "targetEffect": "none"
-            }
+            },
+            "telemetryEnabled": true
         })
     );
     let saved = app.saved.lock().unwrap();
-    assert_eq!(saved.len(), 2);
+    assert_eq!(saved.len(), 3);
     assert_eq!(serde_json::to_value(saved.last().unwrap()).unwrap(), state["settings"]);
 }
 

@@ -5,6 +5,7 @@ import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
+import { parseTelemetryEnvelope, type TelemetryEnvelope } from '../../../shared/analytics';
 import { OVERLAY_CSP, renderOverlayPage } from '../overlay/overlayAssets';
 import { parseOverlaySettings } from '../protocol';
 import { channelIdForKey, isChannelId, isRelayKey, parseVoteSnapshot, relayOverlayPath } from '../relay/relayChannel';
@@ -36,6 +37,7 @@ export type WebBackend = OverlaySource & {
   resetVotes: () => CommandResult;
   setTarget: (target: unknown) => CommandResult;
   setOverlaySettings: (overlay: unknown) => CommandResult;
+  setTelemetryEnabled: (enabled: unknown) => CommandResult;
 };
 
 export type WebServerOptions = {
@@ -57,6 +59,9 @@ export type WebServerOptions = {
   sessionMaxAgeMs?: number;
   now?: () => number;
   onError?: (error: unknown) => void;
+  /** Receives an already validated, aggregate-only event. */
+  onTelemetry?: (event: TelemetryEnvelope) => void;
+  maxTelemetryEventsPerMinute?: number;
 };
 
 export type WebServer = {
@@ -68,6 +73,7 @@ const MAX_BODY_BYTES = 4096;
 const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
+const DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE = 60;
 const APP_ENTRY = '/web.html';
 const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
 /** Shown by an online overlay until its app publishes for the first time. */
@@ -227,6 +233,25 @@ class LoginLimiter {
   }
 }
 
+/** An ephemeral address-based limiter; addresses are never included in telemetry or persisted. */
+class TelemetryLimiter {
+  private readonly clients = new Map<string, { count: number; resetAt: number }>();
+
+  constructor(private readonly maximum: number, private readonly now: () => number) {}
+
+  accepts(client: string): boolean {
+    const now = this.now();
+    const current = this.clients.get(client);
+    if (!current || current.resetAt <= now) {
+      if (this.clients.size >= MAX_TRACKED_CLIENTS) this.clients.clear();
+      this.clients.set(client, { count: 1, resetAt: now + 60_000 });
+      return true;
+    }
+    current.count++;
+    return current.count <= this.maximum;
+  }
+}
+
 /**
  * Serves the web version of FlagCount: the public landing page with the desktop download, the OBS
  * overlay, and the browser dashboard whose API and live state stream require a session login.
@@ -245,6 +270,26 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     options.lockoutMs ?? DEFAULT_LOCKOUT_MS,
     now
   );
+  const telemetryLimiter = new TelemetryLimiter(
+    options.maxTelemetryEventsPerMinute ?? DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE,
+    now
+  );
+
+  const receiveTelemetry = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    const accepted = await acceptPost(request, response);
+    if (!accepted) return;
+    if (!telemetryLimiter.accepts(clientAddress(request))) {
+      sendJson(response, 429, { error: 'too-many-events' }, { 'Retry-After': '60' });
+      return;
+    }
+    const event = parseTelemetryEnvelope(accepted.body);
+    if (!event) {
+      sendJson(response, 400, { error: 'invalid-event' });
+      return;
+    }
+    options.onTelemetry?.(event);
+    sendNoContent(response);
+  };
 
   const commands = new Map<string, (body: unknown) => CommandResult>([
     ['/api/connect', (body) => backend.connect(field(body, 'username'))],
@@ -253,7 +298,8 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     ['/api/manual-vote/remove', () => backend.removeManualVote()],
     ['/api/reset', () => backend.resetVotes()],
     ['/api/target', (body) => backend.setTarget(field(body, 'target'))],
-    ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))]
+    ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))],
+    ['/api/telemetry', (body) => backend.setTelemetryEnabled(field(body, 'enabled'))]
   ]);
 
   const isSignedIn = (request: IncomingMessage): boolean =>
@@ -392,6 +438,10 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   };
 
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    if (pathname === '/api/v1/analytics/events') {
+      await receiveTelemetry(request, response);
+      return;
+    }
     if (pathname.startsWith('/api/relay/')) {
       await publishRelay(pathname.slice('/api/relay/'.length), request, response);
       return;

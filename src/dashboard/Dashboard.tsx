@@ -6,6 +6,7 @@ import { OverlayPanel } from './OverlayPanel';
 import { VotesPanel } from './VotesPanel';
 import { UpdateNotice } from '../updater/UpdateNotice';
 import type { UpdaterController } from '../updater/useUpdater';
+import { PrivacyPanel } from './PrivacyPanel';
 
 type DashboardProps = {
   state: AppState | null;
@@ -94,6 +95,11 @@ export function Dashboard({
             disabled={pending}
             onCopy={onCopyText}
             onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
+          />
+          <PrivacyPanel
+            enabled={state.settings.telemetryEnabled}
+            disabled={pending}
+            onChange={(enabled) => void actions.setTelemetryEnabled(enabled)}
           />
         </div>
       )}

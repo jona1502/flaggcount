@@ -33,6 +33,8 @@ export type Settings = {
   username: string;
   target: number;
   overlay: OverlaySettings;
+  /** Privacy-first product telemetry is disabled until the user explicitly opts in. */
+  telemetryEnabled: boolean;
 };
 
 /** Matches the original overlay, so nothing changes until the streamer customizes it. */

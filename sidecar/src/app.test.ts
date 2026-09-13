@@ -4,11 +4,14 @@ import { VotingService } from '../../shared/voting';
 import { SidecarApp } from './app';
 import type { SidecarEvent } from './protocol';
 import type { LiveConnectionHandlers } from './tiktok/TikTokLiveService';
+import type { TelemetryEvent } from '../../shared/analytics';
 
 function createApp() {
   const events: SidecarEvent[] = [];
   const connections: LiveConnectionHandlers[] = [];
   let rounds = 0;
+  const telemetry: TelemetryEvent[] = [];
+  const telemetrySettings: boolean[] = [];
 
   const app = new SidecarApp(
     (_username, handlers) => {
@@ -16,7 +19,11 @@ function createApp() {
       return { connect: async () => undefined, disconnect: async () => undefined };
     },
     (event) => events.push(event),
-    { votingService: new VotingService({ target: 10, createRoundId: () => `round-${++rounds}` }) }
+    {
+      votingService: new VotingService({ target: 10, createRoundId: () => `round-${++rounds}` }),
+      onTelemetry: (event) => telemetry.push(event),
+      onTelemetryEnabled: (enabled) => telemetrySettings.push(enabled)
+    }
   );
 
   const chat = (userId: string, comment: string): void => {
@@ -32,12 +39,12 @@ function createApp() {
   const ofType = <T extends SidecarEvent['type']>(type: T) =>
     events.filter((event): event is Extract<SidecarEvent, { type: T }> => event.type === type);
 
-  return { app, events, chat, reply, ofType };
+  return { app, events, telemetry, telemetrySettings, chat, reply, ofType };
 }
 
 describe('SidecarApp', () => {
   it('reports connection status changes', async () => {
-    const { app, ofType } = createApp();
+    const { app, ofType, telemetry } = createApp();
 
     await app.handleCommand({ type: 'connect', username: '@Streamer' });
 
@@ -45,6 +52,7 @@ describe('SidecarApp', () => {
       { status: 'connecting', username: 'streamer' },
       { status: 'connected', username: 'streamer' }
     ]);
+    expect(telemetry).toContainEqual({ version: 1, name: 'connection_succeeded' });
   });
 
   it('counts one vote per user from chat messages', async () => {
@@ -95,7 +103,7 @@ describe('SidecarApp', () => {
   });
 
   it('starts a new round on reset', async () => {
-    const { app, chat, ofType } = createApp();
+    const { app, chat, ofType, telemetry } = createApp();
     await app.handleCommand({ type: 'connect', username: 'streamer' });
     chat('1', '🚩');
 
@@ -107,6 +115,16 @@ describe('SidecarApp', () => {
       [0, 'round-2'],
       [1, 'round-2']
     ]);
+    expect(telemetry).toContainEqual({ version: 1, name: 'round_completed', voteCountBucket: '1-9' });
+  });
+
+  it('passes the privacy setting to the telemetry transport', async () => {
+    const { app, telemetrySettings } = createApp();
+
+    await app.handleCommand({ type: 'setTelemetryEnabled', enabled: true });
+    await app.handleCommand({ type: 'setTelemetryEnabled', enabled: false });
+
+    expect(telemetrySettings).toEqual([true, false]);
   });
 
   it('adds manual votes to the same count used by chat and the overlay', async () => {
