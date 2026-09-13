@@ -64,57 +64,59 @@ export function OverlayPanel({
   };
 
   return (
-    <section className="panel" aria-labelledby="overlay-heading">
+    <section className="panel overlay-panel" aria-labelledby="overlay-heading">
       <h2 id="overlay-heading">Streaming-Overlay</h2>
-      {overlayUrl ? (
-        <div className="overlay-links">
-          {publicOverlayUrl && (
+      <div className="overlay-content">
+        {overlayUrl ? (
+          <div className="overlay-links">
+            {publicOverlayUrl && (
+              <UrlField
+                id="overlay-public-url"
+                label="Online-URL für TikTok LIVE Studio und OBS"
+                url={publicOverlayUrl}
+                copied={copied === publicOverlayUrl}
+                onCopy={() => void copy(publicOverlayUrl)}
+              />
+            )}
             <UrlField
-              id="overlay-public-url"
-              label="Online-URL für TikTok LIVE Studio und OBS"
-              url={publicOverlayUrl}
-              copied={copied === publicOverlayUrl}
-              onCopy={() => void copy(publicOverlayUrl)}
+              id="overlay-url"
+              label={publicOverlayUrl ? 'Lokale URL (nur für OBS auf diesem PC)' : 'Als Browser- oder Link-Quelle hinzufügen'}
+              url={overlayUrl}
+              copied={copied === overlayUrl}
+              onCopy={() => void copy(overlayUrl)}
             />
-          )}
-          <UrlField
-            id="overlay-url"
-            label={publicOverlayUrl ? 'Lokale URL (nur für OBS auf diesem PC)' : 'Als Browser- oder Link-Quelle hinzufügen'}
-            url={overlayUrl}
-            copied={copied === overlayUrl}
-            onCopy={() => void copy(overlayUrl)}
-          />
-          {copyFailed && (
-            <p className="field-error" role="alert">
-              Die URL konnte nicht kopiert werden. Bitte markiere sie und kopiere sie manuell.
-            </p>
-          )}
-        </div>
-      ) : (
-        <p className="hint">Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.</p>
-      )}
+            {copyFailed && (
+              <p className="field-error" role="alert">
+                Die URL konnte nicht kopiert werden. Bitte markiere sie und kopiere sie manuell.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="hint">Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.</p>
+        )}
 
-      <fieldset className="overlay-options" disabled={disabled}>
-        <legend>Darstellung</legend>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={settings.showBackground}
-            disabled={disabled}
-            onChange={(event) => onChangeSettings({ ...settings, showBackground: event.target.checked })}
-          />
-          Hintergrund anzeigen
-        </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={settings.showProgress}
-            disabled={disabled}
-            onChange={(event) => onChangeSettings({ ...settings, showProgress: event.target.checked })}
-          />
-          Fortschrittsbalken anzeigen
-        </label>
-      </fieldset>
+        <fieldset className="overlay-options" disabled={disabled}>
+          <legend>Darstellung</legend>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={settings.showBackground}
+              disabled={disabled}
+              onChange={(event) => onChangeSettings({ ...settings, showBackground: event.target.checked })}
+            />
+            Hintergrund anzeigen
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={settings.showProgress}
+              disabled={disabled}
+              onChange={(event) => onChangeSettings({ ...settings, showProgress: event.target.checked })}
+            />
+            Fortschrittsbalken anzeigen
+          </label>
+        </fieldset>
+      </div>
     </section>
   );
 }

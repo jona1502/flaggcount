@@ -40,7 +40,7 @@ export function UpdateNotice({ updater }: UpdateNoticeProps): React.JSX.Element 
         : 'Die Updateprüfung ist fehlgeschlagen. Bitte versuche es später erneut.';
 
   return (
-    <p className={`update-message ${updater.status === 'error' ? 'field-error' : ''}`} role="status">
+    <p className={`update-message update-${updater.status} ${updater.status === 'error' ? 'field-error' : ''}`} role="status">
       {message}
     </p>
   );

@@ -67,7 +67,7 @@ export function ConnectionPanel({
   if (connection.status === 'connected' || connection.status === 'reconnecting') buttonLabel = 'Trennen';
 
   return (
-    <section className="panel" aria-labelledby="connection-heading">
+    <section className="panel connection-panel" aria-labelledby="connection-heading">
       <h2 id="connection-heading">Livestream</h2>
       <form onSubmit={submit} noValidate>
         <label htmlFor="username">TikTok-Benutzername</label>

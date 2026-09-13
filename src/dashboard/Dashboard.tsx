@@ -34,39 +34,46 @@ export function Dashboard({
   return (
     <main className="app">
       <header className="app-header">
-        <h1>
-          <span aria-hidden="true">🚩</span> FlagCount
-        </h1>
+        <div className="app-brand">
+          <span className="app-mark" aria-hidden="true">
+            🚩
+          </span>
+          <div>
+            <h1>FlagCount</h1>
+            <p>Live-Voting auf einen Blick</p>
+          </div>
+        </div>
         {(version || updater || onLogout) && (
-          <div className="version-actions">
-            {version && <span className="version">Version {version}</span>}
-            {updater && (
-              <button
-                type="button"
-                className="text-button"
-                disabled={updater.status === 'checking' || updater.status === 'downloading'}
-                onClick={() => void updater.checkForUpdates()}
-              >
-                Nach Updates suchen
-              </button>
-            )}
-            {onLogout && (
-              <button type="button" className="text-button" onClick={onLogout}>
-                Abmelden
-              </button>
-            )}
+          <div className="header-tools">
+            <div className="version-actions">
+              {version && <span className="version">Version {version}</span>}
+              {updater && (
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={updater.status === 'checking' || updater.status === 'downloading'}
+                  onClick={() => void updater.checkForUpdates()}
+                >
+                  Nach Updates suchen
+                </button>
+              )}
+              {onLogout && (
+                <button type="button" className="text-button" onClick={onLogout}>
+                  Abmelden
+                </button>
+              )}
+            </div>
+            {updater && <UpdateNotice updater={updater} />}
           </div>
         )}
       </header>
-
-      {updater && <UpdateNotice updater={updater} />}
 
       <ErrorBanner error={error} onDismiss={onDismissError} />
 
       {state === null ? (
         <p className="loading">Status wird geladen …</p>
       ) : (
-        <>
+        <div className="dashboard-grid">
           <ConnectionPanel
             connection={state.connection}
             savedUsername={state.settings.username}
@@ -90,7 +97,7 @@ export function Dashboard({
             onCopy={onCopyText}
             onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
           />
-        </>
+        </div>
       )}
     </main>
   );

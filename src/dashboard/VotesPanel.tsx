@@ -39,7 +39,7 @@ export function VotesPanel({ votes, disabled, onAddManualVote, onSetTarget, onRe
   };
 
   return (
-    <section className="panel" aria-labelledby="votes-heading">
+    <section className="panel votes-panel" aria-labelledby="votes-heading">
       <h2 id="votes-heading">Aktuelle Runde</h2>
       <p className="vote-count">
         <strong data-testid="vote-count">{numberFormat.format(votes.count)}</strong>
