@@ -54,6 +54,10 @@ jobs:
       - name: Run JavaScript tests
         run: npm test
 
+      # tauri-build checks that every externalBin exists, so the Rust tests need the sidecar too.
+      - name: Build sidecar
+        run: npm run build:sidecar
+
       - name: Run Rust tests
         run: npm run test:rust
 
@@ -70,5 +74,6 @@ jobs:
             Neue FlagCount-Version. Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
           args: --bundles nsis
