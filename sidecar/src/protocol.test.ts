@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import { parseCommand, serializeEvent } from './protocol';
 
 describe('parseCommand', () => {
@@ -10,7 +11,7 @@ describe('parseCommand', () => {
     ['{"type":"setTarget","target":25}', { type: 'setTarget', target: 25 }],
     [
       '{"type":"setOverlaySettings","overlay":{"showBackground":false,"showProgress":true,"extra":1}}',
-      { type: 'setOverlaySettings', overlay: { showBackground: false, showProgress: true } }
+      { type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }
     ],
     ['{"type":"getState","extra":true}', { type: 'getState' }]
   ])('parses %s', (line, expected) => {

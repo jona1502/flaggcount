@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import { RelayChannels, type RelayUpdate } from './relayChannels';
 
 const update = (count: number): RelayUpdate => ({
   votes: { count, target: 10, roundId: 'r1', targetReached: false },
-  overlay: { showBackground: true, showProgress: true }
+  overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true }
 });
 
 describe('RelayChannels', () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import { VotingService } from '../../shared/voting';
 import { SidecarApp } from './app';
 import type { SidecarEvent } from './protocol';
@@ -120,12 +121,12 @@ describe('SidecarApp', () => {
     const received: boolean[] = [];
     const unsubscribe = app.subscribeOverlaySettings((overlay) => received.push(overlay.showBackground));
 
-    await app.handleCommand({ type: 'setOverlaySettings', overlay: { showBackground: false, showProgress: true } });
+    await app.handleCommand({ type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
     unsubscribe();
-    await app.handleCommand({ type: 'setOverlaySettings', overlay: { showBackground: true, showProgress: true } });
+    await app.handleCommand({ type: 'setOverlaySettings', overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } });
 
     expect(received).toEqual([false]);
-    expect(app.getState().overlay).toEqual({ showBackground: true, showProgress: true });
+    expect(app.getState().overlay).toEqual({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true });
   });
 
   it('emits the full state on request', async () => {

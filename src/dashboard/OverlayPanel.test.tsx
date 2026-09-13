@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppState } from '../../shared/appState';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { Dashboard } from './Dashboard';
@@ -20,7 +21,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof OverlayPanel>> = {
   const props: ComponentProps<typeof OverlayPanel> = {
     overlayUrl: OVERLAY_URL,
     publicOverlayUrl: null,
-    settings: { showBackground: true, showProgress: true },
+    settings: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true },
     disabled: false,
     onCopy: vi.fn(async (_text: string) => undefined),
     onChangeSettings: vi.fn(),
@@ -102,7 +103,7 @@ describe('OverlayPanel', () => {
   });
 
   it('shows the saved display settings', () => {
-    renderPanel({ settings: { showBackground: false, showProgress: true } });
+    renderPanel({ settings: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
 
     expect(checkbox('Hintergrund anzeigen').checked).toBe(false);
     expect(checkbox('Fortschrittsbalken anzeigen').checked).toBe(true);
@@ -113,7 +114,7 @@ describe('OverlayPanel', () => {
 
     await userEvent.setup().click(checkbox('Fortschrittsbalken anzeigen'));
 
-    expect(onChangeSettings).toHaveBeenCalledWith({ showBackground: true, showProgress: false });
+    expect(onChangeSettings).toHaveBeenCalledWith({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: false });
   });
 
   it('disables the display settings while an action is pending', () => {
@@ -129,7 +130,7 @@ describe('OverlayPanel', () => {
       votes: { count: 0, target: 10, roundId: 'r1', targetReached: false },
       overlayUrl: OVERLAY_URL,
       publicOverlayUrl: null,
-      settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
+      settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
     };
     const actions = {
       connect: vi.fn(async (_username: string) => undefined),
@@ -156,6 +157,6 @@ describe('OverlayPanel', () => {
     await user.click(checkbox('Hintergrund anzeigen'));
 
     expect(onCopyText).toHaveBeenCalledWith(OVERLAY_URL);
-    expect(actions.setOverlaySettings).toHaveBeenCalledWith({ showBackground: false, showProgress: true });
+    expect(actions.setOverlaySettings).toHaveBeenCalledWith({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true });
   });
 });

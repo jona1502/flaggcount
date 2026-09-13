@@ -11,20 +11,101 @@ pub const MAX_TARGET: u32 = 100_000;
 /// Generous upper bound: profile URLs are accepted and normalized by the sidecar.
 pub const MAX_USERNAME_LENGTH: usize = 100;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+pub const MIN_OVERLAY_SIZE: u8 = 20;
+pub const MAX_OVERLAY_SIZE: u8 = 100;
+pub const MAX_BACKGROUND_OPACITY: u8 = 100;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayPosition {
+    Top,
+    #[default]
+    Center,
+    Bottom,
+}
+
+/// `Wave` runs continuously; `Bounce` and `Pulse` play on every new vote.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FlagAnimation {
+    #[default]
+    None,
+    Wave,
+    Bounce,
+    Pulse,
+}
+
+/// Plays once the target is reached.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TargetEffect {
+    #[default]
+    None,
+    Glow,
+    Confetti,
+}
+
+/// Appearance of the streaming overlay. Missing fields take their defaults, so settings saved
+/// by older versions keep loading.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct OverlaySettings {
     pub show_background: bool,
     pub show_progress: bool,
+    /// Progress bar and highlights, `#rrggbb`.
+    pub accent_color: String,
+    pub text_color: String,
+    pub background_color: String,
+    /// Opacity of the background panel in percent.
+    pub background_opacity: u8,
+    pub position: OverlayPosition,
+    /// Share of the streaming source the overlay may fill, in percent.
+    pub size: u8,
+    pub flag_animation: FlagAnimation,
+    pub target_effect: TargetEffect,
 }
 
+/// Matches the original overlay, so nothing changes until the streamer customizes it.
 impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
             show_background: true,
             show_progress: true,
+            accent_color: "#e82634".into(),
+            text_color: "#ffffff".into(),
+            background_color: "#0c0c10".into(),
+            background_opacity: 80,
+            position: OverlayPosition::Center,
+            size: 92,
+            flag_animation: FlagAnimation::None,
+            target_effect: TargetEffect::None,
         }
     }
+}
+
+impl OverlaySettings {
+    /// Checks colors and ranges and lowercases the colors; `None` if anything is invalid.
+    pub fn validated(mut self) -> Option<Self> {
+        for color in [
+            &mut self.accent_color,
+            &mut self.text_color,
+            &mut self.background_color,
+        ] {
+            if !is_hex_color(color) {
+                return None;
+            }
+            color.make_ascii_lowercase();
+        }
+        let in_range = self.background_opacity <= MAX_BACKGROUND_OPACITY
+            && (MIN_OVERLAY_SIZE..=MAX_OVERLAY_SIZE).contains(&self.size);
+        in_range.then_some(self)
+    }
+}
+
+fn is_hex_color(value: &str) -> bool {
+    value.len() == 7
+        && value.starts_with('#')
+        && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -76,6 +157,7 @@ impl Settings {
         let overlay = overlay
             .filter(Value::is_object)
             .and_then(|value| serde_json::from_value::<OverlaySettings>(value).ok())
+            .and_then(OverlaySettings::validated)
             .unwrap_or(defaults.overlay);
 
         Self {
@@ -102,7 +184,7 @@ pub fn save<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
         store.set("target", settings.target);
         store.set(
             "overlay",
-            serde_json::to_value(settings.overlay).unwrap_or_default(),
+            serde_json::to_value(&settings.overlay).unwrap_or_default(),
         );
         store.save()
     });
@@ -137,7 +219,18 @@ mod tests {
             json!({
                 "username": "",
                 "target": 100,
-                "overlay": { "showBackground": true, "showProgress": true }
+                "overlay": {
+                    "showBackground": true,
+                    "showProgress": true,
+                    "accentColor": "#e82634",
+                    "textColor": "#ffffff",
+                    "backgroundColor": "#0c0c10",
+                    "backgroundOpacity": 80,
+                    "position": "center",
+                    "size": 92,
+                    "flagAnimation": "none",
+                    "targetEffect": "none"
+                }
             })
         );
     }
@@ -157,10 +250,43 @@ mod tests {
                 target: 250,
                 overlay: OverlaySettings {
                     show_background: false,
-                    show_progress: true,
+                    ..OverlaySettings::default()
                 },
             }
         );
+    }
+
+    #[test]
+    fn fills_missing_overlay_fields_and_validates_the_rest() {
+        let overlay = Settings::from_values(
+            None,
+            None,
+            Some(json!({ "showProgress": false, "accentColor": "#00FF88", "size": 50, "flagAnimation": "wave" })),
+        )
+        .overlay;
+        assert_eq!(
+            overlay,
+            OverlaySettings {
+                show_progress: false,
+                accent_color: "#00ff88".into(),
+                size: 50,
+                flag_animation: FlagAnimation::Wave,
+                ..OverlaySettings::default()
+            }
+        );
+
+        for invalid in [
+            json!({ "size": 5 }),
+            json!({ "backgroundOpacity": 101 }),
+            json!({ "position": "left" }),
+            json!({ "targetEffect": "fireworks" }),
+            json!({ "textColor": "#fff" }),
+        ] {
+            assert_eq!(
+                Settings::from_values(None, None, Some(invalid)).overlay,
+                OverlaySettings::default()
+            );
+        }
     }
 
     #[test]
@@ -169,7 +295,7 @@ mod tests {
             (json!(42), json!(0), json!({ "showBackground": "yes" })),
             (json!(""), json!(MAX_TARGET + 1), json!(null)),
             (json!("x".repeat(MAX_USERNAME_LENGTH + 1)), json!(-5), json!([true, false])),
-            (json!(null), json!(12.5), json!({ "showProgress": false })),
+            (json!(null), json!(12.5), json!({ "accentColor": "red" })),
         ];
 
         for (username, target, overlay) in invalid {

@@ -3,6 +3,7 @@ import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { AppError } from '../../../shared/appState';
 import { channelIdForKey } from '../relay/relayChannel';
 import { RelayChannels } from './relayChannels';
@@ -23,7 +24,7 @@ async function start(overrides: Partial<WebServerOptions> = {}) {
   const saved: unknown[] = [];
   const controller = new WebController(
     () => ({ connect: async () => undefined, disconnect: async () => undefined }),
-    { username: '', target: 100, overlay: { showBackground: true, showProgress: true } },
+    { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
     { save: async (settings) => void saved.push(settings) },
     () => undefined
   );
@@ -104,7 +105,7 @@ const RELAY_KEY = 'a'.repeat(43);
 const RELAY_CHANNEL = channelIdForKey(RELAY_KEY);
 const RELAY_UPDATE = {
   votes: { count: 7, target: 20, roundId: 'r1', targetReached: false },
-  overlay: { showBackground: false, showProgress: true }
+  overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true }
 };
 
 const relayPut = (body: unknown, key = RELAY_KEY) => ({

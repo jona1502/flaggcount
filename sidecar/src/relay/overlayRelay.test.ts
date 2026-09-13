@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OverlaySettings } from '../../../shared/settings';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { startOverlayRelay, type OverlayRelay, type RelaySource } from './overlayRelay';
 import { channelIdForKey } from './relayChannel';
@@ -9,7 +9,7 @@ const BASE_URL = 'https://relay.test/';
 
 class FakeSource implements RelaySource {
   votes: VoteSnapshot = { count: 0, target: 10, roundId: 'r1', targetReached: false };
-  overlay: OverlaySettings = { showBackground: true, showProgress: true };
+  overlay: OverlaySettings = { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true };
   private readonly voteListeners = new Set<(votes: VoteSnapshot) => void>();
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
 
@@ -95,10 +95,10 @@ describe('startOverlayRelay', () => {
     start(source, fetchRelay);
     await vi.advanceTimersByTimeAsync(0);
 
-    source.setOverlay({ showBackground: false, showProgress: false });
+    source.setOverlay({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false });
     await vi.advanceTimersByTimeAsync(250);
 
-    expect(bodyOf(fetchRelay.mock.calls.at(-1)).overlay).toEqual({ showBackground: false, showProgress: false });
+    expect(bodyOf(fetchRelay.mock.calls.at(-1)).overlay).toEqual({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false });
   });
 
   it('retries with a growing delay and logs the failure once', async () => {

@@ -20,6 +20,12 @@ pub fn validate_target(target: u32) -> Result<u32, AppError> {
     }
 }
 
+pub fn validate_overlay(overlay: OverlaySettings) -> Result<OverlaySettings, AppError> {
+    overlay
+        .validated()
+        .ok_or_else(|| AppError::new("invalid-overlay-settings", "Invalid overlay settings"))
+}
+
 /// Settings are saved first; a sidecar that is (re)starting applies them once it is ready.
 fn send_setting(sidecar: &Sidecar, command: &SidecarCommand) -> Result<(), AppError> {
     match sidecar.send(command) {
@@ -83,7 +89,9 @@ pub fn set_overlay_settings<R: Runtime>(
     saver: State<'_, SettingsSaver>,
     overlay: OverlaySettings,
 ) -> Result<(), AppError> {
-    saver.save(&sidecar.update_settings(&app, |settings| settings.overlay = overlay));
+    let overlay = validate_overlay(overlay)?;
+    let saved = overlay.clone();
+    saver.save(&sidecar.update_settings(&app, |settings| settings.overlay = saved));
     send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
 }
 
@@ -109,6 +117,21 @@ mod tests {
     fn accepts_targets_within_bounds() {
         assert_eq!(validate_target(MIN_TARGET).unwrap(), MIN_TARGET);
         assert_eq!(validate_target(MAX_TARGET).unwrap(), MAX_TARGET);
+    }
+
+    #[test]
+    fn validates_overlay_settings() {
+        let custom = OverlaySettings {
+            accent_color: "#ABCDEF".into(),
+            ..OverlaySettings::default()
+        };
+        assert_eq!(validate_overlay(custom).unwrap().accent_color, "#abcdef");
+
+        let invalid = OverlaySettings {
+            size: 0,
+            ..OverlaySettings::default()
+        };
+        assert_eq!(validate_overlay(invalid).unwrap_err().code, "invalid-overlay-settings");
     }
 
     #[test]

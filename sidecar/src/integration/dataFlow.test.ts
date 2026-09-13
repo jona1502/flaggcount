@@ -1,6 +1,6 @@
 import { request as httpRequest } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { OverlaySettings } from '../../../shared/settings';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { SidecarApp } from '../app';
 import { parseCommand, serializeEvent, type SidecarEvent } from '../protocol';
@@ -173,8 +173,8 @@ describe('sidecar data flow', () => {
 
     await vi.waitFor(() =>
       expect(overlay.settings()).toEqual([
-        { showBackground: true, showProgress: true },
-        { showBackground: false, showProgress: false }
+        { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true },
+        { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false }
       ])
     );
   });

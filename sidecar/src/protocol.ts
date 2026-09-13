@@ -1,5 +1,5 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
-import type { OverlaySettings } from '../../shared/settings';
+import { parseOverlaySettings, type OverlaySettings } from '../../shared/settings';
 import type { VoteSnapshot } from '../../shared/voting';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
@@ -42,17 +42,7 @@ export type SidecarEvent =
   /** Sanitized log line: never usernames, chat content, URLs or tokens. */
   | { type: 'log'; level: LogLevel; message: string };
 
-export function parseOverlaySettings(value: unknown): OverlaySettings | null {
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  const record = value as Record<string, unknown>;
-  const showBackground = record['showBackground'];
-  const showProgress = record['showProgress'];
-  return typeof showBackground === 'boolean' && typeof showProgress === 'boolean'
-    ? { showBackground, showProgress }
-    : null;
-}
+export { parseOverlaySettings };
 
 export function parseCommand(line: string): SidecarCommand | null {
   let value: unknown;

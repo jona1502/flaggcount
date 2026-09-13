@@ -25,6 +25,7 @@ export type AppErrorCode =
   | 'stream-ended'
   | 'reconnect-failed'
   | 'invalid-target'
+  | 'invalid-overlay-settings'
   | 'sidecar-unavailable'
   | 'unknown';
 

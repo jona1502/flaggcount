@@ -203,7 +203,7 @@ pub fn startup_commands(settings: &Settings, reconnect_to: Option<&str>) -> Vec<
             target: settings.target,
         },
         SidecarCommand::SetOverlaySettings {
-            overlay: settings.overlay,
+            overlay: settings.overlay.clone(),
         },
     ];
     if let Some(username) = reconnect_to {
@@ -542,12 +542,23 @@ mod tests {
                 SidecarCommand::SetOverlaySettings {
                     overlay: OverlaySettings {
                         show_background: false,
-                        show_progress: true,
+                        ..OverlaySettings::default()
                     },
                 },
                 json!({
                     "type": "setOverlaySettings",
-                    "overlay": { "showBackground": false, "showProgress": true }
+                    "overlay": {
+                        "showBackground": false,
+                        "showProgress": true,
+                        "accentColor": "#e82634",
+                        "textColor": "#ffffff",
+                        "backgroundColor": "#0c0c10",
+                        "backgroundOpacity": 80,
+                        "position": "center",
+                        "size": 92,
+                        "flagAnimation": "none",
+                        "targetEffect": "none"
+                    }
                 }),
             ),
             (SidecarCommand::GetState, json!({ "type": "getState" })),
@@ -710,7 +721,7 @@ mod tests {
                 "settings": {
                     "username": "",
                     "target": 100,
-                    "overlay": { "showBackground": true, "showProgress": true }
+                    "overlay": serde_json::to_value(OverlaySettings::default()).unwrap()
                 }
             })
         );
@@ -733,7 +744,7 @@ mod tests {
             target: 25,
             overlay: OverlaySettings {
                 show_background: false,
-                show_progress: true,
+                ..OverlaySettings::default()
             },
         };
 
@@ -742,7 +753,7 @@ mod tests {
             [
                 SidecarCommand::SetTarget { target: 25 },
                 SidecarCommand::SetOverlaySettings {
-                    overlay: settings.overlay
+                    overlay: settings.overlay.clone()
                 },
             ]
         );

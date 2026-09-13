@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { OVERLAY_CSP, OVERLAY_SCRIPT, renderOverlayPage } from './overlayAssets';
 
@@ -138,7 +139,7 @@ describe('overlay page', () => {
   });
 
   it('renders the saved overlay settings', () => {
-    const html = renderOverlayPage(votes(1, 4), { showBackground: false, showProgress: false });
+    const html = renderOverlayPage(votes(1, 4), { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false });
 
     expect(html).toContain('data-background="false"');
     expect(html).toContain('data-progress="false"');
@@ -148,7 +149,7 @@ describe('overlay page', () => {
     const source = mountOverlay(votes(1, 4));
     expect(element('overlay').dataset['background']).toBe('true');
 
-    source.emitRaw('settings', JSON.stringify({ showBackground: false, showProgress: false }));
+    source.emitRaw('settings', JSON.stringify({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false }));
 
     expect(element('overlay').dataset['background']).toBe('false');
     expect(element('overlay').dataset['progress']).toBe('false');

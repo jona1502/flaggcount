@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../shared/settings';
 import type { AppState } from '../shared/appState';
 import { App } from './App';
 import { ERROR_MESSAGES } from './dashboard/errorMessages';
@@ -16,7 +17,7 @@ const backendState: AppState = {
   votes: { count: 0, target: 10, roundId: 'round-1', targetReached: false },
   overlayUrl: OVERLAY_URL,
   publicOverlayUrl: null,
-  settings: { username: '', target: 10, overlay: { showBackground: true, showProgress: true } }
+  settings: { username: '', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
 };
 
 type Call = { cmd: string; payload: Record<string, unknown> | undefined };
@@ -105,7 +106,7 @@ describe('App with the Tauri backend', () => {
     expect(commands()).toContain('add_manual_vote');
     expect(payloadOf('set_target')).toEqual({ target: 25 });
     expect(commands()).toContain('reset_votes');
-    expect(payloadOf('set_overlay_settings')).toEqual({ overlay: { showBackground: false, showProgress: true } });
+    expect(payloadOf('set_overlay_settings')).toEqual({ overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
     expect(payloadOf('plugin:clipboard-manager|write_text')).toMatchObject({ text: OVERLAY_URL });
   });
 

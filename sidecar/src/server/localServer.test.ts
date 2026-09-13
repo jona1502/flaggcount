@@ -1,7 +1,7 @@
 import { createServer, request as httpRequest, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { OverlaySettings } from '../../../shared/settings';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import { VotingService } from '../../../shared/voting';
 import {
   createSessionToken,
@@ -207,7 +207,7 @@ describe('startLocalServer', () => {
     });
 
     it('renders the current overlay settings into the page', async () => {
-      const { server } = await start({ getOverlaySettings: () => ({ showBackground: false, showProgress: false }) });
+      const { server } = await start({ getOverlaySettings: () => ({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: false }) });
 
       const response = await send(server.port, { path: '/overlay', authorization: null });
 
@@ -243,7 +243,7 @@ describe('startLocalServer', () => {
     });
 
     it('streams the overlay settings and their updates', async () => {
-      let overlay: OverlaySettings = { showBackground: true, showProgress: true };
+      let overlay: OverlaySettings = { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true };
       const listeners = new Set<(settings: OverlaySettings) => void>();
       const { server } = await start({
         getOverlaySettings: () => overlay,
@@ -254,13 +254,13 @@ describe('startLocalServer', () => {
       });
 
       const { events } = await readEvents<OverlaySettings>(server.port, 'settings', 2, () => {
-        overlay = { showBackground: false, showProgress: true };
+        overlay = { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true };
         for (const listener of listeners) listener(overlay);
       });
 
       expect(events).toEqual([
-        { showBackground: true, showProgress: true },
-        { showBackground: false, showProgress: true }
+        { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true },
+        { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true }
       ]);
       await vi.waitFor(() => expect(listeners.size).toBe(0));
     });

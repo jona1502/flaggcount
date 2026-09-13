@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import type { AppState } from '../../shared/appState';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
@@ -16,7 +17,7 @@ const state: AppState = {
   votes: { count: 2, target: 10, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: 'streamer', target: 10, overlay: { showBackground: true, showProgress: true } }
+  settings: { username: 'streamer', target: 10, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
 };
 
 describe('flagcountApi', () => {
@@ -33,7 +34,7 @@ describe('flagcountApi', () => {
     await flagcountApi.addManualVote();
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
-    await flagcountApi.setOverlaySettings({ showBackground: false, showProgress: true });
+    await flagcountApi.setOverlaySettings({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true });
 
     expect(vi.mocked(invoke).mock.calls).toEqual([
       ['get_state'],
@@ -42,7 +43,7 @@ describe('flagcountApi', () => {
       ['add_manual_vote'],
       ['reset_votes'],
       ['set_target', { target: 25 }],
-      ['set_overlay_settings', { overlay: { showBackground: false, showProgress: true } }]
+      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }]
     ]);
   });
 

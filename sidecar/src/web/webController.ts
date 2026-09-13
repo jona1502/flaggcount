@@ -121,7 +121,7 @@ export class WebController {
   async setOverlaySettings(value: unknown): Promise<AppError | null> {
     const overlay = parseOverlaySettings(value);
     if (!overlay) {
-      return { code: 'unknown', message: 'Invalid overlay settings' };
+      return { code: 'invalid-overlay-settings', message: 'Invalid overlay settings' };
     }
     await this.updateSettings({ overlay });
     await this.app.handleCommand({ type: 'setOverlaySettings', overlay });

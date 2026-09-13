@@ -77,7 +77,18 @@ fn returns_the_initial_state() {
             "settings": {
                 "username": "",
                 "target": 100,
-                "overlay": { "showBackground": true, "showProgress": true }
+                "overlay": {
+                    "showBackground": true,
+                    "showProgress": true,
+                    "accentColor": "#e82634",
+                    "textColor": "#ffffff",
+                    "backgroundColor": "#0c0c10",
+                    "backgroundOpacity": 80,
+                    "position": "center",
+                    "size": 92,
+                    "flagAnimation": "none",
+                    "targetEffect": "none"
+                }
             }
         })
     );
@@ -93,6 +104,14 @@ fn validates_input_before_anything_is_sent_or_saved() {
         "invalid-target"
     );
     assert_eq!(error_code(invoke(&app, "connect", json!({ "username": "   " }))), "invalid-username");
+    assert_eq!(
+        error_code(invoke(&app, "set_overlay_settings", json!({ "overlay": { "size": 0 } }))),
+        "invalid-overlay-settings"
+    );
+    assert_eq!(
+        error_code(invoke(&app, "set_overlay_settings", json!({ "overlay": { "accentColor": "red" } }))),
+        "invalid-overlay-settings"
+    );
     assert!(app.saved.lock().unwrap().is_empty());
 }
 
@@ -128,7 +147,18 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
         json!({
             "username": "",
             "target": 25,
-            "overlay": { "showBackground": false, "showProgress": true }
+            "overlay": {
+                "showBackground": false,
+                "showProgress": true,
+                "accentColor": "#e82634",
+                "textColor": "#ffffff",
+                "backgroundColor": "#0c0c10",
+                "backgroundOpacity": 80,
+                "position": "center",
+                "size": 92,
+                "flagAnimation": "none",
+                "targetEffect": "none"
+            }
         })
     );
     let saved = app.saved.lock().unwrap();

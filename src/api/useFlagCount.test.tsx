@@ -2,7 +2,7 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppError, AppState } from '../../shared/appState';
-import type { OverlaySettings } from '../../shared/settings';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import type { FlagCountApi } from './flagcount';
 import { useFlagCount } from './useFlagCount';
 
@@ -14,7 +14,7 @@ const initialState: AppState = {
   votes: { count: 0, target: 100, roundId: 'r1', targetReached: false },
   overlayUrl: 'http://127.0.0.1:3847/overlay',
   publicOverlayUrl: null,
-  settings: { username: '', target: 100, overlay: { showBackground: true, showProgress: true } }
+  settings: { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } }
 };
 
 const connectedState: AppState = {
