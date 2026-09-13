@@ -11,6 +11,7 @@ import { channelIdForKey, isChannelId, isRelayKey, parseVoteSnapshot, relayOverl
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
 import type { ReleaseInfo } from './latestRelease';
+import type { LicensingHandler } from './licensing/licensingRoutes';
 import type { RelayChannels } from './relayChannels';
 import {
   SESSION_COOKIE,
@@ -49,6 +50,8 @@ export type WebServerOptions = {
   releasesUrl?: string;
   /** Online overlays mirrored from desktop apps, served at `/o/<channel>`. */
   relay?: RelayChannels;
+  /** Public license and billing API under `/api/v1/`, separate from the dashboard login. */
+  licensing?: LicensingHandler;
   host?: string;
   port?: number;
   heartbeatMs?: number;
@@ -94,7 +97,7 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 /** The visitor's address as reported by Cloudflare or nginx, falling back to the socket. */
-function clientAddress(request: IncomingMessage): string {
+export function clientAddress(request: IncomingMessage): string {
   const cloudflare = request.headers['cf-connecting-ip'];
   if (typeof cloudflare === 'string' && cloudflare) {
     return cloudflare;
@@ -506,8 +509,17 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   const handleRequest = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const { pathname } = new URL(request.url ?? '/', 'http://localhost');
 
+    // Liveness: the process answers. Readiness below also checks the database of the license service.
     if (pathname === '/healthz') {
       send(response, 200, 'text/plain; charset=utf-8', 'ok');
+      return;
+    }
+    if (pathname === '/readyz') {
+      const ready = (await options.licensing?.ready()) ?? true;
+      send(response, ready ? 200 : 503, 'text/plain; charset=utf-8', ready ? 'ready' : 'unavailable');
+      return;
+    }
+    if (options.licensing && (await options.licensing.handle(pathname, request, response))) {
       return;
     }
     // The overlay only shows the vote count and must load in OBS without a login.
