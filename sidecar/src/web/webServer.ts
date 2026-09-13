@@ -5,6 +5,7 @@ import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
+import type { ReleaseInfo } from './latestRelease';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_MS,
@@ -33,8 +34,12 @@ export type WebBackend = OverlaySource & {
 export type WebServerOptions = {
   backend: WebBackend;
   password: string;
-  /** Directory with the built browser dashboard; `null` serves only the overlay and the API. */
+  /** Directory with the built landing page and dashboard; `null` serves only the overlay and the API. */
   webRoot: string | null;
+  /** Newest desktop release for the landing page's download button. */
+  latestRelease?: () => Promise<ReleaseInfo | null>;
+  /** Where `/download` points while no release is known. */
+  releasesUrl?: string;
   host?: string;
   port?: number;
   heartbeatMs?: number;
@@ -54,7 +59,9 @@ const MAX_BODY_BYTES = 4096;
 const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
-const DASHBOARD_ENTRY = '/web.html';
+const APP_ENTRY = '/web.html';
+/** Client-side routes of the web app: the landing page and the dashboard. */
+const APP_ROUTES = new Set(['/', '/dashboard', '/dashboard/']);
 
 const DASHBOARD_HEADERS = {
   'Content-Security-Policy':
@@ -205,8 +212,9 @@ class LoginLimiter {
 }
 
 /**
- * Serves the web version of FlagCount: the public OBS overlay, the browser dashboard, and behind a
- * session login its API and live state stream. Meant to run behind nginx and Cloudflare.
+ * Serves the web version of FlagCount: the public landing page with the desktop download, the OBS
+ * overlay, and the browser dashboard whose API and live state stream require a session login.
+ * Meant to run behind nginx and Cloudflare.
  */
 export async function startWebServer(options: WebServerOptions): Promise<WebServer> {
   const { backend, password } = options;
@@ -279,6 +287,13 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
 
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
     switch (pathname) {
+      case '/api/release':
+        if (request.method !== 'GET') {
+          methodNotAllowed(response, 'GET');
+        } else {
+          sendJson(response, 200, { release: (await options.latestRelease?.()) ?? null });
+        }
+        return;
       case '/api/session':
         if (request.method !== 'GET') {
           methodNotAllowed(response, 'GET');
@@ -338,7 +353,7 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
 
     let relativePath: string;
     try {
-      relativePath = decodeURIComponent(pathname === '/' ? DASHBOARD_ENTRY : pathname);
+      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : pathname);
     } catch {
       sendJson(response, 404, { error: 'not-found' });
       return;
@@ -362,6 +377,21 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     send(response, 200, CONTENT_TYPES[extension] ?? 'application/octet-stream', body, headers);
   };
 
+  const redirectToDownload = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      methodNotAllowed(response, 'GET, HEAD');
+      return;
+    }
+    const release = await options.latestRelease?.();
+    const location = release?.downloadUrl ?? options.releasesUrl;
+    if (!location) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    response.writeHead(302, { ...BASE_HEADERS, Location: location });
+    response.end();
+  };
+
   const handleRequest = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const { pathname } = new URL(request.url ?? '/', 'http://localhost');
 
@@ -374,11 +404,16 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       overlay(pathname, request, response);
       return;
     }
+    // Stable link to the newest installer, whose file name contains the version.
+    if (pathname === '/download') {
+      await redirectToDownload(request, response);
+      return;
+    }
 
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       await handleApi(pathname, request, response);
     } else if (webRoot) {
-      // The dashboard bundle contains no data; it shows the login screen until the API accepts a session.
+      // The app bundle contains no data; the dashboard shows the login screen until the API accepts a session.
       await serveStatic(webRoot, pathname, request, response);
     } else {
       sendJson(response, 404, { error: 'not-found' });

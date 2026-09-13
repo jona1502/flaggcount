@@ -108,6 +108,41 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/reset', post({}))).status).toBe(401);
   });
 
+  it('serves the landing page and the dashboard route from the app shell', async () => {
+    const { server } = await start();
+
+    for (const path of ['/', '/dashboard', '/dashboard/']) {
+      const page = await send(server.port, path);
+      expect(page.status).toBe(200);
+      expect(page.body).toContain('<title>FlagCount</title>');
+    }
+  });
+
+  it('redirects downloads to the newest installer without a login', async () => {
+    const release = {
+      version: '0.2.0',
+      downloadUrl: 'https://example.test/FlagCount_0.2.0_x64-setup.exe',
+      sizeBytes: 1,
+      publishedAt: null,
+      pageUrl: 'https://example.test/releases/tag/app-v0.2.0'
+    };
+    const { server } = await start({ latestRelease: async () => release, releasesUrl: 'https://example.test/releases' });
+
+    const download = await send(server.port, '/download');
+    expect(download.status).toBe(302);
+    expect(download.headers.location).toBe(release.downloadUrl);
+    expect(JSON.parse((await send(server.port, '/api/release')).body)).toEqual({ release });
+  });
+
+  it('falls back to the releases page while no release is known', async () => {
+    const { server } = await start({ latestRelease: async () => null, releasesUrl: 'https://example.test/releases' });
+
+    const download = await send(server.port, '/download');
+    expect(download.status).toBe(302);
+    expect(download.headers.location).toBe('https://example.test/releases');
+    expect(JSON.parse((await send(server.port, '/api/release')).body)).toEqual({ release: null });
+  });
+
   it('serves assets, but no files outside the web root', async () => {
     const { server } = await start();
 

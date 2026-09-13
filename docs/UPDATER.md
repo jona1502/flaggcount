@@ -30,7 +30,9 @@ Die Anwendung liest das Manifest des neuesten GitHub Release von:
 https://github.com/jona1502/flaggcount/releases/latest/download/latest.json
 ```
 
-Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-Anmeldung erreichbar sein. Bei einem privaten Repository muss dafür entweder das Repository öffentlich werden oder ein separates öffentliches Downloadziel konfiguriert werden. Ein GitHub-Token darf nicht in die Desktop-App eingebaut werden.
+Dieses Manifest und die darin verlinkten Update-Artefakte müssen ohne GitHub-Anmeldung erreichbar sein. Deshalb ist das Repository öffentlich. Ein GitHub-Token darf nicht in die Desktop-App eingebaut werden.
+
+Die Landingpage der Web-Version verlinkt `/download`. Der Server leitet diese Adresse auf den Installer (`*-setup.exe`) des neuesten Releases weiter und fragt dafür die GitHub-API ohne Token ab (Ergebnis 10 Minuten zwischengespeichert).
 
 ## GitHub Actions einrichten
 

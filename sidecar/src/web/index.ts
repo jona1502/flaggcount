@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { describeError } from '../logging';
 import type { LogLevel } from '../protocol';
 import { createTikTokConnectionFactory } from '../tiktok/tiktokConnection';
+import { createLatestRelease } from './latestRelease';
 import { SettingsStore } from './settingsStore';
 import { WebController } from './webController';
 import { startWebServer } from './webServer';
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   const dataDir = process.env['DATA_DIR'] ?? 'data';
   const webRoot = process.env['WEB_ROOT'] ?? 'dist-web';
   const signApiKey = process.env['TIKTOK_SIGN_API_KEY'] || undefined;
+  const releaseRepo = process.env['RELEASE_REPO'] || 'jona1502/flaggcount';
 
   const store = new SettingsStore(join(dataDir, 'settings.json'));
   const controller = new WebController(createTikTokConnectionFactory({ signApiKey }), await store.load(), store, log);
@@ -41,6 +43,8 @@ async function main(): Promise<void> {
     backend: controller,
     password,
     webRoot,
+    latestRelease: createLatestRelease({ repo: releaseRepo }),
+    releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
     host,
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`)
