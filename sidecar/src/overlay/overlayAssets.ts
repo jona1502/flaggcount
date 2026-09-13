@@ -25,6 +25,15 @@ export function renderOverlayPage(
   const reached = votes.targetReached ? 'true' : 'false';
   const background = overlay.showBackground ? 'true' : 'false';
   const progress = overlay.showProgress ? 'true' : 'false';
+  // The values are validated upstream, but the page is built from strings, so escape them anyway.
+  const appearance = [
+    `data-accent="${escapeAttribute(overlay.accentColor)}"`,
+    `data-text="${escapeAttribute(overlay.textColor)}"`,
+    `data-panel="${escapeAttribute(overlay.backgroundColor)}"`,
+    `data-panel-opacity="${Math.trunc(overlay.backgroundOpacity)}"`,
+    `data-position="${escapeAttribute(overlay.position)}"`,
+    `data-size="${Math.trunc(overlay.size)}"`
+  ].join(' ');
 
   return `<!doctype html>
 <html lang="de">
@@ -36,7 +45,7 @@ export function renderOverlayPage(
 <script src="/overlay/overlay.js" defer></script>
 </head>
 <body>
-<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" data-events="${eventsUrl}" data-connected="true">
+<div class="overlay" id="overlay" data-count="${count}" data-target="${target}" data-reached="${reached}" data-background="${background}" data-progress="${progress}" ${appearance} data-events="${eventsUrl}" data-connected="true">
 <div class="headline"><span class="flag" aria-hidden="true">🚩</span><span class="count" id="count">${count}</span><span class="separator">/</span><span class="target" id="target">${target}</span></div>
 <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
 </div>
@@ -59,11 +68,14 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
-/* Streaming tools render the source at their own size; the script scales the overlay to fill it. */
+/*
+ * Streaming tools render the source at their own size; the script scales and places the overlay.
+ * Colors come from the settings as custom properties (no color-mix: older OBS browsers lack it).
+ */
 .overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -72,11 +84,11 @@ body {
   min-width: 440px;
   padding: 28px 40px 34px;
   border-radius: 32px;
-  background: rgba(12, 12, 16, 0.8);
+  color: var(--text, #ffffff);
+  background: var(--panel, rgba(12, 12, 16, 0.8));
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
   text-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
-  transform: translate(-50%, -50%);
-  transform-origin: center;
+  transform-origin: 0 0;
   transition: opacity 0.3s ease;
 }
 
@@ -109,9 +121,9 @@ body {
 
 .separator,
 .target {
-  color: rgba(255, 255, 255, 0.68);
   font-size: 72px;
   font-weight: 700;
+  opacity: 0.7;
 }
 
 .bar {
@@ -129,12 +141,13 @@ body {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #e82634, #ff4d5a);
+  background-color: var(--accent, #e82634);
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.22));
   transition: width 0.4s ease;
 }
 
 .overlay[data-reached='true'] .bar-fill {
-  background: linear-gradient(90deg, #2fbf7f, #52e0a0);
+  background-color: #2fbf7f;
 }
 
 .overlay[data-connected='false'] {
@@ -148,18 +161,58 @@ export const OVERLAY_SCRIPT = `(function () {
   var count = document.getElementById('count');
   var target = document.getElementById('target');
   var fill = document.getElementById('bar-fill');
-  // Share of the source the overlay may cover, leaving a small margin.
-  var FILL = 0.92;
+  var HEX_COLOR = /^#[0-9a-f]{6}$/i;
+  // Gap to the source's edge when the overlay sits at the top or bottom.
+  var EDGE_GAP = 0.04;
+  // Share of the source the overlay may cover and where it sits; replaced by the settings.
+  var size = 0.92;
+  var position = 'center';
+
+  function rgba(hex, alpha) {
+    var value = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((value >> 16) & 255) + ', ' + ((value >> 8) & 255) + ', ' + (value & 255) + ', ' + alpha + ')';
+  }
+
+  function round(value) {
+    return Math.round(value * 100) / 100;
+  }
 
   // Streaming tools like TikTok LIVE Studio render the page larger than their source frame and
-  // scale it down, so fixed sizes end up tiny. Scale the overlay to fit the page instead.
-  // The overlay is centered by its stylesheet; offsetWidth/offsetHeight ignore the transform.
+  // scale it down, so fixed sizes end up tiny. Scale and place the overlay relative to the page instead.
+  // offsetWidth/offsetHeight ignore the transform.
   function fit() {
     var width = root.offsetWidth;
     var height = root.offsetHeight;
     if (!width || !height) return;
-    var scale = Math.min((window.innerWidth * FILL) / width, (window.innerHeight * FILL) / height);
-    root.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    var viewWidth = window.innerWidth;
+    var viewHeight = window.innerHeight;
+    var scale = Math.min((viewWidth * size) / width, (viewHeight * size) / height);
+    var scaledHeight = height * scale;
+    var gap = viewHeight * EDGE_GAP;
+    var y = (viewHeight - scaledHeight) / 2;
+    if (position === 'top') y = gap;
+    if (position === 'bottom') y = viewHeight - scaledHeight - gap;
+    y = Math.max(0, Math.min(y, viewHeight - scaledHeight));
+    var x = (viewWidth - width * scale) / 2;
+    root.style.transform = 'translate(' + round(x) + 'px, ' + round(y) + 'px) scale(' + scale + ')';
+  }
+
+  // Settings arrive validated, but only well-formed values ever reach the styles.
+  function applySettings(settings) {
+    root.dataset.background = settings.showBackground ? 'true' : 'false';
+    root.dataset.progress = settings.showProgress ? 'true' : 'false';
+    if (HEX_COLOR.test(settings.accentColor)) root.style.setProperty('--accent', settings.accentColor);
+    if (HEX_COLOR.test(settings.textColor)) root.style.setProperty('--text', settings.textColor);
+    var opacity = Number(settings.backgroundOpacity);
+    if (HEX_COLOR.test(settings.backgroundColor) && opacity >= 0 && opacity <= 100) {
+      root.style.setProperty('--panel', rgba(settings.backgroundColor, opacity / 100));
+    }
+    if (settings.position === 'top' || settings.position === 'center' || settings.position === 'bottom') {
+      position = settings.position;
+    }
+    var percent = Number(settings.size);
+    if (percent >= 20 && percent <= 100) size = percent / 100;
+    fit();
   }
 
   function render(votes) {
@@ -179,6 +232,17 @@ export const OVERLAY_SCRIPT = `(function () {
     document.fonts.ready.then(fit);
   }
 
+  applySettings({
+    showBackground: root.dataset.background === 'true',
+    showProgress: root.dataset.progress === 'true',
+    accentColor: root.dataset.accent,
+    textColor: root.dataset.text,
+    backgroundColor: root.dataset.panel,
+    backgroundOpacity: root.dataset.panelOpacity,
+    position: root.dataset.position,
+    size: root.dataset.size
+  });
+
   render({
     count: Number(root.dataset.count),
     target: Number(root.dataset.target),
@@ -197,10 +261,7 @@ export const OVERLAY_SCRIPT = `(function () {
   });
   source.addEventListener('settings', function (event) {
     try {
-      var settings = JSON.parse(event.data);
-      root.dataset.background = settings.showBackground ? 'true' : 'false';
-      root.dataset.progress = settings.showProgress ? 'true' : 'false';
-      fit();
+      applySettings(JSON.parse(event.data));
     } catch (error) {
       // Ignore malformed updates and keep the last known settings.
     }
