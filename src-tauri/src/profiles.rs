@@ -5,7 +5,7 @@ use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::entitlements::{counter_limit, has_feature, profile_limit, CUSTOM_TRIGGERS, MULTI_OPTION_POLLS};
+use crate::entitlements::{counter_limit, has_feature, profile_limit, CUSTOM_TRIGGERS, MULTI_OPTION_POLLS, PREMIUM_TEMPLATES};
 use crate::license::LicenseState;
 use crate::settings::{
     CounterDefinition, CounterMode, OverlaySettings, Settings, StreamProfile, Trigger, DEFAULT_TARGET,
@@ -210,6 +210,11 @@ pub fn replace_counters(
     }
     if counters.iter().any(uses_custom_triggers) && !has_feature(license, CUSTOM_TRIGGERS) {
         return Err(pro_required("Custom triggers require FlagCount Pro"));
+    }
+    if counters.iter().any(|counter| counter.overlay.theme != crate::settings::OverlayTheme::Standard)
+        && !has_feature(license, PREMIUM_TEMPLATES)
+    {
+        return Err(pro_required("Premium overlay templates require FlagCount Pro"));
     }
 
     let profile_id = effective_profile(settings, license)

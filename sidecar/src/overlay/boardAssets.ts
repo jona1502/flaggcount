@@ -83,6 +83,15 @@ body {
   box-shadow: none;
 }
 
+.card[data-theme='minimal'] { padding: 14px 18px; border-radius: 8px; box-shadow: none; }
+.card[data-theme='glass'] { backdrop-filter: blur(18px) saturate(140%); background: color-mix(in srgb, var(--panel) 72%, transparent); border: 1px solid rgba(255,255,255,.28); }
+.card[data-theme='neon'] { border: 2px solid var(--accent); box-shadow: 0 0 18px var(--accent), inset 0 0 22px rgba(0,0,0,.45); }
+.card[data-theme='scoreboard'] { border-radius: 4px; border: 4px solid currentColor; font-family: ui-monospace, 'Cascadia Mono', monospace; text-transform: uppercase; }
+.card[data-theme='vertical-poll'] .options { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); align-items: end; }
+.card[data-theme='vertical-poll'] .option { display: flex; min-height: 260px; flex-direction: column-reverse; }
+.card[data-theme='vertical-poll'] .option .bar { flex: 1; width: 54px; margin: 8px auto; }
+.card[data-theme='vertical-poll'] .option .bar-fill { width: 100% !important; transform-origin: bottom; }
+
 .card-title {
   margin: 0 0 12px;
   font-size: 36px;
@@ -223,6 +232,7 @@ export const BOARD_SCRIPT = `(function () {
     if (!overlay) return;
     card.setAttribute('data-background', overlay.showBackground ? 'true' : 'false');
     card.setAttribute('data-progress', overlay.showProgress ? 'true' : 'false');
+    card.setAttribute('data-theme', String(overlay.theme || 'standard'));
     if (HEX_COLOR.test(overlay.accentColor)) card.style.setProperty('--accent', overlay.accentColor);
     if (HEX_COLOR.test(overlay.textColor)) card.style.setProperty('--text', overlay.textColor);
     var opacity = Number(overlay.backgroundOpacity);

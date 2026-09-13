@@ -79,11 +79,24 @@ pub enum TargetEffect {
     Confetti,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OverlayTheme {
+    #[default]
+    Standard,
+    Minimal,
+    Glass,
+    Neon,
+    Scoreboard,
+    VerticalPoll,
+}
+
 /// Appearance of the streaming overlay. Missing fields take their defaults, so settings saved
 /// by older versions keep loading.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct OverlaySettings {
+    pub theme: OverlayTheme,
     pub show_background: bool,
     pub show_progress: bool,
     /// Progress bar and highlights, `#rrggbb`.
@@ -103,6 +116,7 @@ pub struct OverlaySettings {
 impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
+            theme: OverlayTheme::Standard,
             show_background: true,
             show_progress: true,
             accent_color: "#e82634".into(),

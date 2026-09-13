@@ -807,6 +807,7 @@ mod tests {
                         }],
                         "withdrawalTriggers": [{ "kind": "emoji", "value": "\u{1F3F3}\u{FE0F}", "match": "contains" }],
                         "overlay": {
+                            "theme": "standard",
                             "showBackground": true,
                             "showProgress": true,
                             "accentColor": "#e82634",

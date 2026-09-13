@@ -142,6 +142,7 @@ const WHITE_FLAG_KEYS = [triggerKey({ kind: 'emoji', value: WHITE_FLAG, match: '
 /** Features a counter needs beyond the Free red flag counter. Names, targets and the basic design stay Free. */
 export function requiredFeatures(counter: CounterDefinition): Feature[] {
   const features: Feature[] = [];
+  if (counter.overlay.theme !== 'standard') features.push('premium-templates');
   if (counter.mode === 'poll') {
     features.push('multi-option-polls');
   }

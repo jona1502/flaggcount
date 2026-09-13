@@ -11,6 +11,7 @@ describe('parseOverlaySettings', () => {
 
   it('accepts every appearance option and normalizes colors', () => {
     const custom = {
+      theme: 'neon',
       showBackground: true,
       showProgress: false,
       accentColor: '#00FF88',

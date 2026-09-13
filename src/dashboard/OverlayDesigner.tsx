@@ -5,10 +5,12 @@ import {
   MAX_OVERLAY_SIZE,
   MIN_OVERLAY_SIZE,
   OVERLAY_POSITIONS,
+  OVERLAY_THEMES,
   TARGET_EFFECTS,
   type FlagAnimation,
   type OverlayPosition,
   type OverlaySettings,
+  type OverlayTheme,
   type TargetEffect
 } from '../../shared/settings';
 
@@ -21,6 +23,7 @@ type OverlayDesignerProps = {
   onChange: (overlay: OverlaySettings) => void;
   /** Color pickers and sliders save after this pause, so dragging does not save every step. */
   saveDelayMs?: number;
+  premiumThemesAllowed?: boolean;
 };
 
 const POSITION_LABELS: Record<OverlayPosition, string> = {
@@ -40,6 +43,15 @@ const TARGET_EFFECT_LABELS: Record<TargetEffect, string> = {
   none: 'Kein Effekt',
   glow: 'Leuchten',
   confetti: 'Konfetti'
+};
+
+const THEME_LABELS: Record<OverlayTheme, string> = {
+  standard: 'Standard',
+  minimal: 'Minimal · Pro',
+  glass: 'Glass · Pro',
+  neon: 'Neon · Pro',
+  scoreboard: 'Scoreboard · Pro',
+  'vertical-poll': 'Vertikale Umfrage · Pro'
 };
 
 function isDefault(settings: OverlaySettings): boolean {
@@ -126,7 +138,8 @@ export function OverlayDesigner({
   previewUrl,
   disabled,
   onChange,
-  saveDelayMs = 300
+  saveDelayMs = 300,
+  premiumThemesAllowed = false
 }: OverlayDesignerProps): React.JSX.Element {
   const [draft, setDraft] = useState(settings);
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; next: OverlaySettings } | null>(null);
@@ -174,6 +187,18 @@ export function OverlayDesigner({
   return (
     <div className="designer">
       <div className="designer-controls">
+        <fieldset className="designer-group">
+          <legend>Vorlage</legend>
+          <SelectField
+            id="overlay-theme"
+            label="Overlay-Vorlage"
+            value={draft.theme}
+            options={premiumThemesAllowed ? OVERLAY_THEMES : ['standard']}
+            labels={THEME_LABELS}
+            onChange={(value) => change('theme', value)}
+          />
+          {!premiumThemesAllowed && <p className="hint"><span className="pro-tag">Pro</span> Fünf zusätzliche Vorlagen freischalten.</p>}
+        </fieldset>
         <fieldset className="overlay-options" disabled={disabled}>
           <legend>Darstellung</legend>
           <label className="checkbox">

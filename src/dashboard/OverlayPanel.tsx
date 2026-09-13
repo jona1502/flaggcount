@@ -21,6 +21,7 @@ type OverlayPanelProps = {
   onChangeSettings: (overlay: OverlaySettings) => void;
   /** Overlays per counter and the overview; only the desktop app has them. */
   counterOverlays?: CounterOverlays;
+  premiumThemesAllowed?: boolean;
   feedbackMs?: number;
 };
 
@@ -56,6 +57,7 @@ export function OverlayPanel({
   onCopy,
   onChangeSettings,
   counterOverlays,
+  premiumThemesAllowed = false,
   feedbackMs = 2000
 }: OverlayPanelProps): React.JSX.Element {
   const [copied, setCopied] = useState<string | null>(null);
@@ -156,7 +158,7 @@ export function OverlayPanel({
           <p className="hint">Die Overlay-URL ist verfügbar, sobald der Verbindungsdienst läuft.</p>
         )}
 
-        <OverlayDesigner settings={settings} previewUrl={overlayUrl} disabled={disabled} onChange={onChangeSettings} />
+        <OverlayDesigner settings={settings} previewUrl={overlayUrl} disabled={disabled} onChange={onChangeSettings} premiumThemesAllowed={premiumThemesAllowed} />
       </div>
     </section>
   );
