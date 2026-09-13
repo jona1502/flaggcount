@@ -111,6 +111,19 @@ pub fn save<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
     }
 }
 
+/// Persists settings: the app writes to the Tauri store, tests record the calls in memory.
+pub struct SettingsSaver(Box<dyn Fn(&Settings) + Send + Sync>);
+
+impl SettingsSaver {
+    pub fn new(save: impl Fn(&Settings) + Send + Sync + 'static) -> Self {
+        Self(Box::new(save))
+    }
+
+    pub fn save(&self, settings: &Settings) {
+        (self.0)(settings);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

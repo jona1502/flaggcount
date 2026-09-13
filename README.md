@@ -2,6 +2,31 @@
 
 FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Overlay für OBS.
 
+## Bedienung
+
+1. FlagCount starten.
+2. Im Feld **TikTok-Benutzername** den Namen des Streamers eingeben – `name`, `@name` oder die Profil-/Live-URL – und **Verbinden** klicken. Der Stream muss gerade live sein.
+3. Zuschauer stimmen ab, indem sie eine Chatnachricht mit `🚩` schreiben. `🚩`, `🚩🚩` und `Bitte 🚩` zählen jeweils genau eine Stimme; jede Person zählt pro Runde nur einmal, egal wie viele Nachrichten sie schreibt.
+4. Unter **Stimmenziel** das Ziel eintragen und mit **Übernehmen** speichern. Ist das Ziel erreicht, wird der Fortschrittsbalken grün.
+5. **Runde zurücksetzen** und anschließend **Ja, zurücksetzen** löscht alle Stimmen der Runde; danach dürfen alle erneut abstimmen. Ohne Bestätigung bricht der Reset nach fünf Sekunden ab.
+6. Reißt die Verbindung ab, verbindet FlagCount automatisch neu (bis zu acht Versuche mit wachsender Wartezeit). Die Stimmen der Runde bleiben dabei erhalten. **Trennen** beendet die Verbindung und alle weiteren Versuche.
+
+Benutzername, Stimmenziel und die Darstellung des Overlays bleiben nach einem Neustart erhalten. Stimmen werden nie gespeichert – nach einem Neustart beginnt eine neue Runde.
+
+## OBS einrichten
+
+1. In FlagCount im Bereich **OBS-Overlay** auf **URL kopieren** klicken. Standardmäßig lautet die Adresse `http://127.0.0.1:3847/overlay`.
+2. In OBS unter **Quellen** auf **+** klicken, **Browser** wählen und einen Namen vergeben, z. B. „FlagCount“.
+3. Die URL einfügen und die Größe festlegen, z. B. **Breite** `520` und **Höhe** `200`. Das benutzerdefinierte CSS von OBS kann unverändert bleiben – der Hintergrund des Overlays ist transparent.
+4. **Quelle herunterfahren, wenn nicht sichtbar** deaktiviert lassen, damit das Overlay jederzeit aktuell ist.
+5. Unter **Darstellung** in FlagCount lassen sich **Hintergrund anzeigen** und **Fortschrittsbalken anzeigen** umschalten; OBS übernimmt die Änderung sofort.
+
+Hinweise:
+
+- FlagCount muss laufen, damit das Overlay Daten erhält. Wird die App neu gestartet, verbindet sich das Overlay von selbst wieder; solange keine Verbindung besteht, erscheint es abgeblendet.
+- Ist Port `3847` bereits belegt, weicht FlagCount auf einen freien Port aus. In diesem Fall die URL erneut kopieren und in OBS eintragen.
+- Das Overlay ist nur auf diesem Computer erreichbar und zeigt ausschließlich Zählerstand und Ziel – keine Chatnachrichten oder Zuschauernamen.
+
 ## Aufbau
 
 | Teil | Technik | Aufgabe |
@@ -34,10 +59,12 @@ npm run tauri dev
 
 ```bash
 npm run typecheck   # TypeScript für Dashboard, Sidecar und gemeinsame Module
-npm test            # Unit- und Komponententests (Vitest)
-npm run test:rust   # Rust-Tests
+npm test            # Unit-, Komponenten- und Integrationstests (Vitest)
+npm run test:rust   # Rust-Tests, inklusive Tauri-Commands über die IPC-Schicht
 npm run build       # Produktions-Build des Dashboards
 ```
+
+Die Integrationstests decken den kompletten Datenfluss ab: Chat → Voting → Tauri-Protokoll und Overlay-Stream, Reset, automatischen Reconnect, den echten Sidecar-Prozess sowie das Dashboard gegen gemockte Tauri-Commands und -Events.
 
 ## Windows-Installer bauen
 
@@ -66,4 +93,4 @@ Der Installer installiert FlagCount für den aktuellen Benutzer, ohne Administra
 | Einstellungen (Benutzername, Stimmenziel, Overlay) | `%APPDATA%\com.jona1502.flagcount\settings.json` |
 | Logdatei | `%LOCALAPPDATA%\com.jona1502.flagcount\logs\FlagCount.log` |
 
-Stimmen werden nie gespeichert – nach einem Neustart beginnt eine neue Runde. Die Logdatei enthält keine Benutzernamen, Chatinhalte oder Zugangsdaten. FlagCount benötigt keine TikTok-Anmeldung.
+Die Logdatei enthält keine Benutzernamen, Chatinhalte oder Zugangsdaten. FlagCount benötigt keine TikTok-Anmeldung.

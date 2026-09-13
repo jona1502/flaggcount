@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Runtime, State};
 
-use crate::settings::{self, OverlaySettings, MAX_TARGET, MIN_TARGET};
+use crate::settings::{self, OverlaySettings, SettingsSaver, MAX_TARGET, MIN_TARGET};
 use crate::sidecar::{AppError, AppState, Sidecar, SidecarCommand};
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
@@ -37,6 +37,7 @@ pub fn get_state(sidecar: State<'_, Sidecar>) -> AppState {
 pub fn connect<R: Runtime>(
     app: AppHandle<R>,
     sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
     username: String,
 ) -> Result<(), AppError> {
     let username = validate_username(&username)?;
@@ -44,8 +45,7 @@ pub fn connect<R: Runtime>(
         username: username.clone(),
     })?;
 
-    let saved = sidecar.update_settings(&app, |settings| settings.username = username);
-    settings::save(&app, &saved);
+    saver.save(&sidecar.update_settings(&app, |settings| settings.username = username));
     Ok(())
 }
 
@@ -63,11 +63,11 @@ pub fn reset_votes(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 pub fn set_target<R: Runtime>(
     app: AppHandle<R>,
     sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
     target: u32,
 ) -> Result<(), AppError> {
     let target = validate_target(target)?;
-    let saved = sidecar.update_settings(&app, |settings| settings.target = target);
-    settings::save(&app, &saved);
+    saver.save(&sidecar.update_settings(&app, |settings| settings.target = target));
     send_setting(&sidecar, &SidecarCommand::SetTarget { target })
 }
 
@@ -75,10 +75,10 @@ pub fn set_target<R: Runtime>(
 pub fn set_overlay_settings<R: Runtime>(
     app: AppHandle<R>,
     sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
     overlay: OverlaySettings,
 ) -> Result<(), AppError> {
-    let saved = sidecar.update_settings(&app, |settings| settings.overlay = overlay);
-    settings::save(&app, &saved);
+    saver.save(&sidecar.update_settings(&app, |settings| settings.overlay = overlay));
     send_setting(&sidecar, &SidecarCommand::SetOverlaySettings { overlay })
 }
 

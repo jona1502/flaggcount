@@ -21,3 +21,6 @@ tauri-plugin-clipboard-manager = "2.3"
 tauri-plugin-log = "2.9"
 tauri-plugin-shell = "2.3"
 tauri-plugin-store = "2.4"
+
+[dev-dependencies]
+tauri = { version = "2.11", features = ["test"] }
