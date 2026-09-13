@@ -49,6 +49,8 @@ if (process.argv.includes('--if-needed')) {
 }
 
 await build({
+  // esbuild captures the working directory when it is imported, before the chdir above.
+  absWorkingDir: projectRoot,
   entryPoints: ['./sidecar/src/index.ts'],
   outfile: bundlePath,
   bundle: true,
