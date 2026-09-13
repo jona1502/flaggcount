@@ -38,10 +38,7 @@ export function Dashboard({
           <span className="app-mark" aria-hidden="true">
             🚩
           </span>
-          <div>
-            <h1>FlagCount</h1>
-            <p>Live-Voting auf einen Blick</p>
-          </div>
+          <h1>FlagCount</h1>
         </div>
         {(version || updater || onLogout) && (
           <div className="header-tools">
