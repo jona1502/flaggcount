@@ -84,9 +84,6 @@ export function LandingPage(): React.JSX.Element {
           </div>
 
           <figure className="preview" aria-label="Beispiel: 37 von 50 Stimmen">
-            <p className="preview-label">
-              <span className="live-badge">LIVE</span> Runde läuft
-            </p>
             <p className="preview-count">
               <strong>37</strong>
               <span>von 50 Stimmen</span>
@@ -96,13 +93,13 @@ export function LandingPage(): React.JSX.Element {
             </div>
             <ul className="preview-chat" aria-hidden="true">
               <li>
-                <span className="who">@lena.live</span> 🚩🚩🚩 <span className="counted">+1</span>
+                <span className="who">@sophie.mueller</span> 🚩🚩🚩 <span className="counted">+1</span>
               </li>
               <li>
-                <span className="who">@maxi</span> 🚩 <span className="counted">+1</span>
+                <span className="who">@leon_k</span> 🚩 <span className="counted">+1</span>
               </li>
               <li>
-                <span className="who">@lena.live</span> 🚩 <span className="ignored">schon gezählt</span>
+                <span className="who">@sophie.mueller</span> 🚩 <span className="ignored">schon gezählt</span>
               </li>
             </ul>
           </figure>
