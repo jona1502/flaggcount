@@ -1,7 +1,9 @@
 .git
 .github
 node_modules
-src-tauri
+# The landing page bundles the app icon; nothing else from the desktop app is needed.
+src-tauri/*
+!src-tauri/icons
 dist
 dist-web
 server-dist
