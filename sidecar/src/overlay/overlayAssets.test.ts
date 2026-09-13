@@ -92,6 +92,34 @@ describe('overlay page', () => {
     expect(element('overlay').dataset['reached']).toBe('true');
   });
 
+  it('scales the overlay to fill the streaming source', () => {
+    const page = new DOMParser().parseFromString(renderOverlayPage(votes(12, 50)), 'text/html');
+    document.body.innerHTML = page.body.innerHTML;
+    const root = element('overlay');
+    let width = 400;
+    Object.defineProperty(root, 'offsetWidth', { configurable: true, get: () => width });
+    Object.defineProperty(root, 'offsetHeight', { configurable: true, get: () => 200 });
+    vi.stubGlobal('innerWidth', 1000);
+    vi.stubGlobal('innerHeight', 1000);
+    vi.stubGlobal('EventSource', FakeEventSource);
+
+    new Function(OVERLAY_SCRIPT)();
+    expect(root.style.transform).toBe('translate(-50%, -50%) scale(2.3)');
+
+    width = 800;
+    window.dispatchEvent(new Event('resize'));
+    expect(root.style.transform).toBe('translate(-50%, -50%) scale(1.15)');
+  });
+
+  it('reserves the width of the target for the count', () => {
+    const source = mountOverlay(votes(3, 1000));
+
+    expect(element('count').style.minWidth).toBe('5ch');
+
+    source.emitVotes(votes(4, 50));
+    expect(element('count').style.minWidth).toBe('2ch');
+  });
+
   it('dims the overlay while the stream is disconnected', () => {
     const source = mountOverlay(votes(1, 4));
 

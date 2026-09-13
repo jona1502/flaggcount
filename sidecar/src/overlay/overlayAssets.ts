@@ -47,6 +47,8 @@ export function renderOverlayPage(
 
 export const OVERLAY_CSS = `html,
 body {
+  width: 100%;
+  height: 100%;
   margin: 0;
   overflow: hidden;
   background: transparent;
@@ -57,47 +59,66 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+/* Streaming tools render the source at their own size; the script scales the overlay to fill it. */
 .overlay {
-  display: inline-flex;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 320px;
-  padding: 16px 24px;
-  border-radius: 16px;
-  background: rgba(15, 15, 20, 0.72);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  gap: 20px;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 440px;
+  padding: 28px 40px 34px;
+  border-radius: 32px;
+  background: rgba(12, 12, 16, 0.8);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
+  transform: translate(-50%, -50%);
+  transform-origin: center;
   transition: opacity 0.3s ease;
 }
 
 .overlay[data-background='false'] {
   background: transparent;
+  box-shadow: none;
 }
 
 .headline {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  font-size: 56px;
+  justify-content: center;
+  gap: 16px;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .flag {
-  font-size: 44px;
+  align-self: center;
+  font-size: 80px;
+}
+
+.count {
+  font-size: 128px;
+  letter-spacing: -0.03em;
+  text-align: right;
 }
 
 .separator,
 .target {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 36px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 72px;
+  font-weight: 700;
 }
 
 .bar {
-  height: 14px;
+  height: 24px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .overlay[data-progress='false'] .bar {
@@ -107,12 +128,13 @@ body {
 .bar-fill {
   width: 0;
   height: 100%;
-  background: #e82634;
-  transition: width 0.3s ease;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e82634, #ff4d5a);
+  transition: width 0.4s ease;
 }
 
 .overlay[data-reached='true'] .bar-fill {
-  background: #3ecf8e;
+  background: linear-gradient(90deg, #2fbf7f, #52e0a0);
 }
 
 .overlay[data-connected='false'] {
@@ -126,13 +148,35 @@ export const OVERLAY_SCRIPT = `(function () {
   var count = document.getElementById('count');
   var target = document.getElementById('target');
   var fill = document.getElementById('bar-fill');
+  // Share of the source the overlay may cover, leaving a small margin.
+  var FILL = 0.92;
+
+  // Streaming tools like TikTok LIVE Studio render the page larger than their source frame and
+  // scale it down, so fixed sizes end up tiny. Scale the overlay to fit the page instead.
+  // The overlay is centered by its stylesheet; offsetWidth/offsetHeight ignore the transform.
+  function fit() {
+    var width = root.offsetWidth;
+    var height = root.offsetHeight;
+    if (!width || !height) return;
+    var scale = Math.min((window.innerWidth * FILL) / width, (window.innerHeight * FILL) / height);
+    root.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+  }
 
   function render(votes) {
+    var targetText = format.format(votes.target);
     count.textContent = format.format(votes.count);
-    target.textContent = format.format(votes.target);
+    target.textContent = targetText;
+    // Reserve the target's width, so the size stays put while the count grows during a round.
+    count.style.minWidth = targetText.length + 'ch';
     var percent = votes.target > 0 ? Math.min(100, (votes.count / votes.target) * 100) : 0;
     fill.style.width = percent + '%';
     root.dataset.reached = votes.targetReached ? 'true' : 'false';
+    fit();
+  }
+
+  window.addEventListener('resize', fit);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fit);
   }
 
   render({
@@ -156,6 +200,7 @@ export const OVERLAY_SCRIPT = `(function () {
       var settings = JSON.parse(event.data);
       root.dataset.background = settings.showBackground ? 'true' : 'false';
       root.dataset.progress = settings.showProgress ? 'true' : 'false';
+      fit();
     } catch (error) {
       // Ignore malformed updates and keep the last known settings.
     }
