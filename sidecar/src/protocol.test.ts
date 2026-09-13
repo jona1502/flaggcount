@@ -7,6 +7,7 @@ describe('parseCommand', () => {
     ['{"type":"connect","username":"streamer"}', { type: 'connect', username: 'streamer' }],
     ['{"type":"disconnect"}', { type: 'disconnect' }],
     ['{"type":"addManualVote"}', { type: 'addManualVote' }],
+    ['{"type":"removeManualVote"}', { type: 'removeManualVote' }],
     ['{"type":"reset"}', { type: 'reset' }],
     ['{"type":"setTarget","target":25}', { type: 'setTarget', target: 25 }],
     [

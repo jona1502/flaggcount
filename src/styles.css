@@ -341,7 +341,10 @@ button:focus-visible {
   font-weight: 600;
 }
 
-.manual-vote {
+.manual-vote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 12px;
 }
 

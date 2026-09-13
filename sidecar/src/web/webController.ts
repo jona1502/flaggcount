@@ -104,6 +104,11 @@ export class WebController {
     return null;
   }
 
+  async removeManualVote(): Promise<AppError | null> {
+    await this.app.handleCommand({ type: 'removeManualVote' });
+    return null;
+  }
+
   async resetVotes(): Promise<AppError | null> {
     await this.app.handleCommand({ type: 'reset' });
     return null;

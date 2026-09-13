@@ -146,6 +146,7 @@ export const webApi: FlagCountApi = {
   connect: (username: string) => post('/api/connect', { username }),
   disconnect: () => post('/api/disconnect'),
   addManualVote: () => post('/api/manual-vote'),
+  removeManualVote: () => post('/api/manual-vote/remove'),
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),

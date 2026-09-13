@@ -102,6 +102,17 @@ describe('SidecarApp', () => {
     expect(app.getVotes().count).toBe(2);
   });
 
+  it('subtracts a vote manually and publishes the corrected count', async () => {
+    const { app, ofType } = createApp();
+
+    await app.handleCommand({ type: 'addManualVote' });
+    await app.handleCommand({ type: 'addManualVote' });
+    await app.handleCommand({ type: 'removeManualVote' });
+
+    expect(ofType('votes').map((event) => event.votes.count)).toEqual([1, 2, 1]);
+    expect(app.getVotes().count).toBe(1);
+  });
+
   it('changes the target and rejects invalid targets', async () => {
     const { app, ofType } = createApp();
 

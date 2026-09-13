@@ -10,6 +10,7 @@ fn main() {
             "connect",
             "disconnect",
             "add_manual_vote",
+            "remove_manual_vote",
             "reset_votes",
             "set_target",
             "set_overlay_settings",

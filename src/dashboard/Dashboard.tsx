@@ -83,6 +83,7 @@ export function Dashboard({
             votes={state.votes}
             disabled={!state.sidecarRunning || pending}
             onAddManualVote={() => void actions.addManualVote()}
+            onRemoveManualVote={() => void actions.removeManualVote()}
             onSetTarget={(target) => void actions.setTarget(target)}
             onReset={() => void actions.resetVotes()}
           />

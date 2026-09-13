@@ -30,6 +30,7 @@ pub enum SidecarCommand {
     Connect { username: String },
     Disconnect,
     AddManualVote,
+    RemoveManualVote,
     Reset,
     SetTarget { target: u32 },
     SetOverlaySettings { overlay: OverlaySettings },
@@ -533,6 +534,7 @@ mod tests {
             ),
             (SidecarCommand::Disconnect, json!({ "type": "disconnect" })),
             (SidecarCommand::AddManualVote, json!({ "type": "addManualVote" })),
+            (SidecarCommand::RemoveManualVote, json!({ "type": "removeManualVote" })),
             (SidecarCommand::Reset, json!({ "type": "reset" })),
             (
                 SidecarCommand::SetTarget { target: 25 },

@@ -7,6 +7,7 @@ export const MAX_TARGET = 100_000;
 export type VoteState = {
   voters: Set<string>;
   manualVotes: number;
+  manualWithdrawals: number;
   count: number;
   target: number;
   roundId: string;
@@ -47,7 +48,14 @@ export class VotingService {
     assertValidTarget(target);
 
     this.createRoundId = options.createRoundId ?? createRandomRoundId;
-    this.state = { voters: new Set(), manualVotes: 0, count: 0, target, roundId: this.createRoundId() };
+    this.state = {
+      voters: new Set(),
+      manualVotes: 0,
+      manualWithdrawals: 0,
+      count: 0,
+      target,
+      roundId: this.createRoundId()
+    };
   }
 
   handleComment(userId: string, comment: string): VoteResult {
@@ -67,7 +75,12 @@ export class VotingService {
       if (!this.state.voters.delete(voter)) {
         return 'not-voted';
       }
-      this.state.count = this.state.voters.size + this.state.manualVotes;
+      // If the operator already corrected the visible total, let this real withdrawal
+      // absorb one correction so later votes still increase the count normally.
+      if (this.state.manualWithdrawals > 0) {
+        this.state.manualWithdrawals--;
+      }
+      this.updateCount();
       this.notify();
       return 'withdrawn';
     }
@@ -77,7 +90,7 @@ export class VotingService {
     }
 
     this.state.voters.add(voter);
-    this.state.count = this.state.voters.size + this.state.manualVotes;
+    this.updateCount();
     this.notify();
     return 'counted';
   }
@@ -85,7 +98,18 @@ export class VotingService {
   /** Adds one operator-entered vote without affecting TikTok's per-viewer deduplication. */
   addManualVote(): VoteSnapshot {
     this.state.manualVotes++;
-    this.state.count = this.state.voters.size + this.state.manualVotes;
+    this.updateCount();
+    this.notify();
+    return this.getSnapshot();
+  }
+
+  /** Subtracts one operator-entered correction without changing which viewers have voted. */
+  removeManualVote(): VoteSnapshot {
+    if (this.state.count === 0) {
+      return this.getSnapshot();
+    }
+    this.state.manualWithdrawals++;
+    this.updateCount();
     this.notify();
     return this.getSnapshot();
   }
@@ -94,6 +118,7 @@ export class VotingService {
   reset(): VoteSnapshot {
     this.state.voters.clear();
     this.state.manualVotes = 0;
+    this.state.manualWithdrawals = 0;
     this.state.count = 0;
     this.state.roundId = this.createRoundId();
     this.notify();
@@ -130,6 +155,10 @@ export class VotingService {
     for (const listener of this.listeners) {
       listener(snapshot);
     }
+  }
+
+  private updateCount(): void {
+    this.state.count = Math.max(0, this.state.voters.size + this.state.manualVotes - this.state.manualWithdrawals);
   }
 }
 

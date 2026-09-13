@@ -25,6 +25,7 @@ export type SidecarCommand =
   | { type: 'connect'; username: string }
   | { type: 'disconnect' }
   | { type: 'addManualVote' }
+  | { type: 'removeManualVote' }
   | { type: 'reset' }
   | { type: 'setTarget'; target: number }
   | { type: 'setOverlaySettings'; overlay: OverlaySettings }
@@ -67,6 +68,7 @@ export function parseCommand(line: string): SidecarCommand | null {
     }
     case 'disconnect':
     case 'addManualVote':
+    case 'removeManualVote':
     case 'reset':
     case 'getState':
       return { type: record['type'] };

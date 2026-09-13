@@ -104,6 +104,41 @@ describe('VotingService', () => {
     expect(service.reset().count).toBe(0);
   });
 
+  it('subtracts operator corrections without changing viewer voting eligibility', () => {
+    const service = createService();
+    const listener = vi.fn();
+    service.subscribe(listener);
+
+    service.handleComment('user-1', '🚩');
+    service.addManualVote();
+    expect(service.removeManualVote().count).toBe(1);
+    expect(service.removeManualVote().count).toBe(0);
+    expect(service.hasVoted('user-1')).toBe(true);
+    expect(service.handleComment('user-1', '🚩')).toBe('duplicate');
+    expect(service.removeManualVote().count).toBe(0);
+    expect(listener).toHaveBeenCalledTimes(4);
+  });
+
+  it('clears manual subtractions on reset', () => {
+    const service = createService();
+    service.addManualVote();
+    service.removeManualVote();
+    service.reset();
+
+    expect(service.handleComment('user-1', '🚩')).toBe('counted');
+    expect(service.getSnapshot().count).toBe(1);
+  });
+
+  it('absorbs a manual subtraction when that viewer later withdraws normally', () => {
+    const service = createService();
+    service.handleComment('user-1', '🚩');
+    service.removeManualVote();
+
+    expect(service.handleComment('user-1', '🏳️')).toBe('withdrawn');
+    expect(service.handleComment('user-1', '🚩')).toBe('counted');
+    expect(service.getSnapshot().count).toBe(1);
+  });
+
   it('supports changing the target', () => {
     const service = createService({ target: 5 });
 

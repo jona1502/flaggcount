@@ -66,6 +66,11 @@ pub fn add_manual_vote(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 }
 
 #[tauri::command]
+pub fn remove_manual_vote(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::RemoveManualVote)
+}
+
+#[tauri::command]
 pub fn reset_votes(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::Reset)
 }

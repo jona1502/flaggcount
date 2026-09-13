@@ -32,6 +32,7 @@ export type WebBackend = OverlaySource & {
   connect: (username: unknown) => CommandResult;
   disconnect: () => CommandResult;
   addManualVote: () => CommandResult;
+  removeManualVote: () => CommandResult;
   resetVotes: () => CommandResult;
   setTarget: (target: unknown) => CommandResult;
   setOverlaySettings: (overlay: unknown) => CommandResult;
@@ -249,6 +250,7 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     ['/api/connect', (body) => backend.connect(field(body, 'username'))],
     ['/api/disconnect', () => backend.disconnect()],
     ['/api/manual-vote', () => backend.addManualVote()],
+    ['/api/manual-vote/remove', () => backend.removeManualVote()],
     ['/api/reset', () => backend.resetVotes()],
     ['/api/target', (body) => backend.setTarget(field(body, 'target'))],
     ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))]

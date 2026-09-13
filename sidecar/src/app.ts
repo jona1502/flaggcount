@@ -73,6 +73,9 @@ export class SidecarApp {
       case 'addManualVote':
         this.voting.addManualVote();
         break;
+      case 'removeManualVote':
+        this.voting.removeManualVote();
+        break;
       case 'reset':
         this.voting.reset();
         break;

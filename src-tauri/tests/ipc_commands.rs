@@ -174,6 +174,7 @@ fn reports_an_unavailable_sidecar_for_stream_actions() {
         ("connect", json!({ "username": "streamer" })),
         ("disconnect", json!({})),
         ("add_manual_vote", json!({})),
+        ("remove_manual_vote", json!({})),
         ("reset_votes", json!({})),
     ] {
         assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");

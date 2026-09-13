@@ -13,6 +13,7 @@
     "allow-connect",
     "allow-disconnect",
     "allow-add-manual-vote",
+    "allow-remove-manual-vote",
     "allow-reset-votes",
     "allow-set-target",
     "allow-set-overlay-settings"

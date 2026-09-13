@@ -290,10 +290,11 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/target', post({ target: 25 }, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/connect', post({ username: '@Streamer' }, { cookie }))).status).toBe(204);
     expect((await send(server.port, '/api/manual-vote', post({}, { cookie }))).status).toBe(204);
+    expect((await send(server.port, '/api/manual-vote/remove', post({}, { cookie }))).status).toBe(204);
 
     const state = JSON.parse((await send(server.port, '/api/state', { headers: { cookie } })).body);
     expect(state.votes.target).toBe(25);
-    expect(state.votes.count).toBe(1);
+    expect(state.votes.count).toBe(0);
     expect(state.settings).toMatchObject({ username: 'streamer', target: 25 });
     expect(saved.at(-1)).toMatchObject({ username: 'streamer', target: 25 });
   });

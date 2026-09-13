@@ -9,11 +9,19 @@ type VotesPanelProps = {
   votes: VoteSnapshot;
   disabled: boolean;
   onAddManualVote: () => void;
+  onRemoveManualVote: () => void;
   onSetTarget: (target: number) => void;
   onReset: () => void;
 };
 
-export function VotesPanel({ votes, disabled, onAddManualVote, onSetTarget, onReset }: VotesPanelProps): React.JSX.Element {
+export function VotesPanel({
+  votes,
+  disabled,
+  onAddManualVote,
+  onRemoveManualVote,
+  onSetTarget,
+  onReset
+}: VotesPanelProps): React.JSX.Element {
   const [draft, setDraft] = useState(String(votes.target));
   const [validation, setValidation] = useState<string | null>(null);
 
@@ -58,9 +66,19 @@ export function VotesPanel({ votes, disabled, onAddManualVote, onSetTarget, onRe
       </div>
       {votes.targetReached && <p className="target-reached">Ziel erreicht!</p>}
 
-      <button type="button" className="button primary manual-vote" disabled={disabled} onClick={onAddManualVote}>
-        <span aria-hidden="true">🚩</span> Flagge manuell hinzufügen
-      </button>
+      <div className="manual-vote-actions">
+        <button type="button" className="button primary" disabled={disabled} onClick={onAddManualVote}>
+          <span aria-hidden="true">🚩</span> Flagge hinzufügen
+        </button>
+        <button
+          type="button"
+          className="button secondary"
+          disabled={disabled || votes.count === 0}
+          onClick={onRemoveManualVote}
+        >
+          <span aria-hidden="true">🏳️</span> Flagge abziehen
+        </button>
+      </div>
       <p className="chat-vote-hint">
         Im Chat: <span aria-hidden="true">🚩</span> Stimme abgeben · <span aria-hidden="true">🏳️</span> Stimme zurücknehmen
       </p>
