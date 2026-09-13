@@ -24,3 +24,6 @@ tauri-plugin-store = "2.4"
 
 [dev-dependencies]
 tauri = { version = "2.11", features = ["test"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

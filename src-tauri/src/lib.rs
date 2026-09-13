@@ -25,6 +25,7 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
 
 pub fn run() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Logs go to stdout and to a file in the app's log directory. Only sanitized
         // messages are logged: no usernames, chat content, paths or session tokens.
         .plugin(

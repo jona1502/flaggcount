@@ -8,6 +8,7 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "clipboard-manager:allow-write-text",
+    "updater:default",
     "allow-get-state",
     "allow-connect",
     "allow-disconnect",
