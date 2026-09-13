@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
-import { effectiveProfile, entitlementsFor } from '../../shared/entitlements';
+import { canUse, effectiveProfile, entitlementsFor, limitFor } from '../../shared/entitlements';
 import { primaryCounter } from '../../shared/profiles';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { LicensePanel } from '../pro/LicensePanel';
@@ -84,7 +84,8 @@ export function Dashboard({
       );
     }
     // The profile that actually runs: after a downgrade that is the first one, not the chosen one.
-    const running = effectiveProfile(appState.settings, entitlementsFor(appState.license.plan, appState.license.features));
+    const entitlements = entitlementsFor(appState.license.plan, appState.license.features);
+    const running = effectiveProfile(appState.settings, entitlements);
 
     if (current === 'profiles') {
       return (
@@ -153,6 +154,12 @@ export function Dashboard({
           disabled={pending}
           onCopy={onCopyText}
           onChangeSettings={(overlay) => void actions.setOverlaySettings(overlay)}
+          counterOverlays={{
+            counters: appState.counters.map(({ counterId, name }) => ({ counterId, name })),
+            onlineUrls: appState.counterOverlayUrls ?? {},
+            allowedCounters: limitFor(entitlements, 'overlayUrls'),
+            overviewAllowed: canUse(entitlements, 'parallel-counters')
+          }}
         />
         <PrivacyPanel
           enabled={appState.settings.telemetryEnabled === true}

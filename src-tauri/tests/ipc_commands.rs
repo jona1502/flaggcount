@@ -80,6 +80,7 @@ fn returns_the_initial_state() {
             "counters": [],
             "overlayUrl": null,
             "publicOverlayUrl": null,
+            "counterOverlayUrls": {},
             "settings": serde_json::to_value(Settings::default()).unwrap(),
             "license": serde_json::to_value(LicenseState::default()).unwrap()
         })

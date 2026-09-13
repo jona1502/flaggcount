@@ -53,6 +53,7 @@ export class WebController {
       overlayUrl: null,
       // The web version's own /overlay is already public.
       publicOverlayUrl: null,
+      counterOverlayUrls: {},
       settings: structuredClone(this.settings),
       // Pro is managed in the desktop app only.
       license: FREE_LICENSE_STATE

@@ -71,6 +71,6 @@ describe('serializeEvent', () => {
   it('writes exactly one JSON line', () => {
     expect(
       serializeEvent({ type: 'ready', protocolVersion: PROTOCOL_VERSION, port: 1234, token: 'abc', publicOverlayUrl: null })
-    ).toBe('{"type":"ready","protocolVersion":3,"port":1234,"token":"abc","publicOverlayUrl":null}\n');
+    ).toBe('{"type":"ready","protocolVersion":4,"port":1234,"token":"abc","publicOverlayUrl":null}\n');
   });
 });

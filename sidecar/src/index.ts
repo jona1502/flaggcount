@@ -5,6 +5,7 @@ import { licensePublicKeys } from './license/publicKeys';
 import { createEntitlementVerifier } from './license/signature';
 import { describeError } from './logging';
 import { PROTOCOL_VERSION, parseCommand, serializeEvent, type LogLevel, type SidecarEvent } from './protocol';
+import { startBoardRelays, type BoardRelays } from './relay/boardRelay';
 import { startOverlayRelay, type OverlayRelay } from './relay/overlayRelay';
 import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
@@ -37,7 +38,9 @@ process.on('unhandledRejection', (reason) => log('error', `Unhandled promise rej
  * Mirrors the overlay to the FlagCount server, so streaming tools that cannot open local
  * addresses (e.g. TikTok LIVE Studio) get a public URL. Tauri passes the data directory.
  */
-async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
+type RunningRelays = { classic: OverlayRelay; boards: BoardRelays; stop(): void };
+
+async function startRelay(app: SidecarApp): Promise<RunningRelays | null> {
   const dataDir = process.env['FLAGCOUNT_DATA_DIR'];
   if (!dataDir) {
     return null;
@@ -49,8 +52,9 @@ async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
     log('warn', `Online overlay unavailable: the relay key could not be loaded (${describeError(error)})`);
     return null;
   }
-  return startOverlayRelay({
-    baseUrl: process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL,
+  const baseUrl = process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL;
+  const classic = startOverlayRelay({
+    baseUrl,
     key,
     source: {
       getVotes: () => app.getVotes(),
@@ -60,6 +64,22 @@ async function startRelay(app: SidecarApp): Promise<OverlayRelay | null> {
     },
     log
   });
+  const boards = startBoardRelays({
+    baseUrl,
+    masterKey: key,
+    source: app,
+    entitlement: () => app.getSignedEntitlement(),
+    onUrls: (urls) => send({ type: 'overlayUrls', urls }),
+    log
+  });
+  return {
+    classic,
+    boards,
+    stop: () => {
+      classic.stop();
+      boards.stop();
+    }
+  };
 }
 
 async function main(): Promise<void> {
@@ -90,6 +110,8 @@ async function main(): Promise<void> {
       subscribeVotes: (listener) => app.subscribeVotes(listener),
       getOverlaySettings: () => app.getOverlaySettings(),
       subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
+      getBoard: (scope) => app.getBoard(scope),
+      subscribeBoard: (listener) => app.subscribeBoard(listener),
       onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' })
     },
     DEFAULT_OVERLAY_PORT
@@ -118,7 +140,13 @@ async function main(): Promise<void> {
     void Promise.allSettled([app.shutdown(), server.close()]).finally(() => process.exit(0));
   });
 
-  send({ type: 'ready', protocolVersion: PROTOCOL_VERSION, port: server.port, token, publicOverlayUrl: relay?.publicUrl ?? null });
+  send({
+    type: 'ready',
+    protocolVersion: PROTOCOL_VERSION,
+    port: server.port,
+    token,
+    publicOverlayUrl: relay?.classic.publicUrl ?? null
+  });
   await app.handleCommand({ type: 'getState' });
 }
 

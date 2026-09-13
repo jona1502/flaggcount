@@ -1,0 +1,312 @@
+import type { CounterView } from '../../../shared/overlayBoard';
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const HEAD = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlagCount Overlay</title>
+<link rel="stylesheet" href="/overlay/board.css">`;
+
+/**
+ * Overlay for one counter or all running counters. The initial state travels as JSON in a data
+ * attribute, because the CSP forbids inline scripts; the script only ever writes it as text.
+ */
+export function renderBoardPage(counters: CounterView[], options: { eventsUrl: string; scope: string }): string {
+  return `<!doctype html>
+<html lang="de">
+<head>
+${HEAD}
+<script src="/overlay/board.js" defer></script>
+</head>
+<body>
+<div class="board" id="board" data-scope="${escapeAttribute(options.scope)}" data-events="${escapeAttribute(options.eventsUrl)}" data-initial="${escapeAttribute(JSON.stringify({ counters }))}" data-connected="true"></div>
+</body>
+</html>
+`;
+}
+
+/** A calm page instead of a broken overlay, e.g. when the overlay needs FlagCount Pro. */
+export function renderOverlayNotice(message: string): string {
+  return `<!doctype html>
+<html lang="de">
+<head>
+${HEAD}
+</head>
+<body>
+<p class="notice">${escapeAttribute(message)}</p>
+</body>
+</html>
+`;
+}
+
+export const BOARD_CSS = `html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: max-content;
+  min-width: 420px;
+  transform-origin: 0 0;
+  transition: opacity 0.3s ease;
+}
+
+.board[data-connected='false'] {
+  opacity: 0.5;
+}
+
+.card {
+  box-sizing: border-box;
+  padding: 22px 32px 28px;
+  border-radius: 28px;
+  color: var(--text, #ffffff);
+  background: var(--panel, rgba(12, 12, 16, 0.8));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
+}
+
+.card[data-background='false'] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.card-title {
+  margin: 0 0 12px;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.card-total {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.card-count {
+  font-size: 104px;
+  letter-spacing: -0.03em;
+}
+
+.card-target {
+  font-size: 58px;
+  opacity: 0.7;
+}
+
+.bar {
+  height: 20px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bar-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--accent, #e82634);
+  transition: width 0.4s ease;
+}
+
+.card[data-reached='true'] .card-total + .bar .bar-fill {
+  background-color: #2fbf7f;
+}
+
+.card[data-progress='false'] .bar {
+  display: none;
+}
+
+.options {
+  display: grid;
+  gap: 16px;
+  min-width: 560px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+  font-size: 36px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.option-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.option .bar {
+  display: block;
+  height: 18px;
+  margin-top: 8px;
+}
+
+.notice {
+  display: inline-block;
+  margin: 24px;
+  padding: 16px 22px;
+  border-radius: 14px;
+  color: #ffffff;
+  background: rgba(12, 12, 16, 0.85);
+  font-size: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board,
+  .bar-fill {
+    transition: none;
+  }
+}
+`;
+
+export const BOARD_SCRIPT = `(function () {
+  var format = new Intl.NumberFormat('de-DE');
+  var root = document.getElementById('board');
+  var HEX_COLOR = /^#[0-9a-f]{6}$/i;
+  var EDGE_GAP = 0.04;
+  var size = 0.92;
+  var position = 'center';
+
+  function rgba(hex, alpha) {
+    var value = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((value >> 16) & 255) + ', ' + ((value >> 8) & 255) + ', ' + (value & 255) + ', ' + alpha + ')';
+  }
+
+  // Every text from the app is written with textContent, never as HTML.
+  function element(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function fit() {
+    var width = root.offsetWidth;
+    var height = root.offsetHeight;
+    if (!width || !height) return;
+    var viewWidth = window.innerWidth;
+    var viewHeight = window.innerHeight;
+    var scale = Math.min((viewWidth * size) / width, (viewHeight * size) / height);
+    var scaledHeight = height * scale;
+    var gap = viewHeight * EDGE_GAP;
+    var y = (viewHeight - scaledHeight) / 2;
+    if (position === 'top') y = gap;
+    if (position === 'bottom') y = viewHeight - scaledHeight - gap;
+    y = Math.max(0, Math.min(y, viewHeight - scaledHeight));
+    var x = (viewWidth - width * scale) / 2;
+    root.style.transform = 'translate(' + Math.round(x * 100) / 100 + 'px, ' + Math.round(y * 100) / 100 + 'px) scale(' + scale + ')';
+  }
+
+  function applyDesign(card, overlay) {
+    if (!overlay) return;
+    card.setAttribute('data-background', overlay.showBackground ? 'true' : 'false');
+    card.setAttribute('data-progress', overlay.showProgress ? 'true' : 'false');
+    if (HEX_COLOR.test(overlay.accentColor)) card.style.setProperty('--accent', overlay.accentColor);
+    if (HEX_COLOR.test(overlay.textColor)) card.style.setProperty('--text', overlay.textColor);
+    var opacity = Number(overlay.backgroundOpacity);
+    if (HEX_COLOR.test(overlay.backgroundColor) && opacity >= 0 && opacity <= 100) {
+      card.style.setProperty('--panel', rgba(overlay.backgroundColor, opacity / 100));
+    }
+  }
+
+  function bar(percent, color) {
+    var track = element('div', 'bar');
+    var fill = element('div', 'bar-fill');
+    fill.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    if (color && HEX_COLOR.test(color)) fill.style.backgroundColor = color;
+    track.appendChild(fill);
+    return track;
+  }
+
+  function renderCounter(view) {
+    var card = element('section', 'card');
+    applyDesign(card, view.overlay);
+    card.setAttribute('data-reached', view.targetReached ? 'true' : 'false');
+    card.appendChild(element('h1', 'card-title', String(view.name)));
+
+    if (view.mode === 'poll') {
+      var list = element('ul', 'options');
+      var total = Number(view.totalCount) || 0;
+      (view.options || []).forEach(function (option) {
+        var share = total > 0 ? option.count / total : 0;
+        var item = element('li', 'option');
+        var head = element('div', 'option-head');
+        head.appendChild(element('span', 'option-label', String(option.label)));
+        head.appendChild(element('span', 'option-count', format.format(option.count) + ' · ' + Math.round(share * 100) + ' %'));
+        item.appendChild(head);
+        item.appendChild(bar(share * 100, option.color));
+        list.appendChild(item);
+      });
+      card.appendChild(list);
+      return card;
+    }
+
+    var totalRow = element('div', 'card-total');
+    totalRow.appendChild(element('span', 'card-count', format.format(view.totalCount)));
+    if (view.target) totalRow.appendChild(element('span', 'card-target', '/ ' + format.format(view.target)));
+    card.appendChild(totalRow);
+    if (view.target) card.appendChild(bar((view.totalCount / view.target) * 100));
+    return card;
+  }
+
+  function render(counters) {
+    root.textContent = '';
+    if (!counters || !counters.length) return;
+    var design = counters[0].overlay;
+    if (design) {
+      if (design.position === 'top' || design.position === 'center' || design.position === 'bottom') position = design.position;
+      var percent = Number(design.size);
+      if (percent >= 20 && percent <= 100) size = percent / 100;
+    }
+    counters.forEach(function (view) {
+      root.appendChild(renderCounter(view));
+    });
+    fit();
+  }
+
+  window.addEventListener('resize', fit);
+  try {
+    render(JSON.parse(root.getAttribute('data-initial') || '{}').counters);
+  } catch (error) {
+    // Start empty and wait for the event stream.
+  }
+
+  var source = new EventSource(root.getAttribute('data-events'));
+  source.addEventListener('board', function (event) {
+    try {
+      render(JSON.parse(event.data).counters);
+      root.setAttribute('data-connected', 'true');
+    } catch (error) {
+      // Ignore malformed updates and keep the last known state.
+    }
+  });
+  source.addEventListener('open', function () {
+    root.setAttribute('data-connected', 'true');
+  });
+  source.addEventListener('error', function () {
+    root.setAttribute('data-connected', 'false');
+  });
+})();
+`;

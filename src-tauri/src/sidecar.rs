@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -16,7 +17,7 @@ use crate::profiles::effective_profile;
 use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -184,6 +185,8 @@ pub struct AppState {
     pub overlay_url: Option<String>,
     /// Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio.
     pub public_overlay_url: Option<String>,
+    /// Online Pro overlays keyed by counter id and `all` for the overview.
+    pub counter_overlay_urls: BTreeMap<String, String>,
     pub settings: Settings,
     /// Plan and license status; never the activation code or secret.
     pub license: LicenseState,
@@ -217,6 +220,7 @@ pub enum SidecarEvent {
     Status { connection: ConnectionState },
     Votes { votes: VoteSnapshot },
     Counters { counters: Vec<CounterSnapshot> },
+    OverlayUrls { urls: BTreeMap<String, String> },
     License { license: LicenseState },
     /// Credentials and entitlement to store on this computer; `None` removes them.
     LicenseCredentials {
@@ -275,6 +279,21 @@ pub fn apply_event(
         }
         SidecarEvent::Counters { counters } => {
             state.counters = counters;
+            StateUpdate::State
+        }
+        SidecarEvent::OverlayUrls { urls } => {
+            state.counter_overlay_urls = urls
+                .into_iter()
+                .filter(|(scope, url)| {
+                    !scope.is_empty()
+                        && scope.len() <= 64
+                        && scope
+                            .bytes()
+                            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+                        && url.starts_with("https://")
+                })
+                .take(5)
+                .collect();
             StateUpdate::State
         }
         SidecarEvent::License { license } => {
@@ -608,6 +627,7 @@ impl Sidecar {
             inner.state.sidecar_running = false;
             inner.state.overlay_url = None;
             inner.state.public_overlay_url = None;
+            inner.state.counter_overlay_urls.clear();
             inner.state.connection.status = ConnectionStatus::Disconnected;
             inner.state.connection.reconnect = None;
             if inner.stopping {
@@ -890,6 +910,31 @@ mod tests {
     }
 
     #[test]
+    fn sanitizes_pro_counter_overlay_urls() {
+        let mut state = AppState::default();
+        let mut session = None;
+
+        let update = apply_event(
+            &mut state,
+            &mut session,
+            parse(
+                r#"{"type":"overlayUrls","urls":{"counter-1":"https://overlay.example/ob/one","all":"https://overlay.example/ob/all","bad scope":"https://overlay.example/ob/bad","counter-2":"http://overlay.example/ob/two"}}"#,
+            ),
+        );
+
+        assert!(matches!(update, StateUpdate::State));
+        assert_eq!(state.counter_overlay_urls.len(), 2);
+        assert_eq!(
+            state.counter_overlay_urls.get("counter-1").map(String::as_str),
+            Some("https://overlay.example/ob/one")
+        );
+        assert_eq!(
+            state.counter_overlay_urls.get("all").map(String::as_str),
+            Some("https://overlay.example/ob/all")
+        );
+    }
+
+    #[test]
     fn applies_status_and_vote_updates() {
         let mut state = AppState::default();
         let mut session = None;
@@ -1049,6 +1094,7 @@ mod tests {
                 "counters": [],
                 "overlayUrl": null,
                 "publicOverlayUrl": null,
+                "counterOverlayUrls": {},
                 "settings": serde_json::to_value(Settings::default()).unwrap(),
                 "license": serde_json::to_value(LicenseState::default()).unwrap()
             })

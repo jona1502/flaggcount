@@ -88,6 +88,11 @@ export class LicenseManager {
     return this.evaluate().entitlements;
   }
 
+  /** The verified entitlement while Pro is active, e.g. to prove Pro to the online overlay relay. */
+  getSignedEntitlement(): SignedEntitlement | null {
+    return this.evaluate().info.plan === 'pro' ? this.entitlement : null;
+  }
+
   async configure(configuration: LicenseConfiguration): Promise<void> {
     this.installationId = configuration.installationId;
     this.credentials = configuration.credentials;

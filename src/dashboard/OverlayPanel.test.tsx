@@ -105,6 +105,48 @@ describe('OverlayPanel', () => {
     expect(screen.queryByTitle('Vorschau des Overlays')).toBeNull();
   });
 
+  it('shows and copies local and online URLs for each Pro counter and the overview', async () => {
+    const onlineCounter = 'https://overlay.example/ob/counter';
+    const onlineOverview = 'https://overlay.example/ob/all';
+    const { onCopy } = renderPanel({
+      counterOverlays: {
+        counters: [
+          { counterId: 'red', name: 'Rote Flaggen' },
+          { counterId: 'poll', name: 'Abstimmung' }
+        ],
+        onlineUrls: { red: onlineCounter, all: onlineOverview },
+        allowedCounters: 4,
+        overviewAllowed: true
+      }
+    });
+
+    expect((screen.getByLabelText('Lokale URL für Rote Flaggen') as HTMLInputElement).value).toBe(`${OVERLAY_URL}/counter/red`);
+    expect((screen.getByLabelText('Online-URL für Rote Flaggen') as HTMLInputElement).value).toBe(onlineCounter);
+    expect((screen.getByLabelText('Lokale URL der Übersicht') as HTMLInputElement).value).toBe(`${OVERLAY_URL}/all`);
+    expect((screen.getByLabelText('Online-URL der Übersicht') as HTMLInputElement).value).toBe(onlineOverview);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Online-URL für Rote Flaggen kopieren' }));
+    expect(onCopy).toHaveBeenCalledWith(onlineCounter);
+  });
+
+  it('marks additional counter overlays as Pro on the Free plan', () => {
+    renderPanel({
+      counterOverlays: {
+        counters: [
+          { counterId: 'red', name: 'Rote Flaggen' },
+          { counterId: 'poll', name: 'Abstimmung' }
+        ],
+        onlineUrls: {},
+        allowedCounters: 1,
+        overviewAllowed: false
+      }
+    });
+
+    expect(screen.getByLabelText('Lokale URL für Rote Flaggen')).toBeTruthy();
+    expect(screen.queryByLabelText('Lokale URL für Abstimmung')).toBeNull();
+    expect(screen.getByText(/Mit FlagCount Pro bekommt jeder Zähler/)).toBeTruthy();
+  });
+
   it('shows the saved display settings', () => {
     renderPanel({ settings: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
 

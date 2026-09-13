@@ -1,9 +1,17 @@
+import type { CounterView } from '../../../shared/overlayBoard';
 import type { OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 
+/** The classic overlay of one desktop app. */
 export type RelayUpdate = {
   votes: VoteSnapshot;
   overlay: OverlaySettings;
+};
+
+/** A Pro overlay for one counter or the overview of all running counters. */
+export type BoardRelayUpdate = {
+  scope: string;
+  counters: CounterView[];
 };
 
 export type PublishResult = 'ok' | 'rate-limited' | 'full';
@@ -18,19 +26,19 @@ export type RelayChannelsOptions = {
   now?: () => number;
 };
 
-type Channel = {
-  update: RelayUpdate;
+type Channel<Update> = {
+  update: Update;
   updatedAt: number;
   windowStart: number;
   publishes: number;
 };
 
-type Listener = (update: RelayUpdate) => void;
+type Listener<Update> = (update: Update) => void;
 
 /** In-memory latest state per desktop app; the apps resend it regularly after a server restart. */
-export class RelayChannels {
-  private readonly channels = new Map<string, Channel>();
-  private readonly listeners = new Map<string, Set<Listener>>();
+export class RelayChannels<Update = RelayUpdate> {
+  private readonly channels = new Map<string, Channel<Update>>();
+  private readonly listeners = new Map<string, Set<Listener<Update>>>();
   private subscribers = 0;
   private readonly maxChannels: number;
   private readonly maxSubscribers: number;
@@ -48,7 +56,7 @@ export class RelayChannels {
     this.now = options.now ?? Date.now;
   }
 
-  publish(channelId: string, update: RelayUpdate): PublishResult {
+  publish(channelId: string, update: Update): PublishResult {
     const now = this.now();
     let channel = this.channels.get(channelId);
     if (!channel) {
@@ -76,12 +84,12 @@ export class RelayChannels {
     return 'ok';
   }
 
-  get(channelId: string): RelayUpdate | null {
+  get(channelId: string): Update | null {
     return this.channels.get(channelId)?.update ?? null;
   }
 
   /** Returns the unsubscribe function, or `null` while the server is at its viewer limit. */
-  subscribe(channelId: string, listener: Listener): (() => void) | null {
+  subscribe(channelId: string, listener: Listener<Update>): (() => void) | null {
     if (this.subscribers >= this.maxSubscribers) {
       return null;
     }

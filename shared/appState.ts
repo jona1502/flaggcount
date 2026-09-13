@@ -52,6 +52,8 @@ export type AppState = {
   overlayUrl: string | null;
   /** Online overlay mirrored through the FlagCount server, e.g. for TikTok LIVE Studio; `null` while unavailable. */
   publicOverlayUrl: string | null;
+  /** Online URL per counter id and `all` for the combined Pro overview. */
+  counterOverlayUrls?: Record<string, string>;
   settings: Settings;
   /** Plan and license status; never the activation code or secret. */
   license: LicenseState;

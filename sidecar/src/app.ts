@@ -1,6 +1,7 @@
 import type { ConnectionState } from '../../shared/appState';
-import { FREE_ENTITLEMENTS, checkCounters, effectiveCounters, type Entitlements } from '../../shared/entitlements';
+import { FREE_ENTITLEMENTS, canUse, checkCounters, effectiveCounters, limitFor, type Entitlements } from '../../shared/entitlements';
 import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
+import { OVERVIEW_SCOPE, buildCounterViews, type BoardAccess } from '../../shared/overlayBoard';
 import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
@@ -40,6 +41,7 @@ export class SidecarApp {
   private readonly license: LicenseManager | null;
   private readonly voteListeners = new Set<(votes: VoteSnapshot) => void>();
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
+  private readonly boardListeners = new Set<() => void>();
   private lastVotes: string;
   private readonly onTelemetry: (event: TelemetryEvent) => void;
   private readonly onTelemetryEnabled: (enabled: boolean) => void;
@@ -60,6 +62,7 @@ export class SidecarApp {
     this.engine.subscribe((counters) => {
       send({ type: 'counters', counters });
       this.publishVotesIfChanged();
+      this.notifyBoard();
     });
 
     this.live = new TikTokLiveService(createConnection, {
@@ -134,7 +137,41 @@ export class SidecarApp {
       this.configure(this.requested);
     } else {
       this.send({ type: 'log', level: 'info', message: 'The plan changed; the running counters stay until the next change' });
+      this.notifyBoard();
     }
+  }
+
+  /**
+   * What an overlay for one counter or for the overview may show. Free has one overlay; Pro one per
+   * counter and the overview of all counters.
+   */
+  getBoard(scope: string): BoardAccess {
+    const views = buildCounterViews(this.engine.getSnapshots(), this.definitions);
+    if (scope === OVERVIEW_SCOPE) {
+      return canUse(this.entitlements, 'parallel-counters') ? { status: 'ok', counters: views } : { status: 'pro-required' };
+    }
+    const index = views.findIndex((view) => view.counterId === scope);
+    const view = views[index];
+    if (!view) return { status: 'not-found' };
+    return index < limitFor(this.entitlements, 'overlayUrls') ? { status: 'ok', counters: [view] } : { status: 'pro-required' };
+  }
+
+  /** Every overlay scope the plan allows right now: the running counters and, with Pro, the overview. */
+  getBoardScopes(): string[] {
+    const scopes = this.definitions.map((definition) => definition.id);
+    return [...scopes, OVERVIEW_SCOPE].filter((scope) => this.getBoard(scope).status === 'ok');
+  }
+
+  getSignedEntitlement() {
+    return this.license?.getSignedEntitlement() ?? null;
+  }
+
+  /** Notifies about counts, counters, designs and plan changes, which all change the overlays. */
+  subscribeBoard(listener: () => void): () => void {
+    this.boardListeners.add(listener);
+    return () => {
+      this.boardListeners.delete(listener);
+    };
   }
 
   async handleCommand(command: SidecarCommand): Promise<void> {
@@ -214,6 +251,13 @@ export class SidecarApp {
       for (const listener of this.overlayListeners) {
         listener({ ...overlay });
       }
+    }
+    this.notifyBoard();
+  }
+
+  private notifyBoard(): void {
+    for (const listener of [...this.boardListeners]) {
+      listener();
     }
   }
 

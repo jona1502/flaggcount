@@ -10,7 +10,7 @@ export type ConnectionErrorCode = AppErrorCode;
 export type ConnectionError = AppError;
 
 /** Bumped whenever commands or events change incompatibly; the sidecar reports it on `ready`. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /**
  * Stable, library-independent representation of a TikTok chat comment.
@@ -64,6 +64,8 @@ export type SidecarEvent =
   | { type: 'counters'; counters: CounterSnapshot[] }
   /** License status for the UI: never the code or the secret. */
   | { type: 'license'; license: LicenseState }
+  /** Public Pro overlay URL per counter id and `all`; empty whenever Pro or the relay is unavailable. */
+  | { type: 'overlayUrls'; urls: Record<string, string> }
   /** For Tauri to store: the secret goes to the Windows Credential Manager. `null` removes it. */
   | { type: 'licenseCredentials'; credentials: LicenseCredentials | null; entitlement: SignedEntitlement | null }
   /** A page Tauri opens in the browser after checking that it belongs to FlagCount or Paddle. */

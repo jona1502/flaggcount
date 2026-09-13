@@ -3,17 +3,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
+import { isBoardScope, parseCounterViews } from '../../../shared/overlayBoard';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { parseTelemetryEnvelope, type TelemetryEnvelope } from '../../../shared/analytics';
 import { OVERLAY_CSP, renderOverlayPage } from '../overlay/overlayAssets';
+import { renderBoardPage } from '../overlay/boardAssets';
 import { parseOverlaySettings } from '../protocol';
 import { channelIdForKey, isChannelId, isRelayKey, parseVoteSnapshot, relayOverlayPath } from '../relay/relayChannel';
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
 import type { ReleaseInfo } from './latestRelease';
 import type { LicensingHandler } from './licensing/licensingRoutes';
-import type { RelayChannels } from './relayChannels';
+import type { BoardRelayUpdate, RelayChannels } from './relayChannels';
 import type { WaitlistResult } from './waitlistStore';
 import {
   SESSION_COOKIE,
@@ -53,6 +55,10 @@ export type WebServerOptions = {
   releasesUrl?: string;
   /** Online overlays mirrored from desktop apps, served at `/o/<channel>`. */
   relay?: RelayChannels;
+  /** Pro counter overlays, kept separate from the classic Free overlay channels. */
+  boardRelay?: RelayChannels<BoardRelayUpdate>;
+  /** Validates the signed entitlement supplied by a desktop publisher. */
+  verifyBoardEntitlement?: (value: unknown) => boolean;
   /** Public license and billing API under `/api/v1/`, separate from the dashboard login. */
   licensing?: LicensingHandler;
   host?: string;
@@ -86,6 +92,9 @@ const DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE = 60;
 const DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE = 10;
 const APP_ENTRY = '/web.html';
 const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
+const BOARD_OVERLAY_PATH = /^\/ob\/([^/]+)(\/events)?$/;
+const BOARD_RELAY_PATH = '/api/relay/board/';
+const ENTITLEMENT_HEADER = 'x-flagcount-entitlement';
 /** Shown by an online overlay until its app publishes for the first time. */
 const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
 /** Client-side routes of the web app: the landing page and the dashboard. */
@@ -174,6 +183,15 @@ function bearerToken(header: string | undefined): string | null {
 
 function field(body: unknown, key: string): unknown {
   return typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[key] : undefined;
+}
+
+function decodeHeaderJson(header: string | string[] | undefined): unknown {
+  if (typeof header !== 'string' || header.length > 8192) return null;
+  try {
+    return JSON.parse(Buffer.from(header, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function methodNotAllowed(response: ServerResponse, allow: string): void {
@@ -438,6 +456,57 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     }
   };
 
+  const publishBoardRelay = async (channelId: string, request: IncomingMessage, response: ServerResponse) => {
+    const relay = options.boardRelay;
+    if (!relay || !isChannelId(channelId)) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    if (request.method !== 'PUT') {
+      methodNotAllowed(response, 'PUT');
+      return;
+    }
+    const key = bearerToken(request.headers.authorization);
+    if (!isRelayKey(key) || channelIdForKey(key) !== channelId) {
+      sendJson(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    const entitlement = decodeHeaderJson(request.headers[ENTITLEMENT_HEADER]);
+    if (!options.verifyBoardEntitlement?.(entitlement)) {
+      sendJson(response, 403, { error: 'pro-required' });
+      return;
+    }
+
+    let body: unknown;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid-update' });
+      return;
+    }
+    const scope = field(body, 'scope');
+    const counters = parseCounterViews(field(body, 'counters'));
+    const validScope =
+      isBoardScope(scope) &&
+      counters !== null &&
+      (scope === 'all' || (counters.length <= 1 && counters.every((counter) => counter.counterId === scope)));
+    if (!validScope) {
+      sendJson(response, 400, { error: 'invalid-update' });
+      return;
+    }
+
+    switch (relay.publish(channelId, { scope, counters })) {
+      case 'ok':
+        sendNoContent(response);
+        return;
+      case 'rate-limited':
+        sendJson(response, 429, { error: 'too-many-updates' }, { 'Retry-After': '10' });
+        return;
+      case 'full':
+        sendJson(response, 503, { error: 'relay-full' });
+    }
+  };
+
   /** Public overlay page and event stream of one desktop app, e.g. for TikTok LIVE Studio. */
   const serveRelayOverlay = (
     relay: RelayChannels,
@@ -484,6 +553,44 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     });
   };
 
+  const serveBoardOverlay = (
+    relay: RelayChannels<BoardRelayUpdate>,
+    channelId: string,
+    events: boolean,
+    request: IncomingMessage,
+    response: ServerResponse
+  ): void => {
+    if (!isChannelId(channelId)) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
+    if (request.method !== 'GET') {
+      methodNotAllowed(response, 'GET');
+      return;
+    }
+    const current = relay.get(channelId);
+    if (!events) {
+      const page = renderBoardPage(current?.counters ?? [], {
+        eventsUrl: `/ob/${channelId}/events`,
+        scope: current?.scope ?? 'all'
+      });
+      send(response, 200, 'text/html; charset=utf-8', page, { 'Content-Security-Policy': OVERLAY_CSP });
+      return;
+    }
+    const unsubscribe = relay.subscribe(channelId, (update) => writeEvent(response, 'board', { status: 'ok', counters: update.counters }));
+    if (!unsubscribe) {
+      sendJson(response, 503, { error: 'too-many-viewers' });
+      return;
+    }
+    openEventStream(response);
+    if (current) writeEvent(response, 'board', { status: 'ok', counters: current.counters });
+    const stopHeartbeat = keepAlive(response, heartbeatMs);
+    request.on('close', () => {
+      stopHeartbeat();
+      unsubscribe();
+    });
+  };
+
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
     if (pathname === '/api/v1/analytics/events') {
       await receiveTelemetry(request, response);
@@ -491,6 +598,10 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     }
     if (pathname === '/api/v1/waitlist' || pathname === '/api/v1/waitlist/unsubscribe') {
       await updateWaitlist(pathname.endsWith('/unsubscribe'), request, response);
+      return;
+    }
+    if (pathname.startsWith(BOARD_RELAY_PATH)) {
+      await publishBoardRelay(pathname.slice(BOARD_RELAY_PATH.length), request, response);
       return;
     }
     if (pathname.startsWith('/api/relay/')) {
@@ -628,6 +739,11 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     const relayOverlay = RELAY_OVERLAY_PATH.exec(pathname);
     if (relayOverlay && options.relay) {
       serveRelayOverlay(options.relay, relayOverlay[1] ?? '', Boolean(relayOverlay[2]), request, response);
+      return;
+    }
+    const boardOverlay = BOARD_OVERLAY_PATH.exec(pathname);
+    if (boardOverlay && options.boardRelay) {
+      serveBoardOverlay(options.boardRelay, boardOverlay[1] ?? '', Boolean(boardOverlay[2]), request, response);
       return;
     }
     // Stable link to the newest installer, whose file name contains the version.

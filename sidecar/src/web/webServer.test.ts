@@ -7,7 +7,7 @@ import { migrateSettingsV1, primaryCounter, type Settings } from '../../../share
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { AppError } from '../../../shared/appState';
 import { channelIdForKey } from '../relay/relayChannel';
-import { RelayChannels } from './relayChannels';
+import { RelayChannels, type BoardRelayUpdate } from './relayChannels';
 import { isCorrectPassword } from './session';
 import { WebController } from './webController';
 import { startWebServer, type WebServerOptions } from './webServer';
@@ -115,6 +115,32 @@ const RELAY_UPDATE = {
 const relayPut = (body: unknown, key = RELAY_KEY) => ({
   method: 'PUT',
   headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+  body: JSON.stringify(body)
+});
+
+const BOARD_UPDATE: BoardRelayUpdate = {
+  scope: 'counter-1',
+  counters: [
+    {
+      counterId: 'counter-1',
+      name: 'Rote Flaggen',
+      mode: 'single',
+      options: [{ optionId: 'red', label: 'Rote Flagge', count: 7, color: '#ff3344' }],
+      totalCount: 7,
+      target: 20,
+      targetReached: false,
+      overlay: DEFAULT_OVERLAY_SETTINGS
+    }
+  ]
+};
+
+const boardRelayPut = (body: unknown, entitlement: unknown = { token: 'valid' }, key = RELAY_KEY) => ({
+  method: 'PUT',
+  headers: {
+    authorization: `Bearer ${key}`,
+    'content-type': 'application/json',
+    'x-flagcount-entitlement': Buffer.from(JSON.stringify(entitlement)).toString('base64url')
+  },
   body: JSON.stringify(body)
 });
 
@@ -237,6 +263,37 @@ describe('startWebServer', () => {
     expect((await send(server.port, path, { method: 'POST' })).status).toBe(405);
     expect((await send(server.port, path, relayPut({ votes: { count: -1 }, overlay: {} }))).status).toBe(400);
     expect(relay.get(RELAY_CHANNEL)).toBeNull();
+  });
+
+  it('mirrors Pro counter overlays only with a valid entitlement', async () => {
+    const boardRelay = new RelayChannels<BoardRelayUpdate>();
+    const { server } = await start({
+      boardRelay,
+      verifyBoardEntitlement: (value) =>
+        typeof value === 'object' && value !== null && (value as Record<string, unknown>)['token'] === 'valid'
+    });
+    const path = `/api/relay/board/${RELAY_CHANNEL}`;
+
+    expect((await send(server.port, path, boardRelayPut(BOARD_UPDATE, { token: 'wrong' }))).status).toBe(403);
+    expect((await send(server.port, path, boardRelayPut({ ...BOARD_UPDATE, scope: 'another-counter' }))).status).toBe(400);
+    expect((await send(server.port, path, boardRelayPut(BOARD_UPDATE))).status).toBe(204);
+    expect(boardRelay.get(RELAY_CHANNEL)).toEqual(BOARD_UPDATE);
+
+    const page = await send(server.port, `/ob/${RELAY_CHANNEL}`);
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('Rote Flaggen');
+    expect(page.body).toContain(`data-events="/ob/${RELAY_CHANNEL}/events"`);
+  });
+
+  it('streams Pro counter overlay updates', async () => {
+    const boardRelay = new RelayChannels<BoardRelayUpdate>();
+    const { server } = await start({ boardRelay, verifyBoardEntitlement: () => true });
+    const stream = await openStream(server.port, `/ob/${RELAY_CHANNEL}/events`);
+    cleanups.push(() => stream.close());
+
+    await send(server.port, `/api/relay/board/${RELAY_CHANNEL}`, boardRelayPut(BOARD_UPDATE));
+    await stream.waitFor('event: board');
+    await stream.waitFor('"totalCount":7');
   });
 
   it('serves assets, but no files outside the web root', async () => {

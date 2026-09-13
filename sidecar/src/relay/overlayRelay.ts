@@ -11,10 +11,7 @@ export type RelaySource = {
   subscribeOverlaySettings: (listener: (overlay: OverlaySettings) => void) => () => void;
 };
 
-export type OverlayRelayOptions = {
-  baseUrl: string;
-  key: string;
-  source: RelaySource;
+export type RelayTiming = {
   fetch?: typeof fetch;
   log?: (level: LogLevel, message: string) => void;
   /** Coalesces bursts of votes into at most one update per interval. */
@@ -26,17 +23,32 @@ export type OverlayRelayOptions = {
   timeoutMs?: number;
 };
 
+export type OverlayRelayOptions = RelayTiming & {
+  baseUrl: string;
+  key: string;
+  source: RelaySource;
+};
+
 export type OverlayRelay = {
   publicUrl: string;
   stop(): void;
 };
 
-/** Mirrors the vote count and overlay settings to the FlagCount server. Chat content never leaves the app. */
-export function startOverlayRelay(options: OverlayRelayOptions): OverlayRelay {
-  const { key, source } = options;
-  const baseUrl = options.baseUrl.replace(/\/+$/, '');
-  const channelId = channelIdForKey(key);
-  const endpoint = `${baseUrl}/api/relay/${channelId}`;
+export type RelayPublisherOptions = RelayTiming & {
+  endpoint: string;
+  /** Read for every request, so credentials that change on the way are always current. */
+  headers: () => Record<string, string>;
+  body: () => unknown;
+  subscribe: (listener: () => void) => () => void;
+  /** Used in sanitized log messages, e.g. "Online overlay". */
+  name: string;
+};
+
+/**
+ * Publishes the latest state to one relay channel: coalesces bursts, retries with a growing delay and
+ * resends regularly. Only aggregated counts and designs are ever sent.
+ */
+export function startRelayPublisher(options: RelayPublisherOptions): { stop(): void } {
   const sendRequest = options.fetch ?? fetch;
   const minIntervalMs = options.minIntervalMs ?? 250;
   const retryMs = options.retryMs ?? 5000;
@@ -83,24 +95,24 @@ export function startOverlayRelay(options: OverlayRelayOptions): OverlayRelay {
     dirty = false;
     lastSentAt = Date.now();
     try {
-      const response = await sendRequest(endpoint, {
+      const response = await sendRequest(options.endpoint, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ votes: source.getVotes(), overlay: source.getOverlaySettings() }),
+        headers: options.headers(),
+        body: JSON.stringify(options.body()),
         signal: AbortSignal.timeout(timeoutMs)
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       if (failures > 0) {
-        options.log?.('info', 'Online overlay is reachable again');
+        options.log?.('info', `${options.name} is reachable again`);
       }
       failures = 0;
     } catch (error) {
       failures++;
       if (failures === 1) {
         const detail = error instanceof Error && /^HTTP \d{3}$/.test(error.message) ? error.message : describeError(error);
-        options.log?.('warn', `Online overlay update failed (${detail}), retrying`);
+        options.log?.('warn', `${options.name} update failed (${detail}), retrying`);
       }
       // The retry sends the newest state anyway.
       dirty = false;
@@ -111,20 +123,44 @@ export function startOverlayRelay(options: OverlayRelayOptions): OverlayRelay {
     }
   };
 
-  const unsubscribeVotes = source.subscribeVotes(request);
-  const unsubscribeOverlay = source.subscribeOverlaySettings(request);
+  const unsubscribe = options.subscribe(request);
   const heartbeat = setInterval(request, options.heartbeatMs ?? 30_000);
   heartbeat.unref?.();
   request();
 
   return {
-    publicUrl: `${baseUrl}${relayOverlayPath(channelId)}`,
     stop: () => {
       stopped = true;
       if (timer) clearTimeout(timer);
       clearInterval(heartbeat);
-      unsubscribeVotes();
-      unsubscribeOverlay();
+      unsubscribe();
     }
+  };
+}
+
+/** Mirrors the vote count and overlay settings to the FlagCount server. Chat content never leaves the app. */
+export function startOverlayRelay(options: OverlayRelayOptions): OverlayRelay {
+  const { key, source } = options;
+  const baseUrl = options.baseUrl.replace(/\/+$/, '');
+  const channelId = channelIdForKey(key);
+  const publisher = startRelayPublisher({
+    ...options,
+    name: 'Online overlay',
+    endpoint: `${baseUrl}/api/relay/${channelId}`,
+    headers: () => ({ Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }),
+    body: () => ({ votes: source.getVotes(), overlay: source.getOverlaySettings() }),
+    subscribe: (listener) => {
+      const unsubscribeVotes = source.subscribeVotes(listener);
+      const unsubscribeOverlay = source.subscribeOverlaySettings(listener);
+      return () => {
+        unsubscribeVotes();
+        unsubscribeOverlay();
+      };
+    }
+  });
+
+  return {
+    publicUrl: `${baseUrl}${relayOverlayPath(channelId)}`,
+    stop: publisher.stop
   };
 }

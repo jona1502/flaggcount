@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { describeError } from '../logging';
+import { createEntitlementVerifier, rawPublicKey } from '../license/signature';
 import type { LogLevel } from '../protocol';
 import { createTikTokConnectionFactory } from '../tiktok/tiktokConnection';
 import { createLatestRelease } from './latestRelease';
@@ -11,6 +12,7 @@ import { createLicensingHandler } from './licensing/licensingRoutes';
 import { createJsonLogger } from './structuredLog';
 import { clientAddress, startWebServer } from './webServer';
 import { WaitlistStore } from './waitlistStore';
+import { acceptsBoardEntitlement } from './boardEntitlement';
 
 // Entry point of the web version (Docker). Configuration comes from the environment, see .env.example.
 const MIN_PASSWORD_LENGTH = 12;
@@ -59,6 +61,14 @@ async function main(): Promise<void> {
     logger: jsonLogger,
     clientAddress
   });
+  const entitlementVerifier =
+    licensingConfig.kind === 'enabled'
+      ? createEntitlementVerifier({
+          [licensingConfig.settings.signingKeyId]: rawPublicKey(licensingConfig.settings.signingPrivateKeyPem)
+        })
+      : null;
+  const verifyBoardEntitlement = (value: unknown): boolean =>
+    entitlementVerifier ? acceptsBoardEntitlement(value, entitlementVerifier) : false;
 
   const server = await startWebServer({
     backend: controller,
@@ -67,6 +77,8 @@ async function main(): Promise<void> {
     latestRelease: createLatestRelease({ repo: releaseRepo }),
     releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
     relay: new RelayChannels(),
+    boardRelay: new RelayChannels(),
+    verifyBoardEntitlement,
     licensing: licensingHandler,
     waitlist,
     onTelemetry: (event) => jsonLogger('info', 'product_telemetry', {
