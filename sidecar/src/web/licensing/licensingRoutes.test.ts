@@ -138,6 +138,17 @@ describe('licensing routes', () => {
     expect((await send(port, LICENSING_PATHS.paddleWebhook, { body: event, headers: { 'paddle-signature': 'valid' } })).status).toBe(200);
   });
 
+  it('answers the checkout status without caching and never for other methods', async () => {
+    const { port } = await start();
+
+    const status = await send(port, `${LICENSING_PATHS.checkoutStatus}?session_id=cs_test_a1B2c3D4e5F6`, { method: 'GET', headers: {} });
+    expect(status.status).toBe(200);
+    expect(status.headers['cache-control']).toBe('no-store');
+    // The test provider has no checkout lookup, so every session stays unknown.
+    expect(JSON.parse(status.body)).toEqual({ status: 'unknown', paid: false });
+    expect((await send(port, LICENSING_PATHS.checkoutStatus, json({ session_id: 'cs_test_a1B2c3D4e5F6' }))).status).toBe(405);
+  });
+
   it('serves provider prices with a short private cache', async () => {
     const { port } = await start();
 

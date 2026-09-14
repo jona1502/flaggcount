@@ -279,6 +279,35 @@ describe('StripeBillingProvider checkout', () => {
   });
 });
 
+describe('StripeBillingProvider checkout status', () => {
+  it('reports the status of FlagCount checkouts without customer details', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch
+      .mockResolvedValueOnce(respond({ id: 'cs_test_1', status: 'complete', payment_status: 'paid', metadata: { product: 'flagcount-pro' }, customer_details: { email: 'kunde@example.com' } }))
+      .mockResolvedValueOnce(respond({ id: 'cs_test_2', status: 'complete', payment_status: 'unpaid', metadata: { product: 'flagcount-pro' } }))
+      .mockResolvedValueOnce(respond({ id: 'cs_test_3', status: 'expired', payment_status: 'unpaid', metadata: { product: 'flagcount-pro' } }));
+
+    const paid = await stripe.checkoutStatus('cs_test_1');
+    expect(paid).toEqual({ status: 'complete', paid: true });
+    expect(JSON.stringify(paid)).not.toContain('kunde@example.com');
+    expect(fetch.mock.calls[0]?.[0]).toBe('https://api.stripe.com/v1/checkout/sessions/cs_test_1');
+    expect(await stripe.checkoutStatus('cs_test_2')).toEqual({ status: 'complete', paid: false });
+    expect(await stripe.checkoutStatus('cs_test_3')).toEqual({ status: 'expired', paid: false });
+  });
+
+  it('treats other products and unknown sessions as unknown', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch
+      .mockResolvedValueOnce(respond({ id: 'cs_test_4', status: 'complete', payment_status: 'paid', metadata: { product: 'other' } }))
+      .mockResolvedValueOnce(respond({ error: { message: 'No such checkout.session' } }, 404))
+      .mockResolvedValueOnce(respond({ error: {} }, 500));
+
+    expect(await stripe.checkoutStatus('cs_test_4')).toEqual({ status: 'unknown', paid: false });
+    expect(await stripe.checkoutStatus('cs_test_5')).toEqual({ status: 'unknown', paid: false });
+    await expect(stripe.checkoutStatus('cs_test_6')).rejects.toBeInstanceOf(StripeApiError);
+  });
+});
+
 describe('StripeBillingProvider customer portal', () => {
   it('opens a portal session that returns to the Pro page', async () => {
     const { stripe, fetch } = stripeProvider({ portalConfigurationId: 'bpc_1Portal01234567' });

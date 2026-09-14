@@ -14,6 +14,7 @@ export const LICENSING_PATHS = {
   portal: '/api/v1/billing/portal',
   checkout: '/api/v1/billing/checkout',
   prices: '/api/v1/billing/prices',
+  checkoutStatus: '/api/v1/billing/checkout-status',
   stripeWebhook: '/api/v1/billing/webhooks/stripe',
   paddleWebhook: '/api/v1/billing/webhooks/paddle'
 } as const;
@@ -40,6 +41,7 @@ export const DEFAULT_LIMITS: Record<LicensingRoute, Limit> = {
   portal: { limit: 20, windowMs: HOUR },
   checkout: { limit: 30, windowMs: HOUR },
   prices: { limit: 120, windowMs: HOUR },
+  checkoutStatus: { limit: 60, windowMs: HOUR },
   stripeWebhook: { limit: 600, windowMs: MINUTE },
   paddleWebhook: { limit: 600, windowMs: MINUTE }
 };
@@ -196,6 +198,11 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
         sendJson(response, 200, { prices }, { 'Cache-Control': 'private, max-age=300' });
         return;
       }
+      case 'checkoutStatus': {
+        const sessionId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('session_id');
+        sendJson(response, 200, await licenses.checkoutStatus(sessionId));
+        return;
+      }
       case 'stripeWebhook':
       case 'paddleWebhook': {
         const webhook = WEBHOOKS[route];
@@ -227,7 +234,7 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
           sendJson(response, 404, { error: 'not-found' });
           return true;
         }
-        const method = route === 'prices' ? 'GET' : 'POST';
+        const method = route === 'prices' || route === 'checkoutStatus' ? 'GET' : 'POST';
         if (request.method !== method) {
           response.setHeader('Allow', method);
           sendJson(response, 405, { error: 'method-not-allowed' });

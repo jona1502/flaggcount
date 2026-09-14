@@ -1,5 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { BillingEvent, BillingPlanId, BillingProvider, PriceQuote, SubscriptionSnapshot, WebhookVerification } from './billing';
+import type {
+  BillingEvent,
+  BillingPlanId,
+  BillingProvider,
+  CheckoutStatus,
+  PriceQuote,
+  SubscriptionSnapshot,
+  WebhookVerification
+} from './billing';
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from './store';
 
 /** Derived from the secret key: `sk_test_…`/`rk_test_…` or `sk_live_…`/`rk_live_…`. */
@@ -164,6 +172,25 @@ export class StripeBillingProvider implements BillingProvider {
     const url = text(session?.['url']);
     if (!url?.startsWith('https://')) throw new Error('Stripe returned no checkout URL');
     return { url };
+  }
+
+  /** Status of a FlagCount Checkout Session for the return page. Reads no customer details. */
+  async checkoutStatus(sessionId: string): Promise<CheckoutStatus> {
+    const unknown: CheckoutStatus = { status: 'unknown', paid: false };
+    let session: UnknownRecord | null;
+    try {
+      session = record(await this.request('GET', `/v1/checkout/sessions/${encodeURIComponent(sessionId)}`));
+    } catch (error) {
+      if (error instanceof StripeApiError && error.status === 404) return unknown;
+      throw error;
+    }
+    if (record(session?.['metadata'])?.['product'] !== 'flagcount-pro') return unknown;
+    const status = text(session?.['status']);
+    const paymentStatus = text(session?.['payment_status']);
+    return {
+      status: status === 'complete' || status === 'open' || status === 'expired' ? status : 'unknown',
+      paid: paymentStatus === 'paid' || paymentStatus === 'no_payment_required'
+    };
   }
 
   /** A short-lived customer portal session for invoices, payment methods and cancelling; never stored. */

@@ -45,6 +45,7 @@ Abweichend von der Skizze im Plan heißen die Overlay-Routen `/overlay/*`, `/o/*
 | `/api/v1/billing/checkout` | POST | Backend | – | erzeugt Stripe Checkout Session |
 | `/api/v1/billing/portal` | POST | Backend | Installationsgeheimnis | erzeugt Stripe-Portal-Session |
 | `/api/v1/billing/prices` | GET | Backend | – | Preise von Stripe |
+| `/api/v1/billing/checkout-status` | GET | Backend | – | Status einer Checkout Session (`cs_…`) für `/pro/erfolgreich`, ohne Kundendaten, 60/h |
 | `/api/v1/billing/webhooks/stripe` | POST | Backend | Stripe-Signatur | Rohkörper bis 1 MB |
 | `/api/v1/billing/webhooks/paddle` | POST | Backend | Paddle-Signatur | bis zur Entfernung von Paddle |
 | `/api/admin/*` | GET/POST | Backend | Admin-Nachweis | Lizenzverwaltung, nie ohne serverseitigen Nachweis |

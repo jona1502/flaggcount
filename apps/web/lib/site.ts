@@ -6,7 +6,7 @@ export const SITE_NAME = 'FlagCount';
 export const RELEASES_URL = 'https://github.com/jona1502/flaggcount/releases';
 
 /** Public pages listed in the sitemap. The checkout return page, the dashboard and the admin area are not. */
-export const PUBLIC_PATHS = ['/', '/pro', '/herunterladen', '/lizenz-wiederherstellen', '/impressum', '/datenschutz', '/agb'] as const;
+export const PUBLIC_PATHS = ['/', '/pro', '/herunterladen', '/lizenz-wiederherstellen', '/abo-verwalten', '/impressum', '/datenschutz', '/agb'] as const;
 
 /**
  * Search engines may index the site only once `SITE_INDEXING=true` is set at build time, e.g. after the legal

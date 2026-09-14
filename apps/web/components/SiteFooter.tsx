@@ -6,6 +6,7 @@ export function SiteFooter() {
     <footer className="landing-inner landing-footer">
       <span>FlagCount ist kein offizielles Produkt von TikTok.</span>
       <nav className="site-footer-links" aria-label="Rechtliches">
+        <Link href="/abo-verwalten">Abo verwalten</Link>
         <Link href="/lizenz-wiederherstellen">Lizenz wiederherstellen</Link>
         <Link href="/impressum">Impressum</Link>
         <Link href="/datenschutz">Datenschutz</Link>

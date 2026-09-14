@@ -9,7 +9,15 @@ import {
 } from '../../../../shared/licensing';
 import type { EntitlementSigner } from '../../license/signature';
 import type { StructuredLogger } from '../structuredLog';
-import type { BillingEvent, BillingPlanId, BillingProvider, MailSender, PriceQuote, SubscriptionSnapshot } from './billing';
+import type {
+  BillingEvent,
+  BillingPlanId,
+  BillingProvider,
+  CheckoutStatus,
+  MailSender,
+  PriceQuote,
+  SubscriptionSnapshot
+} from './billing';
 import { activationMail, recoveryMail, supportMail } from './mailTemplates';
 import {
   generateActivationCode,
@@ -26,6 +34,8 @@ export const MAX_INSTALLATIONS = 3;
 export const PAST_DUE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 const INSTALLATION_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+/** Stripe Checkout Session ids; anything else is never sent to the provider. */
+export const CHECKOUT_SESSION_PATTERN = /^cs_(test|live)_[A-Za-z0-9]{10,200}$/;
 const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
 
 export type LicenseAccess = {
@@ -287,6 +297,15 @@ export class LicenseService {
 
   checkout(plan: BillingPlanId): Promise<{ url: string }> {
     return this.options.provider.createCheckout(plan);
+  }
+
+  /** For the checkout return page: whether the payment provider finished the session. Unlocks nothing. */
+  async checkoutStatus(sessionId: unknown): Promise<CheckoutStatus> {
+    const { provider } = this.options;
+    if (typeof sessionId !== 'string' || !CHECKOUT_SESSION_PATTERN.test(sessionId) || !provider.checkoutStatus) {
+      return { status: 'unknown', paid: false };
+    }
+    return provider.checkoutStatus(sessionId);
   }
 
   prices(location: { ip?: string; countryCode?: string }): Promise<PriceQuote[]> {

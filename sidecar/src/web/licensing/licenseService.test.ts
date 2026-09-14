@@ -398,6 +398,19 @@ describe('LicenseService', () => {
     expect(await service.refresh(credentials)).toEqual({ ok: false, error: 'license-inactive' });
   });
 
+  it('asks the provider for checkout status only with a valid session id', async () => {
+    const { service, provider } = createService();
+    const checkoutStatus = vi.fn(async () => ({ status: 'complete' as const, paid: true }));
+    Object.assign(provider, { checkoutStatus });
+
+    for (const invalid of [undefined, '', 'cs_test_short', 'pi_123456789012345', 'cs_test_abc/../../v1/customers', `cs_live_${'a'.repeat(201)}`]) {
+      expect(await service.checkoutStatus(invalid)).toEqual({ status: 'unknown', paid: false });
+    }
+    expect(checkoutStatus).not.toHaveBeenCalled();
+    expect(await service.checkoutStatus('cs_live_a1B2c3D4e5F6g7H8')).toEqual({ status: 'complete', paid: true });
+    expect(checkoutStatus).toHaveBeenCalledWith('cs_live_a1B2c3D4e5F6g7H8');
+  });
+
   it('refuses Pro for subscriptions that were never or are no longer paid', async () => {
     const { subscription, activate, advance } = createService();
     await subscription();

@@ -38,6 +38,13 @@ export type BillingEvent =
     }
   | { kind: 'other'; eventId: string; eventType: string; occurredAt: string };
 
+/** Outcome of a hosted checkout for the return page, without any customer data. */
+export type CheckoutStatus = {
+  status: 'complete' | 'open' | 'expired' | 'unknown';
+  /** The payment went through; a completed checkout can still wait for a delayed payment method. */
+  paid: boolean;
+};
+
 export type WebhookVerification =
   | { ok: true; event: BillingEvent }
   | { ok: false; reason: 'missing-signature' | 'invalid-signature' | 'stale-timestamp' | 'invalid-payload' };
@@ -69,6 +76,8 @@ export interface BillingProvider {
   retrieveSubscription?(subscriptionId: string): Promise<SubscriptionSnapshot | null>;
   /** The subscription a payment was made for, to apply refunds and disputes. */
   subscriptionIdForPayment?(paymentId: string): Promise<string | null>;
+  /** Whether a checkout session of FlagCount Pro finished; `unknown` for any other or unknown session. */
+  checkoutStatus?(sessionId: string): Promise<CheckoutStatus>;
 }
 
 export type MailMessage = {

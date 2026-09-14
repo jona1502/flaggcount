@@ -97,7 +97,20 @@ Testkarten: `4242 4242 4242 4242` (erfolgreich), `4000 0000 0000 0341` (Karte wi
 Zahlungen scheitern), `4000 0025 0000 3155` (3D Secure). Einzelne Ereignisse lassen sich mit
 `stripe trigger <event>` auslösen; Verlängerungen und Mahnläufe mit Test Clocks.
 
-## 6. Admin-Bereich
+## 6. Website: Rückkehr, Wiederherstellung und Kundenportal
+
+- Stripe leitet nach dem Checkout auf `/pro/erfolgreich?session_id=cs_…` zurück. Die Seite fragt über
+  `GET /api/v1/billing/checkout-status` nur den Status der Session ab (abgeschlossen, bezahlt, offen, abgelaufen);
+  fehlende oder manipulierte IDs zeigen eine neutrale Seite. Freigeschaltet wird dort nichts.
+- `/lizenz-wiederherstellen` antwortet für jede Adresse gleich.
+- `/abo-verwalten` erklärt den Weg über die App und zeigt optional den Anmeldelink des Kundenportals. Dazu im
+  Stripe-Dashboard unter Kundenportal den „Link zum Kundenportal“ aktivieren und ihn als `STRIPE_PORTAL_LOGIN_URL`
+  in `.env.web` des Web-Containers setzen (siehe `.env.web.example`).
+- Im Test Mode durchspielen: Kauf monatlich und jährlich, Rückkehrseite mit gültiger, abgelaufener und
+  erfundener Session-ID, abgebrochener Checkout (Rückkehr auf `/pro`, keine Lizenz), Wiederherstellung und
+  Portal-Anmeldelink.
+
+## 7. Admin-Bereich
 
 1. Auf GitHub unter Settings → Developer settings → OAuth Apps eine App anlegen:
    - Homepage URL: `https://<domain>`
@@ -108,7 +121,7 @@ Zahlungen scheitern), `4000 0025 0000 3155` (3D Secure). Einzelne Ereignisse las
    eintragen; mehrere IDs mit Komma trennen.
 4. Server neu starten und `/admin` öffnen. Der Admin-Bereich braucht den laufenden Lizenzdienst.
 
-## 7. Umstellung abschließen und Live Mode
+## 8. Umstellung abschließen und Live Mode
 
 Die Paddle-Integration bleibt im Code, bis Stripe vollständig getestet ist. Reihenfolge:
 

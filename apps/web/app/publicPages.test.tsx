@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/link', () => import('../test/next-link'));
 vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} /> }));
 vi.mock('../components/ReleaseMeta', () => ({ ReleaseMeta: () => <p>Version 0.3.0 · Windows 10 &amp; 11</p> }));
+vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 const { default: HomePage, metadata: homeMetadata } = await import('./page');
 const { default: ProPage, metadata: proMetadata } = await import('./pro/page');
@@ -49,8 +50,10 @@ describe('public pages', () => {
     expect(proMetadata).toMatchObject({ alternates: { canonical: '/pro' }, openGraph: { url: '/pro', locale: 'de_DE' } });
   });
 
-  it('renders the checkout return page without indexing it', () => {
-    render(<CheckoutSuccessPage />);
+  it('renders the checkout return page without indexing it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ status: 'complete', paid: true }) })));
+
+    render(await CheckoutSuccessPage({ searchParams: Promise.resolve({ session_id: 'cs_test_a1B2c3D4e5F6' }) }));
 
     expect(screen.getByRole('heading', { name: 'Danke für deinen Kauf!' })).toBeTruthy();
     expect(successMetadata.robots).toEqual({ index: false, follow: false });
