@@ -101,6 +101,19 @@ export type LicenseSearch =
   | { kind: 'customer'; value: string }
   | { kind: 'subscription'; value: string };
 
+export type LicenseListFilter = {
+  search: LicenseSearch;
+  source?: LicenseSource;
+  providerStatus?: SubscriptionStatus;
+  supportStatus?: SupportStatus;
+};
+
+export type LicenseList = {
+  items: LicenseRecord[];
+  /** Number of licenses matching the filter, across all pages. */
+  total: number;
+};
+
 export type ManualLicenseInput = {
   reason: ManualReason;
   validUntil: string | null;
@@ -148,7 +161,10 @@ export interface LicenseStore {
   abandonWebhookEvent(eventId: string): Promise<void>;
   /** A license granted by support, without any provider customer or subscription. */
   createManualLicense(input: ManualLicenseInput, id: string, now: string): Promise<LicenseRecord>;
-  searchLicenses(search: LicenseSearch, limit: number): Promise<LicenseRecord[]>;
+  /** A page of licenses matching the filter, most recently changed first. */
+  listLicenses(filter: LicenseListFilter, range: { offset: number; limit: number }): Promise<LicenseList>;
+  /** Active and deactivated installations of a license, newest activation first. */
+  installations(licenseId: string): Promise<InstallationRecord[]>;
   /** Support block and note; billing fields are never changed here. `null` if the license does not exist. */
   updateSupport(licenseId: string, changes: SupportChanges, now: string): Promise<LicenseRecord | null>;
   /** Changes the end of a manual license; `null` for unknown and provider licenses. */
@@ -168,7 +184,7 @@ export function referenceKey(licenseId: string): string {
 /** Keeps everything in memory, for tests and local development without PostgreSQL. */
 export class MemoryLicenseStore implements LicenseStore {
   protected readonly licenses = new Map<string, LicenseRecord>();
-  protected readonly installations: InstallationRecord[] = [];
+  protected readonly installations_: InstallationRecord[] = [];
   private readonly events = new Map<string, { processedAt: string | null }>();
 
   async applySubscription(update: SubscriptionUpdate, newId: () => string, now: string) {
@@ -242,7 +258,7 @@ export class MemoryLicenseStore implements LicenseStore {
   }
 
   async activeInstallations(licenseId: string) {
-    return this.installations
+    return this.installations_
       .filter((installation) => installation.licenseId === licenseId && installation.deactivatedAt === null)
       .map((installation) => ({ ...installation }));
   }
@@ -259,7 +275,7 @@ export class MemoryLicenseStore implements LicenseStore {
     }
     const existing = this.find(request.licenseId, request.installationId);
     const alreadyActive = existing?.deactivatedAt === null;
-    const others = this.installations.filter(
+    const others = this.installations_.filter(
       (installation) =>
         installation.licenseId === request.licenseId &&
         installation.deactivatedAt === null &&
@@ -272,7 +288,7 @@ export class MemoryLicenseStore implements LicenseStore {
       Object.assign(existing, { secretHash: request.secretHash, lastSeenAt: request.now, deactivatedAt: null });
       if (!alreadyActive) existing.activatedAt = request.now;
     } else {
-      this.installations.push({
+      this.installations_.push({
         licenseId: request.licenseId,
         installationId: request.installationId,
         secretHash: request.secretHash,
@@ -338,26 +354,27 @@ export class MemoryLicenseStore implements LicenseStore {
     return { ...license };
   }
 
-  async searchLicenses(search: LicenseSearch, limit: number) {
-    const all = [...this.licenses.values()];
-    const matches = (() => {
-      switch (search.kind) {
-        case 'recent':
-          return all;
-        case 'id':
-          return all.filter((license) => license.id === search.value);
-        case 'reference':
-          return all.filter((license) => referenceKey(license.id) === search.value);
-        case 'customer':
-          return all.filter((license) => license.providerCustomerId === search.value);
-        case 'subscription':
-          return all.filter((license) => license.providerSubscriptionId === search.value);
-      }
-    })();
-    return matches
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-      .slice(0, limit)
-      .map((license) => ({ ...license }));
+  async listLicenses(filter: LicenseListFilter, range: { offset: number; limit: number }) {
+    const matches = [...this.licenses.values()]
+      .filter(
+        (license) =>
+          matchesSearch(license, filter.search) &&
+          (!filter.source || license.source === filter.source) &&
+          (!filter.providerStatus || license.providerStatus === filter.providerStatus) &&
+          (!filter.supportStatus || license.supportStatus === filter.supportStatus)
+      )
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || a.id.localeCompare(b.id));
+    return {
+      items: matches.slice(range.offset, range.offset + range.limit).map((license) => ({ ...license })),
+      total: matches.length
+    };
+  }
+
+  async installations(licenseId: string) {
+    return this.installations_
+      .filter((installation) => installation.licenseId === licenseId)
+      .sort((a, b) => Date.parse(b.activatedAt) - Date.parse(a.activatedAt))
+      .map((installation) => ({ ...installation }));
   }
 
   async updateSupport(licenseId: string, changes: SupportChanges, now: string) {
@@ -393,7 +410,7 @@ export class MemoryLicenseStore implements LicenseStore {
   async close() {}
 
   protected find(licenseId: string, installationId: string): InstallationRecord | undefined {
-    return this.installations.find(
+    return this.installations_.find(
       (installation) => installation.licenseId === licenseId && installation.installationId === installationId
     );
   }
@@ -401,5 +418,20 @@ export class MemoryLicenseStore implements LicenseStore {
   protected update(licenseId: string, changes: Partial<LicenseRecord>): void {
     const license = this.licenses.get(licenseId);
     if (license) Object.assign(license, changes);
+  }
+}
+
+function matchesSearch(license: LicenseRecord, search: LicenseSearch): boolean {
+  switch (search.kind) {
+    case 'recent':
+      return true;
+    case 'id':
+      return license.id === search.value;
+    case 'reference':
+      return referenceKey(license.id) === search.value;
+    case 'customer':
+      return license.providerCustomerId === search.value;
+    case 'subscription':
+      return license.providerSubscriptionId === search.value;
   }
 }

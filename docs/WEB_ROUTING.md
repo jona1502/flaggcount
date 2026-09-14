@@ -73,8 +73,9 @@ Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile un
 - Jede Anfrage von Next.js an `/api/admin/*` trägt einen Nachweis im Header `X-FlagCount-Admin-Assertion`: HMAC mit
   `ADMIN_ASSERTION_SECRET`, gebunden an Methode und Pfad, 60 Sekunden gültig, nur einmal verwendbar. Das Backend
   prüft Signatur, Ablauf, Wiederverwendung und die eigene Allowlist; ohne Nachweis antwortet es mit 401.
-- Das Backend kann übergangsweise noch seinen eigenen GitHub-Login mit Cookie-Session bedienen, bis das
-  Next.js-Admin-Dashboard die Lizenzverwaltung übernimmt.
+- Das Admin-Dashboard (`/admin`, `/admin/licenses`, `/admin/licenses/new`, `/admin/licenses/[id]`) rendert
+  serverseitig und ändert Daten über Server Actions; jede Action prüft die Sitzung erneut, bestätigt die Änderung
+  im Browser und ruft die Admin-API mit Nachweis auf. Die Admin-API des Backends kennt keinen eigenen Login mehr.
 - SSE-Routen (`/api/events`, `/overlay/events`, `/overlay/*/events`, `/o/*/events`, `/ob/*/events`) werden sofort
   weitergereicht (`flush_interval -1`) und haben keine Antwort-Timeouts.
 - Body-Limits: Webhooks 1 MB, übrige Backend-Routen 64 KB; das Backend prüft zusätzlich strenger.

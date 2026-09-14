@@ -151,12 +151,59 @@ describe.each(factories)('$name license store', (factory) => {
       supportStatus: 'none',
       supportNote: 'Kooperation'
     });
-    const found = async (search: LicenseSearch) => (await store.searchLicenses(search, 10)).map((license) => license.id);
+    const found = async (search: LicenseSearch) => (await store.listLicenses({ search }, { offset: 0, limit: 10 })).items.map((license) => license.id);
     expect(await found({ kind: 'id', value: manualId })).toEqual([manualId]);
     expect(await found({ kind: 'reference', value: referenceKey(manualId) })).toEqual([manualId]);
     expect(await found({ kind: 'subscription', value: paid.providerSubscriptionId ?? '' })).toEqual([paid.id]);
     expect(await found({ kind: 'customer', value: 'ctm_1' })).toContain(paid.id);
-    expect((await store.searchLicenses({ kind: 'recent' }, 1)).length).toBe(1);
+    expect((await store.listLicenses({ search: { kind: 'recent' } }, { offset: 0, limit: 1 })).items.length).toBe(1);
+  });
+
+  it('filters and pages the license list', async () => {
+    const source = `test-${randomUUID().slice(0, 8)}`;
+    const ids: string[] = [];
+    for (const [index, status] of (['active', 'past_due', 'active'] as const).entries()) {
+      const occurredAt = new Date(Date.parse(T0) + index * 1000).toISOString();
+      const { license } = await store.applySubscription(update({ provider: source, subscriptionId: `sub_${randomUUID()}`, status, occurredAt }), randomUUID, occurredAt);
+      ids.push(license.id);
+    }
+    await store.updateSupport(ids[0] ?? '', { supportStatus: 'blocked' }, T2);
+
+    const list = (filter: Omit<Parameters<LicenseStore['listLicenses']>[0], 'search'>, offset = 0, limit = 10) =>
+      store.listLicenses({ search: { kind: 'recent' }, ...filter }, { offset, limit });
+
+    expect(await list({ source })).toMatchObject({ total: 3 });
+    expect((await list({ source, providerStatus: 'active' })).items.map((license) => license.id).sort()).toEqual([ids[0], ids[2]].sort());
+    expect((await list({ source, supportStatus: 'blocked' })).items.map((license) => license.id)).toEqual([ids[0]]);
+    const firstPage = await list({ source }, 0, 2);
+    const secondPage = await list({ source }, 2, 2);
+    expect(firstPage).toMatchObject({ total: 3 });
+    expect(firstPage.items[0]?.id).toBe(ids[0]);
+    expect([...firstPage.items, ...secondPage.items].map((license) => license.id).sort()).toEqual([...ids].sort());
+  });
+
+  it('never exceeds the installation limit with parallel activations', async () => {
+    const license = await createLicense();
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        store.activateInstallation({ licenseId: license.id, installationId: `parallel-${index}`, secretHash: `hash-${index}`, now: T1, maxActive: 3 })
+      )
+    );
+
+    expect(results.filter((result) => result === 'activated')).toHaveLength(3);
+    expect(await store.activeInstallations(license.id)).toHaveLength(3);
+  });
+
+  it('lists active and deactivated installations', async () => {
+    const license = await createLicense();
+    await store.activateInstallation({ licenseId: license.id, installationId: 'device-old', secretHash: 'a', now: T0, maxActive: 3 });
+    await store.activateInstallation({ licenseId: license.id, installationId: 'device-new', secretHash: 'b', now: T1, maxActive: 3 });
+    await store.deactivateInstallation(license.id, 'device-old', T2);
+
+    expect(await store.installations(license.id)).toMatchObject([
+      { installationId: 'device-new', deactivatedAt: null },
+      { installationId: 'device-old', deactivatedAt: T2 }
+    ]);
   });
 
   it('changes support fields and manual validity, but never the validity of provider licenses', async () => {

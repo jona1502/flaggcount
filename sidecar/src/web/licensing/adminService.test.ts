@@ -139,8 +139,8 @@ describe('AdminService', () => {
     if (!manual.ok) throw new Error('manual license failed');
 
     const ids = async (query: unknown) => {
-      const result = await admin.search(query);
-      return result.ok ? result.value.map((license) => license.id) : result.error;
+      const result = await admin.list({ q: query });
+      return result.ok ? result.value.items.map((license) => license.id) : result.error;
     };
     expect(await ids('')).toEqual([manual.value.license.id, paid.id]);
     expect(await ids(manual.value.license.reference)).toEqual([manual.value.license.id]);
@@ -148,6 +148,27 @@ describe('AdminService', () => {
     expect(await ids('sub_1')).toEqual([paid.id]);
     expect(await ids('sub_unknown')).toEqual([]);
     expect(await ids('kunde@example.com')).toBe('invalid-input');
+  });
+
+  it('filters the license list by source, status and block and pages it', async () => {
+    const { admin, subscription, advance } = createAdmin();
+    const paid = await subscription();
+    advance(1000);
+    const manual = await admin.createManualLicense(ADMIN, { reason: 'creator', validUntil: null, note: null });
+    if (!manual.ok) throw new Error('manual license failed');
+    await admin.setBlocked(ADMIN, paid.id, true);
+
+    const list = async (query: Parameters<AdminService['list']>[0]) => {
+      const result = await admin.list(query);
+      return result.ok ? { ids: result.value.items.map((license) => license.id), total: result.value.total, page: result.value.page } : result.error;
+    };
+    expect(await list({ source: 'manual' })).toEqual({ ids: [manual.value.license.id], total: 1, page: 1 });
+    expect(await list({ source: 'stripe', status: 'active', support: 'blocked' })).toEqual({ ids: [paid.id], total: 1, page: 1 });
+    expect(await list({ support: 'none' })).toMatchObject({ ids: [manual.value.license.id] });
+    expect(await list({ page: '2' })).toEqual({ ids: [], total: 2, page: 2 });
+    for (const invalid of [{ source: 'paypal' }, { status: 'refunded' }, { support: 'maybe' }, { page: '0' }, { page: 'zwei' }]) {
+      expect(await list(invalid)).toBe('invalid-input');
+    }
   });
 
   it('shows Stripe links, installations and marks licenses of a former provider', async () => {
@@ -222,6 +243,7 @@ describe('AdminService', () => {
     const result = await admin.deactivateInstallation(ADMIN, paid.id, INSTALL_A);
 
     expect(result.ok && result.value.installations.map((installation) => installation.installationId)).toEqual([INSTALL_B]);
+    expect(result.ok && result.value.deactivatedInstallations).toMatchObject([{ installationId: INSTALL_A, deactivatedAt: new Date(START).toISOString() }]);
     expect(result.ok && result.value.audit[0]).toMatchObject({ action: 'installation-deactivated', metadata: { installationId: INSTALL_A } });
     expect(await admin.deactivateInstallation(ADMIN, paid.id, INSTALL_A)).toEqual({ ok: false, error: 'installation-not-found' });
     expect(await admin.deactivateInstallation(ADMIN, paid.id, 'bad')).toEqual({ ok: false, error: 'invalid-input' });

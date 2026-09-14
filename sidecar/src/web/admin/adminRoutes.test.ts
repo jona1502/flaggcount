@@ -1,6 +1,6 @@
 import { createServer, request as httpRequest, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createEntitlementSigner, generateSigningKeyPair } from '../../license/signature';
 import { AdminService } from '../licensing/adminService';
 import type { BillingProvider } from '../licensing/billing';
@@ -8,24 +8,16 @@ import { LicenseService } from '../licensing/licenseService';
 import { MemoryLicenseStore } from '../licensing/store';
 import type { LogFields } from '../structuredLog';
 import { ADMIN_ASSERTION_HEADER, AdminAssertionVerifier, signAdminAssertion } from './adminAssertion';
-import { ADMIN_IDLE_TIMEOUT_MS, AdminSessions, type AdminConfig } from './adminAuth';
-import { ADMIN_PATHS, CSRF_HEADER, createAdminHandler, type AdminHandlerOptions } from './adminRoutes';
+import { ADMIN_PATHS, createAdminHandler, type AdminHandlerOptions } from './adminRoutes';
 
 const KEYS = generateSigningKeyPair();
-const ASSERTION_SECRET = 'a'.repeat(40);
-const ALLOWED_SUBJECTS = new Set(['github:4242']);
+const SECRET = 'a'.repeat(40);
+const NOW = Date.parse('2026-09-14T10:00:00.000Z');
 const servers: Server[] = [];
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))));
 });
-
-const CONFIG: AdminConfig = {
-  clientId: 'Ov23liAbCdEfGh123456',
-  clientSecret: '0123456789abcdef0123456789abcdef01234567',
-  allowedUserIds: new Set(['4242']),
-  publicBaseUrl: 'https://flagcount.example'
-};
 
 const provider: BillingProvider = {
   name: 'stripe',
@@ -38,8 +30,7 @@ const provider: BillingProvider = {
 };
 
 async function start(overrides: Partial<AdminHandlerOptions> = {}) {
-  let now = Date.parse('2026-09-14T10:00:00.000Z');
-  const clock = () => now;
+  const clock = () => NOW;
   const store = new MemoryLicenseStore();
   const logs: { event: string; fields?: LogFields }[] = [];
   const logger = (_level: string, event: string, fields?: LogFields) => void logs.push({ event, fields });
@@ -54,19 +45,8 @@ async function start(overrides: Partial<AdminHandlerOptions> = {}) {
     now: clock
   });
   const admin = new AdminService({ store, licenses, logger, stripeMode: 'test', now: clock });
-  const sessions = new AdminSessions(clock);
-  const identify = vi.fn(async (code: string) => {
-    if (code === 'allowed') return { id: '4242', login: 'jona' };
-    if (code === 'stranger') return { id: '7', login: 'someone' };
-    throw new TypeError('github down');
-  });
   const handler = createAdminHandler({
-    login: {
-      config: CONFIG,
-      sessions,
-      oauth: { authorizeUrl: (state, challenge) => `https://github.com/login/oauth/authorize?state=${state}&code_challenge=${challenge}`, identify }
-    },
-    assertions: new AdminAssertionVerifier({ secret: ASSERTION_SECRET, allowedSubjects: () => ALLOWED_SUBJECTS, now: clock }),
+    assertions: new AdminAssertionVerifier({ secret: SECRET, allowedSubjects: () => new Set(['github:4242']), now: clock }),
     admin: () => admin,
     logger,
     clientAddress: () => '203.0.113.5',
@@ -84,218 +64,127 @@ async function start(overrides: Partial<AdminHandlerOptions> = {}) {
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   servers.push(server);
-  return { port: (server.address() as AddressInfo).port, logs, identify, advance: (ms: number) => (now += ms) };
+  return { port: (server.address() as AddressInfo).port, logs };
 }
 
 type Response = { status: number; body: string; headers: IncomingHttpHeaders };
 
-function send(port: number, path: string, options: { method?: string; headers?: Record<string, string>; body?: unknown } = {}): Promise<Response> {
+function send(port: number, path: string, options: { method?: string; headers?: Record<string, string>; body?: unknown; raw?: string } = {}): Promise<Response> {
   return new Promise((resolve, reject) => {
-    const request = httpRequest(
-      { host: '127.0.0.1', port, path, method: options.method ?? 'GET', headers: options.headers, agent: false },
-      (response) => {
-        let text = '';
-        response.setEncoding('utf8');
-        response.on('data', (chunk: string) => (text += chunk));
-        response.on('end', () => resolve({ status: response.statusCode ?? 0, body: text, headers: response.headers }));
-      }
-    );
+    const request = httpRequest({ host: '127.0.0.1', port, path, method: options.method ?? 'GET', headers: options.headers, agent: false }, (response) => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk: string) => (text += chunk));
+      response.on('end', () => resolve({ status: response.statusCode ?? 0, body: text, headers: response.headers }));
+    });
     request.on('error', reject);
-    request.end(options.body === undefined ? undefined : JSON.stringify(options.body));
+    request.end(options.raw ?? (options.body === undefined ? undefined : JSON.stringify(options.body)));
   });
 }
 
-const cookieValue = (headers: IncomingHttpHeaders, name: string): string | undefined =>
-  (headers['set-cookie'] ?? []).map((cookie) => cookie.split(';')[0] ?? '').find((cookie) => cookie.startsWith(`${name}=`));
-
-/** Runs the GitHub login and returns the session cookie and CSRF token. */
-async function signIn(port: number, code = 'allowed') {
-  const login = await send(port, ADMIN_PATHS.login);
-  const stateCookie = cookieValue(login.headers, '__Host-flagcount_admin_login') ?? '';
-  const state = new URL(login.headers.location ?? '').searchParams.get('state') ?? '';
-  const callback = await send(port, `${ADMIN_PATHS.callback}?code=${code}&state=${state}`, { headers: { cookie: stateCookie } });
-  const cookie = cookieValue(callback.headers, '__Host-flagcount_admin') ?? '';
-  const session = await send(port, ADMIN_PATHS.session, { headers: { cookie } });
-  return { login, callback, cookie, csrfToken: (JSON.parse(session.body) as { csrfToken?: string }).csrfToken ?? '' };
-}
-
-const change = (cookie: string, csrfToken: string, body: unknown) => ({
-  method: 'POST',
-  headers: { cookie, 'content-type': 'application/json', [CSRF_HEADER]: csrfToken },
-  body
+const signed = (method: string, path: string, overrides: Partial<Parameters<typeof signAdminAssertion>[0]> = {}) => ({
+  [ADMIN_ASSERTION_HEADER]: signAdminAssertion({ subject: 'github:4242', login: 'jona', method, path, secret: SECRET, now: NOW, ...overrides })
 });
 
-describe('admin routes', () => {
-  it('ignores paths outside the admin area', async () => {
+/** A signed request; the signature covers the path without the query string. */
+function call(port: number, method: 'GET' | 'POST', pathWithQuery: string, body?: unknown) {
+  const path = pathWithQuery.split('?')[0] ?? pathWithQuery;
+  return send(port, pathWithQuery, {
+    method,
+    headers: { ...signed(method, path), ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+    body
+  });
+}
+
+describe('admin API', () => {
+  it('handles only admin API paths', async () => {
     const { port } = await start();
 
-    expect((await send(port, '/api/state')).body).toBe('not admin');
-    expect((await send(port, '/admin')).body).toBe('not admin');
+    for (const path of ['/api/state', '/admin', '/admin/auth/login', '/admin.html']) {
+      expect((await send(port, path)).body, path).toBe('not admin');
+    }
   });
 
-  it('signs in allowed GitHub accounts with a strict, host-only session cookie', async () => {
+  it('requires a valid assertion for every request', async () => {
     const { port, logs } = await start();
+    const once = signed('GET', ADMIN_PATHS.whoami, { nonce: 'once' });
 
-    const { login, callback, cookie, csrfToken } = await signIn(port);
+    expect((await send(port, ADMIN_PATHS.whoami)).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: signed('GET', ADMIN_PATHS.whoami, { secret: 'b'.repeat(40) }) })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: once })).status).toBe(200);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: once })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: signed('GET', ADMIN_PATHS.licenses) })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: signed('POST', ADMIN_PATHS.whoami) })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: signed('GET', ADMIN_PATHS.whoami, { subject: 'github:7' }) })).status).toBe(401);
+    // A dashboard session cookie grants nothing here.
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: { cookie: 'flagcount_session=anything; __Host-flagcount_admin=anything' } })).status).toBe(401);
 
-    expect(login.status).toBe(302);
-    expect(login.headers.location).toMatch(/^https:\/\/github\.com\/login\/oauth\/authorize\?state=[\w-]{43}&code_challenge=[\w-]{43}$/);
-    expect(login.headers['set-cookie']?.[0]).toContain('SameSite=Lax');
-    expect(callback.status).toBe(200);
-    expect(callback.body).toContain('http-equiv="refresh"');
-    expect(callback.headers['content-security-policy']).toContain("default-src 'none'");
-    expect(callback.headers['set-cookie']?.find((value) => value.startsWith('__Host-flagcount_admin='))).toMatch(/HttpOnly; Secure; SameSite=Strict$/);
-    expect(cookie).toMatch(/^__Host-flagcount_admin=[\w-]{43}$/);
-    expect(csrfToken).toMatch(/^[\w-]{43}$/);
-    expect(logs.map((entry) => entry.event)).toContain('admin-signed-in');
+    expect(logs.filter((entry) => entry.event === 'admin-assertion-rejected').map((entry) => entry.fields?.['reason'])).toEqual([
+      'malformed',
+      'bad-signature',
+      'replayed',
+      'wrong-request',
+      'wrong-request',
+      'not-allowed',
+      'malformed'
+    ]);
   });
 
-  it('refuses other accounts, foreign states and replayed callbacks', async () => {
+  it('manages licenses and records every change', async () => {
     const { port } = await start();
 
-    const stranger = await signIn(port, 'stranger');
-    expect(stranger.callback.status).toBe(403);
-    expect(stranger.cookie).toBe('');
-
-    const login = await send(port, ADMIN_PATHS.login);
-    const state = new URL(login.headers.location ?? '').searchParams.get('state') ?? '';
-    const stateCookie = cookieValue(login.headers, '__Host-flagcount_admin_login') ?? '';
-    const callback = (cookie: string) => send(port, `${ADMIN_PATHS.callback}?code=allowed&state=${state}`, { headers: { cookie } });
-    // Another browser cannot use the state, and cannot spoil the login of the browser that started it either.
-    expect((await callback('__Host-flagcount_admin_login=other')).status).toBe(400);
-    expect((await callback(stateCookie)).status).toBe(200);
-    expect((await callback(stateCookie)).status).toBe(400);
-
-    const failing = await signIn(port, 'github-down');
-    expect(failing.callback.status).toBe(502);
-  });
-
-  it('requires a session for the API and the CSRF token for changes', async () => {
-    const { port } = await start();
-    const { cookie, csrfToken } = await signIn(port);
-    const manual = { reason: 'support', validUntil: null, note: null };
-
-    expect(JSON.parse((await send(port, ADMIN_PATHS.session)).body)).toEqual({ authenticated: false });
-    expect((await send(port, ADMIN_PATHS.licenses)).status).toBe(401);
-    expect((await send(port, ADMIN_PATHS.licenses, change(cookie, 'wrong', manual))).status).toBe(403);
-    expect((await send(port, ADMIN_PATHS.licenses, { ...change(cookie, csrfToken, manual), headers: { ...change(cookie, csrfToken, manual).headers, origin: 'https://evil.example' } })).status).toBe(403);
-    expect((await send(port, ADMIN_PATHS.licenses, { ...change(cookie, csrfToken, manual), headers: { cookie, [CSRF_HEADER]: csrfToken, 'content-type': 'text/plain' } })).status).toBe(415);
-  });
-
-  it('manages licenses through the API', async () => {
-    const { port } = await start();
-    const { cookie, csrfToken } = await signIn(port);
-
-    const created = await send(port, ADMIN_PATHS.licenses, change(cookie, csrfToken, { reason: 'creator', validUntil: '2026-12-31T00:00:00.000Z', note: 'Kooperation' }));
+    const created = await call(port, 'POST', ADMIN_PATHS.licenses, { reason: 'creator', validUntil: '2026-12-31T00:00:00.000Z', note: 'Kooperation' });
     expect(created.status).toBe(201);
     const { license, code } = JSON.parse(created.body) as { license: { id: string; reference: string }; code: string };
     expect(code).toMatch(/^FC(-[0-9A-Z]{5}){4}$/);
 
-    const search = await send(port, `${ADMIN_PATHS.licenses}?q=${license.reference}`, { headers: { cookie } });
-    expect(JSON.parse(search.body)).toMatchObject([{ id: license.id, source: 'manual' }]);
+    const list = await call(port, 'GET', `${ADMIN_PATHS.licenses}?q=${license.reference}&source=manual&page=1`);
+    expect(JSON.parse(list.body)).toMatchObject({ items: [{ id: license.id, source: 'manual' }], total: 1, page: 1, pageSize: 25 });
+    expect((await call(port, 'GET', `${ADMIN_PATHS.licenses}?status=refunded`)).status).toBe(400);
 
-    const blocked = await send(port, `${ADMIN_PATHS.licenses}/${license.id}/block`, change(cookie, csrfToken, { blocked: true }));
+    const blocked = await call(port, 'POST', `${ADMIN_PATHS.licenses}/${license.id}/block`, { blocked: true });
     expect(JSON.parse(blocked.body)).toMatchObject({ supportStatus: 'blocked', access: null });
 
-    const renewed = await send(port, `${ADMIN_PATHS.licenses}/${license.id}/code`, change(cookie, csrfToken, { delivery: 'email' }));
+    const renewed = await call(port, 'POST', `${ADMIN_PATHS.licenses}/${license.id}/code`, { delivery: 'email' });
     expect(renewed.status).toBe(409);
     expect(JSON.parse(renewed.body)).toEqual({ error: 'no-email' });
 
-    const deactivated = await send(port, `${ADMIN_PATHS.licenses}/${license.id}/installations/installation-aaaaaaaaaaaa/deactivate`, change(cookie, csrfToken, {}));
-    expect(deactivated.status).toBe(404);
+    expect((await call(port, 'POST', `${ADMIN_PATHS.licenses}/${license.id}/installations/installation-aaaaaaaaaaaa/deactivate`, {})).status).toBe(404);
 
-    const details = await send(port, `${ADMIN_PATHS.licenses}/${license.id}`, { headers: { cookie } });
-    // The refused email renewal changed nothing and is therefore not audited.
-    expect((JSON.parse(details.body) as { audit: { action: string }[] }).audit.map((entry) => entry.action)).toEqual([
-      'license-blocked',
-      'manual-license-created'
+    const details = await call(port, 'GET', `${ADMIN_PATHS.licenses}/${license.id}`);
+    expect(JSON.parse(details.body)).toMatchObject({ deactivatedInstallations: [] });
+    expect((JSON.parse(details.body) as { audit: { action: string; adminSubject: string }[] }).audit).toMatchObject([
+      { action: 'license-blocked', adminSubject: 'github:4242' },
+      { action: 'manual-license-created', adminSubject: 'github:4242' }
     ]);
-    expect((await send(port, `${ADMIN_PATHS.licenses}/not-a-license`, { headers: { cookie } })).status).toBe(404);
-    expect((await send(port, `${ADMIN_PATHS.licenses}?q=kunde@example.com`, { headers: { cookie } })).status).toBe(400);
+    expect((await call(port, 'GET', `${ADMIN_PATHS.licenses}/not-a-license`)).status).toBe(404);
   });
 
-  it('signs out and expires idle sessions', async () => {
-    const { port, advance } = await start();
-    const first = await signIn(port);
+  it('rejects wrong methods, media types and oversized bodies', async () => {
+    const { port } = await start();
+    const path = ADMIN_PATHS.licenses;
 
-    const logout = await send(port, ADMIN_PATHS.logout, change(first.cookie, first.csrfToken, {}));
-    expect(logout.status).toBe(204);
-    expect(logout.headers['set-cookie']?.[0]).toContain('Max-Age=0');
-    expect((await send(port, ADMIN_PATHS.licenses, { headers: { cookie: first.cookie } })).status).toBe(401);
-
-    const second = await signIn(port);
-    advance(ADMIN_IDLE_TIMEOUT_MS + 1);
-    expect((await send(port, ADMIN_PATHS.licenses, { headers: { cookie: second.cookie } })).status).toBe(401);
+    expect((await send(port, path, { method: 'POST', headers: { ...signed('POST', path), 'content-type': 'text/plain' }, raw: 'reason=support' })).status).toBe(415);
+    expect((await send(port, path, { method: 'POST', headers: { ...signed('POST', path), 'content-type': 'application/json' }, raw: 'x'.repeat(5000) })).status).toBe(413);
+    // Correctly signed for POST, but the endpoint only answers GET.
+    expect((await send(port, ADMIN_PATHS.whoami, { method: 'POST', headers: signed('POST', ADMIN_PATHS.whoami) })).status).toBe(405);
+    expect((await call(port, 'POST', `${path}/11111111-2222-4333-8444-555555555555`, {})).status).toBe(405);
   });
 
   it('answers 503 while the license service is not connected', async () => {
     const { port } = await start({ admin: () => null });
-    const { cookie } = await signIn(port);
 
-    expect((await send(port, ADMIN_PATHS.licenses, { headers: { cookie } })).status).toBe(503);
+    expect((await call(port, 'GET', ADMIN_PATHS.licenses)).status).toBe(503);
+    expect((await call(port, 'GET', ADMIN_PATHS.whoami)).status).toBe(200);
   });
 
-  it('rate-limits the login', async () => {
-    const { port } = await start();
+  it('rate-limits requests per client', async () => {
+    const { port } = await start({ apiLimit: 2 });
 
-    for (let attempt = 0; attempt < 20; attempt++) await send(port, ADMIN_PATHS.login);
-    const limited = await send(port, ADMIN_PATHS.login);
-
+    expect((await call(port, 'GET', ADMIN_PATHS.whoami)).status).toBe(200);
+    expect((await call(port, 'GET', ADMIN_PATHS.whoami)).status).toBe(200);
+    const limited = await call(port, 'GET', ADMIN_PATHS.whoami);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
-  });
-});
-
-describe('admin API with assertions from the web container', () => {
-  const NOW = Date.parse('2026-09-14T10:00:00.000Z');
-  const assertion = (method: string, path: string, overrides: Partial<Parameters<typeof signAdminAssertion>[0]> = {}) => ({
-    [ADMIN_ASSERTION_HEADER]: signAdminAssertion({ subject: 'github:4242', login: 'jona', method, path, secret: ASSERTION_SECRET, now: NOW, ...overrides })
-  });
-
-  it('accepts signed requests without cookie or CSRF token', async () => {
-    const { port } = await start();
-
-    const whoami = await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami) });
-    expect(whoami.status).toBe(200);
-    expect(JSON.parse(whoami.body)).toEqual({ subject: 'github:4242' });
-
-    const created = await send(port, ADMIN_PATHS.licenses, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...assertion('POST', ADMIN_PATHS.licenses) },
-      body: { reason: 'testing', validUntil: null, note: null }
-    });
-    expect(created.status).toBe(201);
-    const { license } = JSON.parse(created.body) as { license: { reference: string; audit: { adminSubject: string }[] } };
-    expect(license.audit[0]?.adminSubject).toBe('github:4242');
-
-    // The query string is not part of the signed path.
-    const search = await send(port, `${ADMIN_PATHS.licenses}?q=${license.reference}`, { headers: assertion('GET', ADMIN_PATHS.licenses) });
-    expect(search.status).toBe(200);
-  });
-
-  it('rejects missing, forged, replayed and misdirected assertions without falling back to cookies', async () => {
-    const { port, logs } = await start();
-    const { cookie } = await signIn(port);
-    const replayed = assertion('GET', ADMIN_PATHS.whoami, { nonce: 'once' });
-
-    expect((await send(port, ADMIN_PATHS.whoami)).status).toBe(401);
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: { cookie, ...assertion('GET', ADMIN_PATHS.whoami, { secret: 'b'.repeat(40) }) } })).status).toBe(401);
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: replayed })).status).toBe(200);
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: replayed })).status).toBe(401);
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.licenses) })).status).toBe(401);
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami, { subject: 'github:7' }) })).status).toBe(401);
-    expect(logs.filter((entry) => entry.event === 'admin-assertion-rejected').map((entry) => entry.fields?.['reason'])).toEqual([
-      'bad-signature',
-      'replayed',
-      'wrong-request',
-      'not-allowed'
-    ]);
-  });
-
-  it('serves only the API when the legacy login is not configured', async () => {
-    const { port } = await start({ login: undefined });
-
-    expect((await send(port, ADMIN_PATHS.login)).body).toBe('not admin');
-    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami) })).status).toBe(200);
   });
 });

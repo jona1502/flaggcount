@@ -3,6 +3,7 @@ import type {
   ActivationRequest,
   AuditEntry,
   InstallationRecord,
+  LicenseListFilter,
   LicenseRecord,
   LicenseSearch,
   LicenseStore,
@@ -259,21 +260,40 @@ export class PostgresLicenseStore implements LicenseStore {
     return toLicense(row);
   }
 
-  async searchLicenses(search: LicenseSearch, limit: number) {
-    const conditions: Record<Exclude<LicenseSearch['kind'], 'recent'>, string> = {
-      id: 'id::text = $1',
-      reference: "upper(left(replace(id::text, '-', ''), 10)) = $1",
-      customer: 'provider_customer_id = $1',
-      subscription: 'provider_subscription_id = $1'
+  async listLicenses(filter: LicenseListFilter, range: { offset: number; limit: number }) {
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    const where = (column: string, value: unknown) => {
+      values.push(value);
+      conditions.push(`${column} = $${values.length}`);
     };
-    const { rows } =
-      search.kind === 'recent'
-        ? await this.pool.query<LicenseRow>(`SELECT ${LICENSE_COLUMNS} FROM licenses ORDER BY updated_at DESC LIMIT $1`, [limit])
-        : await this.pool.query<LicenseRow>(
-            `SELECT ${LICENSE_COLUMNS} FROM licenses WHERE ${conditions[search.kind]} ORDER BY updated_at DESC LIMIT $2`,
-            [search.value, limit]
-          );
-    return rows.map(toLicense);
+    const searchColumns: Record<Exclude<LicenseSearch['kind'], 'recent'>, string> = {
+      id: 'id::text',
+      reference: "upper(left(replace(id::text, '-', ''), 10))",
+      customer: 'provider_customer_id',
+      subscription: 'provider_subscription_id'
+    };
+    if (filter.search.kind !== 'recent') where(searchColumns[filter.search.kind], filter.search.value);
+    if (filter.source) where('source', filter.source);
+    if (filter.providerStatus) where('provider_status', filter.providerStatus);
+    if (filter.supportStatus) where('support_status', filter.supportStatus);
+    const clause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const [page, count] = await Promise.all([
+      this.pool.query<LicenseRow>(
+        `SELECT ${LICENSE_COLUMNS} FROM licenses ${clause} ORDER BY updated_at DESC, id LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, range.limit, range.offset]
+      ),
+      this.pool.query<{ total: string }>(`SELECT count(*) AS total FROM licenses ${clause}`, values)
+    ]);
+    return { items: page.rows.map(toLicense), total: Number(count.rows[0]?.total ?? 0) };
+  }
+
+  async installations(licenseId: string) {
+    const { rows } = await this.pool.query<InstallationRow>('SELECT * FROM installations WHERE license_id = $1 ORDER BY activated_at DESC', [
+      licenseId
+    ]);
+    return rows.map(toInstallation);
   }
 
   async updateSupport(licenseId: string, changes: SupportChanges, now: string) {

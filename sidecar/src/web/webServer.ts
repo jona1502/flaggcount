@@ -61,7 +61,7 @@ export type WebServerOptions = {
   verifyBoardEntitlement?: (value: unknown) => boolean;
   /** Public license and billing API under `/api/v1/`, separate from the dashboard login. */
   licensing?: LicensingHandler;
-  /** Admin area with its own GitHub login under `/admin` and `/api/admin/`; absent unless configured. */
+  /** Admin API under `/api/admin/` for the Next.js admin dashboard; absent unless configured. */
   admin?: AdminHandler;
   host?: string;
   port?: number;
@@ -97,10 +97,6 @@ const ENTITLEMENT_HEADER = 'x-flagcount-entitlement';
 const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
 /** Client-side routes of the web app: the landing page with the Pro offer, the checkout return page and the dashboard. */
 const APP_ROUTES = new Set(['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']);
-/** The separate admin bundle; served only while the admin area is configured. */
-const ADMIN_ENTRY = '/admin.html';
-const ADMIN_ROUTES = new Set(['/admin', '/admin/', ADMIN_ENTRY]);
-
 const DASHBOARD_HEADERS = {
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
@@ -640,13 +636,9 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       return;
     }
 
-    if (ADMIN_ROUTES.has(pathname) && !options.admin) {
-      sendJson(response, 404, { error: 'not-found' });
-      return;
-    }
     let relativePath: string;
     try {
-      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : ADMIN_ROUTES.has(pathname) ? ADMIN_ENTRY : pathname);
+      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : pathname);
     } catch {
       sendJson(response, 404, { error: 'not-found' });
       return;

@@ -6,15 +6,23 @@ import type { StripeMode } from './stripe';
 import {
   MANUAL_REASONS,
   MANUAL_SOURCE,
+  SUBSCRIPTION_STATUSES,
   type AuditEntry,
   type LicenseRecord,
   type LicenseSearch,
   type LicenseStore,
-  type ManualReason
+  type ManualReason,
+  type SupportStatus
 } from './store';
 
+/** Sources the admin list can filter by: current and former payment providers, and manual licenses. */
+const LICENSE_SOURCES = ['stripe', 'paddle', MANUAL_SOURCE] as const;
+const SUPPORT_STATUSES: readonly SupportStatus[] = ['none', 'blocked'];
+
 export const MAX_NOTE_LENGTH = 500;
-export const SEARCH_LIMIT = 25;
+export const PAGE_SIZE = 25;
+const MAX_PAGE = 10_000;
+const DEACTIVATED_INSTALLATIONS_LIMIT = 20;
 const AUDIT_LIMIT = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Manual licenses should end; five years is the longest a single grant may run. */
@@ -57,8 +65,19 @@ export type AdminLicenseDetails = AdminLicenseSummary & {
   /** Direct links to the records in the Stripe dashboard. */
   links: { customer: string | null; subscription: string | null };
   installations: InstallationSummary[];
+  /** Earlier installations, most recently deactivated first. */
+  deactivatedInstallations: (InstallationSummary & { deactivatedAt: string })[];
   audit: AuditEntry[];
 };
+
+export type AdminLicenseList = {
+  items: AdminLicenseSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type AdminListQuery = { q?: unknown; source?: unknown; status?: unknown; support?: unknown; page?: unknown };
 
 export type AdminServiceOptions = {
   store: LicenseStore;
@@ -109,11 +128,24 @@ export class AdminService {
     this.newId = options.newId ?? randomUUID;
   }
 
-  async search(query: unknown): Promise<AdminResult<AdminLicenseSummary[]>> {
-    const search = parseLicenseSearch(query);
-    if (!search) return { ok: false, error: 'invalid-input' };
-    const licenses = await this.options.store.searchLicenses(search, SEARCH_LIMIT);
-    return { ok: true, value: licenses.map((license) => this.summary(license)) };
+  /** A page of licenses, filtered by search text, source, subscription status and support block. */
+  async list(query: AdminListQuery): Promise<AdminResult<AdminLicenseList>> {
+    const search = parseLicenseSearch(query.q);
+    const optional = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined | null =>
+      value === undefined || value === null || value === '' ? undefined : (allowed.find((candidate) => candidate === value) ?? null);
+    const source = optional(query.source, LICENSE_SOURCES);
+    const providerStatus = optional(query.status, SUBSCRIPTION_STATUSES);
+    const supportStatus = optional(query.support, SUPPORT_STATUSES);
+    const page = query.page === undefined || query.page === '' ? 1 : Number(query.page);
+    if (!search || source === null || providerStatus === null || supportStatus === null || !Number.isInteger(page) || page < 1 || page > MAX_PAGE) {
+      return { ok: false, error: 'invalid-input' };
+    }
+
+    const { items, total } = await this.options.store.listLicenses(
+      { search, source, providerStatus, supportStatus },
+      { offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }
+    );
+    return { ok: true, value: { items: items.map((license) => this.summary(license)), total, page, pageSize: PAGE_SIZE } };
   }
 
   async details(licenseId: unknown): Promise<AdminResult<AdminLicenseDetails>> {
@@ -246,7 +278,15 @@ export class AdminService {
 
   private async describe(license: LicenseRecord): Promise<AdminLicenseDetails> {
     const { store, stripeMode } = this.options;
-    const [installations, audit] = await Promise.all([store.activeInstallations(license.id), store.listAudit(license.id, AUDIT_LIMIT)]);
+    const [installations, history, audit] = await Promise.all([
+      store.activeInstallations(license.id),
+      store.installations(license.id),
+      store.listAudit(license.id, AUDIT_LIMIT)
+    ]);
+    const deactivatedInstallations = history
+      .flatMap((installation) => (installation.deactivatedAt ? [{ ...summarize(installation), deactivatedAt: installation.deactivatedAt }] : []))
+      .sort((a, b) => Date.parse(b.deactivatedAt) - Date.parse(a.deactivatedAt))
+      .slice(0, DEACTIVATED_INSTALLATIONS_LIMIT);
     const dashboard = license.source === 'stripe' && stripeMode ? `https://dashboard.stripe.com/${stripeMode === 'test' ? 'test/' : ''}` : null;
     return {
       ...this.summary(license),
@@ -265,6 +305,7 @@ export class AdminService {
           dashboard && license.providerSubscriptionId ? `${dashboard}subscriptions/${encodeURIComponent(license.providerSubscriptionId)}` : null
       },
       installations: installations.map(summarize),
+      deactivatedInstallations,
       audit
     };
   }

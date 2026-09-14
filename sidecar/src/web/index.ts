@@ -14,7 +14,6 @@ import { clientAddress, startWebServer } from './webServer';
 import { WaitlistStore } from './waitlistStore';
 import { acceptsBoardEntitlement } from './boardEntitlement';
 import { AdminAssertionVerifier, readAdminApiConfig } from './admin/adminAssertion';
-import { AdminSessions, GitHubOAuth, readAdminConfig } from './admin/adminAuth';
 import { createAdminHandler } from './admin/adminRoutes';
 
 // Entry point of the web version (Docker). Configuration comes from the environment, see .env.example.
@@ -73,32 +72,23 @@ async function main(): Promise<void> {
   const verifyBoardEntitlement = (value: unknown): boolean =>
     entitlementVerifier ? acceptsBoardEntitlement(value, entitlementVerifier) : false;
 
-  // The admin API accepts requests the Next.js web container signed for its logged-in administrators, and,
-  // until the Next.js dashboard replaces it, the legacy GitHub login of this server. It needs the license service.
-  const adminConfig = readAdminConfig(process.env);
+  // The admin API accepts only requests the Next.js web container signed for its logged-in administrators.
+  // It needs the license service.
   const adminApiConfig = readAdminApiConfig(process.env);
-  for (const [name, config] of [['legacy admin login', adminConfig], ['admin API', adminApiConfig]] as const) {
-    if (config.kind === 'invalid') log('warn', `The ${name} is disabled: ${config.problems.join('; ')}`);
+  if (adminApiConfig.kind === 'invalid') {
+    log('warn', `The admin API is disabled: ${adminApiConfig.problems.join('; ')}`);
+  } else if (adminApiConfig.kind === 'enabled' && licensingConfig.kind !== 'enabled') {
+    log('warn', 'The admin API needs FlagCount Pro billing to be configured; it answers 503 until then');
   }
-  const adminEnabled = adminConfig.kind === 'enabled' || adminApiConfig.kind === 'enabled';
-  if (adminEnabled && licensingConfig.kind !== 'enabled') {
-    log('warn', 'The admin area needs FlagCount Pro billing to be configured; its API answers 503 until then');
-  }
-  const adminHandler = adminEnabled
-    ? createAdminHandler({
-        login:
-          adminConfig.kind === 'enabled'
-            ? { config: adminConfig.config, sessions: new AdminSessions(), oauth: new GitHubOAuth(adminConfig.config) }
-            : undefined,
-        assertions:
-          adminApiConfig.kind === 'enabled'
-            ? new AdminAssertionVerifier({ secret: adminApiConfig.config.secret, allowedSubjects: () => adminApiConfig.config.allowedSubjects })
-            : undefined,
-        admin: () => licensing?.admin ?? null,
-        logger: jsonLogger,
-        clientAddress
-      })
-    : undefined;
+  const adminHandler =
+    adminApiConfig.kind === 'enabled'
+      ? createAdminHandler({
+          assertions: new AdminAssertionVerifier({ secret: adminApiConfig.config.secret, allowedSubjects: () => adminApiConfig.config.allowedSubjects }),
+          admin: () => licensing?.admin ?? null,
+          logger: jsonLogger,
+          clientAddress
+        })
+      : undefined;
 
   const server = await startWebServer({
     backend: controller,

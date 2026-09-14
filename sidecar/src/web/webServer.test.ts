@@ -37,7 +37,6 @@ async function start(overrides: Partial<WebServerOptions> = {}) {
   const webRoot = mkdtempSync(join(tmpdir(), 'flagcount-web-'));
   mkdirSync(join(webRoot, 'assets'));
   writeFileSync(join(webRoot, 'web.html'), '<!doctype html><title>FlagCount</title>');
-  writeFileSync(join(webRoot, 'admin.html'), '<!doctype html><title>FlagCount Admin</title>');
   writeFileSync(join(webRoot, 'assets', 'app.js'), 'console.log(1)');
 
   const server = await startWebServer({ backend: controller, password: PASSWORD, webRoot, ...overrides });
@@ -224,23 +223,20 @@ describe('startWebServer', () => {
     }
   });
 
-  it('serves the admin page only while the admin area is configured', async () => {
-    const admin = { handle: async (pathname: string, _request: unknown, response: import('node:http').ServerResponse) => {
-      if (pathname !== '/api/admin/session') return false;
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end('{"authenticated":false}');
-      return true;
-    } };
-    const withAdmin = await start({ admin });
-    const withoutAdmin = await start();
+  it('passes admin API requests to the admin handler and serves no admin page itself', async () => {
+    const admin = {
+      handle: async (pathname: string, _request: unknown, response: import('node:http').ServerResponse) => {
+        if (!pathname.startsWith('/api/admin/')) return false;
+        response.writeHead(401, { 'Content-Type': 'application/json' });
+        response.end('{"error":"unauthorized"}');
+        return true;
+      }
+    };
+    const { server } = await start({ admin });
 
-    expect((await send(withoutAdmin.server.port, '/admin')).status).toBe(404);
-    expect((await send(withoutAdmin.server.port, '/admin.html')).status).toBe(404);
-    expect((await send(withAdmin.server.port, '/api/admin/session')).body).toBe('{"authenticated":false}');
-    const page = await send(withAdmin.server.port, '/admin');
-    expect(page.status).toBe(200);
-    expect(page.body).toContain('<title>FlagCount Admin</title>');
-    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect((await send(server.port, '/api/admin/whoami')).body).toBe('{"error":"unauthorized"}');
+    // The admin dashboard belongs to the Next.js web container.
+    expect((await send(server.port, '/admin')).status).toBe(404);
   });
 
   it('redirects downloads to the newest installer without a login', async () => {

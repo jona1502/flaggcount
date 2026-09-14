@@ -1,0 +1,124 @@
+/* Admin dashboard of the Next.js web container; shared admin base styles come from src/styles.css. */
+.admin-brand-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.admin-account form {
+  display: inline;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.admin-filters label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.admin-app input,
+.admin-app select,
+.admin-app textarea {
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.admin-table a {
+  color: var(--accent-hover);
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.admin-badge.manual {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.admin-badge.blocked {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.admin-section {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-section + .admin-section {
+  margin-top: 12px;
+}
+
+.admin-section h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.admin-form {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
