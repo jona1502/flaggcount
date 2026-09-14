@@ -7,7 +7,7 @@ import { createLatestRelease } from './latestRelease';
 import { RelayChannels } from './relayChannels';
 import { SettingsStore } from './settingsStore';
 import { WebController } from './webController';
-import { readLicensingConfig, startLicensing, type RunningLicensing } from './licensing/licensingConfig';
+import { describeBilling, readLicensingConfig, startLicensing, type RunningLicensing } from './licensing/licensingConfig';
 import { createLicensingHandler } from './licensing/licensingRoutes';
 import { createJsonLogger } from './structuredLog';
 import { clientAddress, startWebServer } from './webServer';
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     if (licensingConfig.kind !== 'enabled' || stopping) return;
     try {
       licensing = await startLicensing(licensingConfig.settings, jsonLogger);
-      log('info', `FlagCount Pro billing is enabled (Paddle ${licensingConfig.settings.paddle.environment})`);
+      log('info', `FlagCount Pro billing is enabled (${describeBilling(licensingConfig.settings.billing)})`);
     } catch (error) {
       const delayMs = Math.min(60_000, 2_000 * 2 ** (attempt - 1));
       // Only the error class: database errors can contain connection details.
