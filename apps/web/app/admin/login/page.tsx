@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { adminRuntime } from '../../../lib/admin/runtime';
 import { currentAdmin } from '../../../lib/admin/session';
+import '../admin.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,11 +21,18 @@ export default async function AdminLoginPage() {
         <h1 id="admin-login-title">FlagCount Admin</h1>
         {runtime ? (
           <>
-            <p>Nur für freigegebene GitHub-Konten. Die Sitzung endet nach 30 Minuten ohne Aktivität und spätestens nach 8 Stunden.</p>
-            {/* A route handler, not a page: a full navigation that leaves for GitHub. */}
-            <a className="button primary" href="/admin/auth/login">
-              Mit GitHub anmelden
-            </a>
+            <p>Die Sitzung endet nach 30 Minuten ohne Aktivität und spätestens nach 8 Stunden.</p>
+            {runtime.config.email ? (
+              <form method="post" action="/admin/auth/login" className="admin-login-form">
+                <label htmlFor="admin-email">E-Mail-Adresse</label>
+                <input id="admin-email" name="email" type="email" autoComplete="username" required />
+                <label htmlFor="admin-password">Passwort</label>
+                <input id="admin-password" name="password" type="password" autoComplete="current-password" required />
+                <button className="button primary" type="submit">Anmelden</button>
+              </form>
+            ) : (
+              <a className="button primary" href="/admin/auth/login">Mit GitHub anmelden</a>
+            )}
           </>
         ) : (
           <p>Der Admin-Bereich ist auf diesem Server nicht eingerichtet.</p>

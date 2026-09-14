@@ -30,6 +30,10 @@ services:
     environment:
       NODE_ENV: production
       BACKEND_INTERNAL_URL: http://server:3010
+      # Admin credentials may live in the deployment .env; .env.web can override/add other web-only settings.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORT: ${ADMIN_PASSWORT:-}
+      ADMIN_ASSERTION_SECRET: ${ADMIN_ASSERTION_SECRET:-}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
       interval: 30s

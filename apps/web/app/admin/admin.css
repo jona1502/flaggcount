@@ -9,6 +9,28 @@
   display: inline;
 }
 
+.admin-login-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.admin-login-form label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-login-form input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+}
+
 .admin-toolbar {
   display: flex;
   flex-wrap: wrap;

@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
  * Internal proof of an authenticated administrator. The Next.js web container signs one for every admin API
@@ -10,11 +10,11 @@ export const ADMIN_ASSERTION_TTL_MS = 60_000;
 export const MIN_ASSERTION_SECRET_LENGTH = 32;
 const CLOCK_SKEW_MS = 5_000;
 const MAX_TOKEN_LENGTH = 2048;
-const SUBJECT_PATTERN = /^github:\d{1,12}$/;
+const SUBJECT_PATTERN = /^(github:\d{1,12}|email:[A-Za-z0-9_-]{43})$/;
 
 export type AdminAssertionClaims = {
   v: 1;
-  /** `github:<account id>` of the signed-in administrator. */
+  /** Pseudonymous subject of the signed-in administrator. */
   sub: string;
   login: string;
   method: string;
@@ -74,7 +74,7 @@ export class AdminAssertionVerifier {
   constructor(
     private readonly options: {
       secret: string;
-      /** Subjects (`github:<id>`) that may administer, read on every request. */
+      /** Subjects that may administer, read on every request. */
       allowedSubjects: () => ReadonlySet<string>;
       now?: () => number;
     }
@@ -120,6 +120,7 @@ export type AdminApiConfigResult =
 export function readAdminApiConfig(env: Record<string, string | undefined>): AdminApiConfigResult {
   const secret = env['ADMIN_ASSERTION_SECRET']?.trim() ?? '';
   const userIds = env['ADMIN_GITHUB_USER_IDS']?.trim() ?? '';
+  const email = env['ADMIN_EMAIL']?.trim().toLowerCase() ?? '';
   if (!secret) return { kind: 'disabled' };
 
   const problems: string[] = [];
@@ -128,10 +129,20 @@ export function readAdminApiConfig(env: Record<string, string | undefined>): Adm
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);
-  if (ids.length === 0) problems.push('ADMIN_GITHUB_USER_IDS is missing');
+  if (ids.length === 0 && !email) problems.push('ADMIN_EMAIL or ADMIN_GITHUB_USER_IDS is missing');
   if (ids.some((id) => !/^\d{1,12}$/.test(id))) problems.push('ADMIN_GITHUB_USER_IDS must be numeric GitHub account ids separated by commas');
+  if (email && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) problems.push('ADMIN_EMAIL has an invalid format');
 
   return problems.length > 0
     ? { kind: 'invalid', problems }
-    : { kind: 'enabled', config: { secret, allowedSubjects: new Set(ids.map((id) => `github:${id}`)) } };
+    : {
+        kind: 'enabled',
+        config: {
+          secret,
+          allowedSubjects: new Set([
+            ...ids.map((id) => `github:${id}`),
+            ...(email ? [`email:${createHash('sha256').update(email).digest('base64url')}`] : [])
+          ])
+        }
+      };
 }

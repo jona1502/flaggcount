@@ -16,8 +16,8 @@ export type AdminRuntime = {
 };
 
 /**
- * Reads the admin configuration of the web container: the GitHub OAuth app, the allowed account ids,
- * `PUBLIC_BASE_URL` for the callback and `ADMIN_ASSERTION_SECRET`. `null` if anything is missing.
+ * Reads either the single-operator password login or the legacy GitHub login plus
+ * `ADMIN_ASSERTION_SECRET`. `null` if the selected configuration is incomplete.
  */
 export function createAdminRuntime(env: Record<string, string | undefined>): AdminRuntime | null {
   const login = readAdminConfig(env);

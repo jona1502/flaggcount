@@ -18,7 +18,7 @@ Abweichend von der Skizze im Plan heißen die Overlay-Routen `/overlay/*`, `/o/*
 | `/impressum`, `/datenschutz`, `/agb` | Next.js | statisch, Texte vor Launch rechtlich prüfen |
 | `/dashboard` | Next.js | Client-Komponente, Session beim Backend |
 | `/admin`, `/admin/*` | Next.js | eigener Admin-Login |
-| `/admin/auth/login`, `/admin/auth/callback` | Next.js | GitHub OAuth |
+| `/admin/auth/login` | Next.js | E-Mail-/Passwort-Anmeldung |
 | `/sitemap.xml`, `/robots.txt` | Next.js | Suchmaschinensteuerung |
 
 ## Backend-Routen
@@ -71,9 +71,9 @@ Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile un
 
 ## Admin-Authentifizierung
 
-- Next.js meldet Administratoren an: `/admin/login`, `/admin/auth/login` (Weiterleitung zu GitHub mit `state` und
-  PKCE), `/admin/auth/callback`, `/admin/auth/logout` (POST mit CSRF-Token und Origin-Prüfung). Zugriff nur für
-  die numerischen GitHub-Konto-IDs in `ADMIN_GITHUB_USER_IDS`; Sitzungen liegen serverseitig im Web-Container
+- Next.js meldet den Administrator über `/admin/login` und `/admin/auth/login` an; `/admin/auth/logout` nutzt
+  POST mit CSRF-Token und Origin-Prüfung. Die Zugangsdaten kommen ausschließlich aus `ADMIN_EMAIL` und
+  `ADMIN_PASSWORT`; Sitzungen liegen serverseitig im Web-Container
   (30 Minuten Leerlauf, höchstens 8 Stunden) in einem `__Host-`-Cookie mit `HttpOnly`, `Secure`,
   `SameSite=Strict`. Das Dashboard-Passwort verleiht keine Admin-Rechte.
 - Jede Anfrage von Next.js an `/api/admin/*` trägt einen Nachweis im Header `X-FlagCount-Admin-Assertion`: HMAC mit

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-/** GitHub OAuth app of the admin login and the GitHub accounts allowed to use it. */
+/** Server-side configuration for the single-operator password login or legacy GitHub OAuth. */
 export type AdminConfig = {
   clientId: string;
   clientSecret: string;
@@ -8,11 +8,14 @@ export type AdminConfig = {
   allowedUserIds: ReadonlySet<string>;
   /** Public origin of the website, for the OAuth callback. */
   publicBaseUrl: string;
+  /** Single operator login. Kept server-side and never serialized to the browser. */
+  email?: string;
+  password?: string;
 };
 
 export type AdminConfigResult = { kind: 'disabled' } | { kind: 'invalid'; problems: string[] } | { kind: 'enabled'; config: AdminConfig };
 
-export const ADMIN_VARIABLES = ['ADMIN_GITHUB_CLIENT_ID', 'ADMIN_GITHUB_CLIENT_SECRET', 'ADMIN_GITHUB_USER_IDS'] as const;
+export const ADMIN_VARIABLES = ['ADMIN_EMAIL', 'ADMIN_PASSWORT', 'ADMIN_PASSWORD', 'ADMIN_GITHUB_CLIENT_ID', 'ADMIN_GITHUB_CLIENT_SECRET', 'ADMIN_GITHUB_USER_IDS'] as const;
 
 /** `__Host-` cookies must be Secure, have `Path=/` and no domain, so no subdomain can set or read them. */
 export const ADMIN_SESSION_COOKIE = '__Host-flagcount_admin';
@@ -25,11 +28,25 @@ const MAX_PENDING_LOGINS = 100;
 
 /**
  * Reads the admin login configuration. Without any of its variables the admin area does not exist.
- * There is deliberately no shared admin password, and the dashboard password is never reused.
+ * The dedicated admin password is never reused as the streaming dashboard password.
  */
 export function readAdminConfig(env: Record<string, string | undefined>): AdminConfigResult {
   const value = (name: string): string => env[name]?.trim() ?? '';
   if (ADMIN_VARIABLES.every((name) => value(name) === '')) return { kind: 'disabled' };
+
+  const email = value('ADMIN_EMAIL').toLowerCase();
+  const password = env['ADMIN_PASSWORT'] ?? env['ADMIN_PASSWORD'] ?? '';
+  if (email || password) {
+    const problems: string[] = [];
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) problems.push('ADMIN_EMAIL has an invalid format');
+    if (password.length < 12 || password.length > 256) problems.push('ADMIN_PASSWORT must contain between 12 and 256 characters');
+    return problems.length
+      ? { kind: 'invalid', problems }
+      : {
+          kind: 'enabled',
+          config: { clientId: '', clientSecret: '', allowedUserIds: new Set(), publicBaseUrl: '', email, password }
+        };
+  }
 
   const problems: string[] = [];
   const required = (name: string): string => {
@@ -71,6 +88,11 @@ export function readAdminConfig(env: Record<string, string | undefined>): AdminC
   return problems.length > 0
     ? { kind: 'invalid', problems }
     : { kind: 'enabled', config: { clientId, clientSecret, allowedUserIds, publicBaseUrl } };
+}
+
+/** Stable pseudonymous subject for assertions and audit logs; the e-mail address itself is not embedded. */
+export function emailAdminSubject(email: string): string {
+  return `email:${createHash('sha256').update(email.trim().toLowerCase()).digest('base64url')}`;
 }
 
 export type AdminSession = {

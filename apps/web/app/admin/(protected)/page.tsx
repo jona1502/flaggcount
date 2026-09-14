@@ -36,7 +36,7 @@ export default async function AdminHomePage() {
       </form>
       <dl className="admin-facts">
         <div>
-          <dt>GitHub-Konto</dt>
+          <dt>Admin-Konto</dt>
           <dd>{admin.subject}</dd>
         </div>
         <div>

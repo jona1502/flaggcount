@@ -25,15 +25,14 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
 
 ## Admin-Bereich
 
-- Erreichbar unter `/admin`, ausgeliefert vom Web-Container (Next.js). Er braucht in `.env.web`
-  `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET`, `ADMIN_GITHUB_USER_IDS`, `PUBLIC_BASE_URL` und
-  `ADMIN_ASSERTION_SECRET`; der Server braucht in `.env` `ADMIN_GITHUB_USER_IDS` und dasselbe
-  `ADMIN_ASSERTION_SECRET`. Anmeldung über GitHub, Zugriff nur für die eingetragenen numerischen GitHub-Konto-IDs.
-  Kein gemeinsames Admin-Passwort, keine Wiederverwendung des Dashboard-Passworts.
+- Erreichbar unter `/admin`, ausgeliefert vom Web-Container (Next.js). Für einen einzelnen Betreiber stehen
+  `ADMIN_EMAIL`, `ADMIN_PASSWORT` (mindestens 12 Zeichen) und `ADMIN_ASSERTION_SECRET` in der Deployment-`.env`.
+  Compose reicht E-Mail, Passwort und Assertion-Secret an den Web-Container; der Server verwendet E-Mail und
+  dasselbe Assertion-Secret zur zusätzlichen Autorisierung. Das Dashboard-Passwort wird nicht wiederverwendet.
 - Sitzungen liegen im Speicher des Web-Containers: 30 Minuten Leerlauf, höchstens 8 Stunden; ein Neustart meldet ab.
 - Der Web-Container signiert jede Anfrage an die Admin-API des Servers mit einem kurzlebigen Nachweis. Wer den
   Server direkt erreicht, erhält ohne diesen Nachweis keine Admin-Rechte.
-- Jede Änderung braucht ein CSRF-Token und landet im Audit-Protokoll (`admin_audit_log`) mit GitHub-Konto,
+- Jede Änderung braucht ein CSRF-Token und landet im Audit-Protokoll (`admin_audit_log`) mit pseudonymer Admin-ID,
   Aktion und Zeitpunkt, ohne Codes, Hinweistexte oder Kundendaten.
 - Admins dürfen: Installationen deaktivieren, Aktivierungscodes erneuern (anzeigen oder per E-Mail senden),
   Lizenzen sperren und entsperren, interne Hinweise pflegen, manuelle Lizenzen anlegen und verlängern.
@@ -41,9 +40,8 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
   ändern. Das passiert im Stripe-Dashboard; der Webhook übernimmt den neuen Stand.
 - Interne Hinweise enthalten keine Namen, E-Mail-Adressen oder Zahlungsdaten; Tickets verweisen auf die
   Lizenzreferenz `FC-…`.
-- Zugriff entziehen: GitHub-ID in `.env.web` und `.env` aus `ADMIN_GITHUB_USER_IDS` entfernen und beide Container
-  neu starten (beendet alle Sitzungen). Bei Verdacht zusätzlich das Client Secret der OAuth App und
-  `ADMIN_ASSERTION_SECRET` in beiden Dateien rotieren.
+- Zugriff entziehen: `ADMIN_EMAIL` oder `ADMIN_PASSWORT` ändern und beide Container neu starten (beendet alle
+  Sitzungen). Bei Verdacht zusätzlich `ADMIN_ASSERTION_SECRET` rotieren.
 
 ## Manuelle Lizenzen
 
@@ -79,7 +77,7 @@ Gespeichert werden für FlagCount Pro:
 - Hash des Aktivierungscodes und Zeitpunkt der Ausstellung;
 - pseudonyme Installationskennungen der App mit Aktivierung und letztem Kontakt (höchstens drei aktive);
 - Webhook-Ereignis-IDs zur Deduplizierung;
-- Support-Sperre, interne Hinweise und das Admin-Audit-Protokoll mit der GitHub-Konto-ID des Admins.
+- Support-Sperre, interne Hinweise und das Admin-Audit-Protokoll mit der pseudonymen Admin-ID.
 
 Nicht gespeichert werden E-Mail-Adressen, Namen, Adressen und Zahlungsdaten der Kunden. Die E-Mail-Adresse wird
 nur zum Versand eines Codes bei Stripe abgefragt. Logs enthalten weder Codes, Secrets, E-Mail-Adressen noch

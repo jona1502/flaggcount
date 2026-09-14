@@ -24,7 +24,7 @@
 
 ## Admin-Bereich
 
-- [ ] Anmeldung mit freigegebenem GitHub-Konto; fremdes Konto wird abgelehnt.
+- [ ] Anmeldung mit der konfigurierten Admin-E-Mail; falsche Zugangsdaten werden neutral abgelehnt.
 - [ ] Sitzung endet nach Leerlauf; Abmelden funktioniert.
 - [ ] Suche nach Referenz, `cus_…` und `sub_…`; Stripe-Links öffnen den richtigen Datensatz.
 - [ ] Manuelle Lizenz anlegen, Code einmal angezeigt, Aktivierung, Verlängerung, Sperre und Entsperrung.

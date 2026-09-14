@@ -11,6 +11,7 @@ import {
 import { readCookie } from '../../../../sidecar/src/web/session';
 import { isTrustedProxyAddress } from '../../../../sidecar/src/web/clientAddress';
 import type { AdminRuntime } from './runtime';
+import { emailAdminSubject } from '../../../../sidecar/src/web/admin/adminAuth';
 
 /** Pages of the login flow contain no script and load nothing. */
 const PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -71,6 +72,28 @@ export function startLogin(runtime: AdminRuntime, request: Request): Response {
   const headers = baseHeaders([adminLoginCookie(state)]);
   headers.set('Location', runtime.oauth.authorizeUrl(state, challenge));
   return new Response(null, { status: 302, headers });
+}
+
+/** Authenticates the single configured operator without revealing which field was wrong. */
+export async function passwordLogin(runtime: AdminRuntime, request: Request): Promise<Response> {
+  const tooMany = limited(runtime, request);
+  if (tooMany) return tooMany;
+  if (!isSameOrigin(request) || !runtime.config.email || !runtime.config.password) return new Response('Forbidden', { status: 403, headers: baseHeaders() });
+
+  const form = await request.formData().catch(() => null);
+  const email = String(form?.get('email') ?? '').trim().toLowerCase();
+  const password = form?.get('password');
+  if (!safeEqual(email, runtime.config.email) || !safeEqual(password, runtime.config.password)) {
+    runtime.logger('warn', 'admin-login-rejected', { reason: 'invalid-credentials' });
+    return page(401, 'Anmeldung fehlgeschlagen', 'E-Mail-Adresse oder Passwort ist nicht korrekt.');
+  }
+
+  const subject = emailAdminSubject(email);
+  const { token } = runtime.sessions.create(subject, email);
+  runtime.logger('info', 'admin-signed-in', { admin: subject });
+  const headers = baseHeaders([adminSessionCookie(token)]);
+  headers.set('Location', '/admin');
+  return new Response(null, { status: 303, headers });
 }
 
 /** Handles GitHub's redirect back: checks state, account id and allowlist, then creates the session. */

@@ -17,7 +17,7 @@ vi.mock('next/navigation', () => ({
   }
 }));
 
-const { finishLogin, isSameOrigin, logout, startLogin, visitorKey } = await import('../../lib/admin/authFlow');
+const { finishLogin, isSameOrigin, logout, passwordLogin, startLogin, visitorKey } = await import('../../lib/admin/authFlow');
 const { adminBackend } = await import('../../lib/admin/backend');
 const { createAdminRuntime, setAdminRuntime } = await import('../../lib/admin/runtime');
 const { currentAdmin, requireAdmin } = await import('../../lib/admin/session');
@@ -77,6 +77,27 @@ afterEach(() => {
 });
 
 describe('admin login flow', () => {
+  it('signs in the configured e-mail only with the correct password', async () => {
+    const active = runtime();
+    active.config.email = 'admin@example.com';
+    active.config.password = 'a-secure-password';
+    const attempt = (email: string, password: string) =>
+      passwordLogin(
+        active,
+        new Request(`${BASE}/admin/auth/login`, {
+          method: 'POST',
+          headers: { origin: BASE, host: 'flagcount.example' },
+          body: new URLSearchParams({ email, password })
+        })
+      );
+
+    expect((await attempt('admin@example.com', 'wrong-password')).status).toBe(401);
+    const signedIn = await attempt('ADMIN@example.com', 'a-secure-password');
+    expect(signedIn.status).toBe(303);
+    expect(signedIn.headers.get('location')).toBe('/admin');
+    expect(cookieValue(signedIn, '__Host-flagcount_admin')).toMatch(/^[\w-]{43}$/);
+  });
+
   it('starts the GitHub login with state, PKCE and a lax login cookie', () => {
     const { started } = { started: startLogin(runtime(), new Request(`${BASE}/admin/auth/login`)) };
 
@@ -220,6 +241,8 @@ describe('admin session guard', () => {
     expect(createAdminRuntime(env)).not.toBeNull();
     expect(createAdminRuntime({ ...env, ADMIN_ASSERTION_SECRET: 'short' })).toBeNull();
     expect(createAdminRuntime({ ...env, ADMIN_GITHUB_CLIENT_SECRET: undefined })).toBeNull();
+    expect(createAdminRuntime({ ADMIN_EMAIL: 'admin@example.com', ADMIN_PASSWORT: 'a-secure-password', ADMIN_ASSERTION_SECRET: SECRET })).not.toBeNull();
+    expect(createAdminRuntime({ ADMIN_EMAIL: 'admin@example.com', ADMIN_PASSWORT: 'short', ADMIN_ASSERTION_SECRET: SECRET })).toBeNull();
   });
 });
 

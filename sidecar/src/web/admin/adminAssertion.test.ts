@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ADMIN_ASSERTION_TTL_MS, AdminAssertionVerifier, readAdminApiConfig, signAdminAssertion } from './adminAssertion';
+import { emailAdminSubject } from './adminAuth';
 
 const SECRET = 's'.repeat(40);
 const NOW = Date.parse('2026-09-14T12:00:00.000Z');
@@ -69,6 +70,10 @@ describe('admin assertions', () => {
     expect(readAdminApiConfig({ ADMIN_ASSERTION_SECRET: SECRET, ADMIN_GITHUB_USER_IDS: '4242, 99' })).toEqual({
       kind: 'enabled',
       config: { secret: SECRET, allowedSubjects: new Set(['github:4242', 'github:99']) }
+    });
+    expect(readAdminApiConfig({ ADMIN_ASSERTION_SECRET: SECRET, ADMIN_EMAIL: 'Admin@Example.com' })).toEqual({
+      kind: 'enabled',
+      config: { secret: SECRET, allowedSubjects: new Set([emailAdminSubject('admin@example.com')]) }
     });
     expect(readAdminApiConfig({ ADMIN_ASSERTION_SECRET: 'short', ADMIN_GITHUB_USER_IDS: 'jona' })).toEqual({
       kind: 'invalid',
