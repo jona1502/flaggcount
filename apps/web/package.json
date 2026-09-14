@@ -1,0 +1,23 @@
+{
+  "name": "@flagcount/web",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Öffentliche Website, Browser-Dashboard und Admin-Bereich von FlagCount (Next.js)",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "node .next/standalone/apps/web/server.js",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "next": "16.3.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.3.5"
+  }
+}

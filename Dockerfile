@@ -2,6 +2,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
+# npm workspaces: every workspace manifest must exist before the install.
+COPY apps/web/package.json apps/web/
 RUN npm ci
 COPY . .
 RUN npm run build:web && npm run build:server

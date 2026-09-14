@@ -10,3 +10,6 @@ coverage/
 dist-web/
 server-dist/
 data/
+apps/web/.next/
+apps/web/next-env.d.ts
+*.tsbuildinfo
