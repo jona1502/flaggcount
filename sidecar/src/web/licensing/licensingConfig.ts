@@ -7,7 +7,7 @@ import { LicenseService } from './licenseService';
 import { OutboxMailSender, SmtpMailSender } from './mail';
 import { PaddleBillingProvider, type PaddleConfig, type PaddleEnvironment } from './paddle';
 import { PostgresLicenseStore } from './postgresStore';
-import { stripeKeyMode, type StripeConfig } from './stripe';
+import { StripeBillingProvider, stripeKeyMode, type StripeConfig } from './stripe';
 
 export type BillingSettings =
   | { provider: 'paddle'; paddle: Omit<PaddleConfig, 'fetch'> }
@@ -268,7 +268,7 @@ function createBillingProvider(billing: BillingSettings): BillingProvider {
     case 'paddle':
       return new PaddleBillingProvider(billing.paddle);
     case 'stripe':
-      throw new Error('Stripe billing is not available in this version yet');
+      return new StripeBillingProvider(billing.stripe);
   }
 }
 

@@ -4,13 +4,16 @@ export type BillingPlanId = 'monthly' | 'yearly' | 'founding';
 
 export const BILLING_PLANS: readonly BillingPlanId[] = ['monthly', 'yearly', 'founding'];
 
+/** A subscription's billing state as the provider reports it, without the bookkeeping fields. */
+export type SubscriptionSnapshot = Omit<SubscriptionUpdate, 'provider' | 'occurredAt'>;
+
 export type BillingEvent =
   | {
       kind: 'subscription';
       eventId: string;
       eventType: string;
       occurredAt: string;
-      subscription: Omit<SubscriptionUpdate, 'provider' | 'occurredAt'>;
+      subscription: SubscriptionSnapshot;
     }
   | {
       kind: 'adjustment';
