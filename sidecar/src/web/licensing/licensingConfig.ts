@@ -241,9 +241,6 @@ function readStripe(reader: Reader): BillingSettings {
     }
   }
 
-  // Checkout, webhooks and the customer portal are added step by step; until then Stripe stays off.
-  if (secretKey) problems.push('Stripe billing is not available in this version yet');
-
   return {
     provider: 'stripe',
     stripe: {

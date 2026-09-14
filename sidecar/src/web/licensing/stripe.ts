@@ -180,8 +180,20 @@ export class StripeBillingProvider implements BillingProvider {
     return { url };
   }
 
-  customerIdsByEmail(_email: string): Promise<string[]> {
-    return Promise.resolve([]);
+  /**
+   * Customers with this email address, for sending new activation codes. Stripe's search matches email
+   * addresses regardless of case, which matters because Checkout stores the address as it was typed.
+   * Search results can lag about a minute behind new purchases; the activation email covers that time.
+   */
+  async customerIdsByEmail(email: string): Promise<string[]> {
+    const query = `email:"${email.replace(/["\\]/g, '\\$&')}"`;
+    const result = record(await this.request('GET', '/v1/customers/search', { query, limit: 10 }));
+    const customers = result?.['data'];
+    return (Array.isArray(customers) ? customers : [])
+      .map(record)
+      .filter((customer) => customer?.['deleted'] !== true)
+      .map((customer) => text(customer?.['id']))
+      .filter((id): id is string => id !== null);
   }
 
   async customerEmail(customerId: string): Promise<string | null> {

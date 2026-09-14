@@ -304,6 +304,27 @@ describe('StripeBillingProvider customer portal', () => {
   });
 });
 
+describe('StripeBillingProvider license recovery', () => {
+  it('finds every customer with the email address', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch.mockResolvedValueOnce(respond({ object: 'search_result', data: [{ id: 'cus_1' }, { id: 'cus_2' }, { id: 'cus_3', deleted: true }] }));
+
+    expect(await stripe.customerIdsByEmail('kunde+pro@example.com')).toEqual(['cus_1', 'cus_2']);
+    const url = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe('/v1/customers/search');
+    expect(url.searchParams.get('query')).toBe('email:"kunde+pro@example.com"');
+    expect(url.searchParams.get('limit')).toBe('10');
+  });
+
+  it('escapes quotes so an address cannot change the search query', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch.mockResolvedValueOnce(respond({ data: [] }));
+
+    expect(await stripe.customerIdsByEmail('a"OR email~"@example.com')).toEqual([]);
+    expect(new URL(String(fetch.mock.calls[0]?.[0])).searchParams.get('query')).toBe('email:"a\\"OR email~\\"@example.com"');
+  });
+});
+
 describe('StripeBillingProvider API', () => {
   it('reads customer addresses but not those of deleted customers', async () => {
     const { stripe, fetch } = stripeProvider();

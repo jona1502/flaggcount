@@ -37,7 +37,7 @@ function stripeEnv(overrides: Record<string, string | undefined> = {}) {
   };
 }
 
-const withoutGate = (problems: string[]) => problems.filter((problem) => !problem.includes('not available in this version'));
+const problems = (result: ReturnType<typeof readLicensingConfig>) => (result.kind === 'invalid' ? result.problems : []);
 
 describe('readLicensingConfig', () => {
   it('stays disabled without any billing variable', () => {
@@ -78,12 +78,13 @@ describe('readLicensingConfig', () => {
     const outbox = { SMTP_URL: undefined, MAIL_FROM: undefined, MAIL_OUTBOX_FILE: 'data/mail-outbox.jsonl' };
 
     expect(readLicensingConfig(env(outbox)).kind).toBe('enabled');
+    expect(readLicensingConfig(stripeEnv(outbox)).kind).toBe('enabled');
     expect(
       readLicensingConfig(env({ ...outbox, PADDLE_ENVIRONMENT: 'production', PADDLE_API_KEY: 'pdl_live_apikey_0123456789' }))
     ).toMatchObject({ kind: 'invalid', problems: ['MAIL_OUTBOX_FILE is only allowed with PADDLE_ENVIRONMENT=sandbox'] });
-
-    const live = readLicensingConfig(stripeEnv({ ...outbox, STRIPE_SECRET_KEY: 'rk_live_51abcdefghijklmnop' }));
-    expect(live.kind === 'invalid' && withoutGate(live.problems)).toEqual(['MAIL_OUTBOX_FILE is only allowed with a Stripe test key']);
+    expect(problems(readLicensingConfig(stripeEnv({ ...outbox, STRIPE_SECRET_KEY: 'rk_live_51abcdefghijklmnop' })))).toEqual([
+      'MAIL_OUTBOX_FILE is only allowed with a Stripe test key'
+    ]);
   });
 
   it('reads a Stripe test mode configuration', () => {
@@ -91,8 +92,29 @@ describe('readLicensingConfig', () => {
       stripeEnv({ STRIPE_PORTAL_CONFIGURATION_ID: 'bpc_1Portal01234567', STRIPE_MANAGED_PAYMENTS_ENABLED: 'true' })
     );
 
-    // Stripe stays switched off until checkout, webhooks and the portal are complete.
-    expect(result).toEqual({ kind: 'invalid', problems: ['Stripe billing is not available in this version yet'] });
+    expect(result.kind).toBe('enabled');
+    if (result.kind !== 'enabled') return;
+    expect(result.settings.billing).toEqual({
+      provider: 'stripe',
+      stripe: {
+        mode: 'test',
+        secretKey: 'sk_test_51abcdefghijklmnop',
+        webhookSecret: 'whsec_0123456789abcdefghij',
+        prices: { monthly: 'price_1Monthly0123456', yearly: 'price_1Yearly01234567' },
+        portalConfigurationId: 'bpc_1Portal01234567',
+        managedPayments: true,
+        publicBaseUrl: 'https://flagcount.example'
+      }
+    });
+  });
+
+  it('reads Stripe live mode from a restricted live key and defaults to Stripe Tax', () => {
+    const result = readLicensingConfig(stripeEnv({ STRIPE_SECRET_KEY: 'rk_live_51abcdefghijklmnop' }));
+
+    expect(result.kind === 'enabled' && result.settings.billing).toMatchObject({
+      provider: 'stripe',
+      stripe: { mode: 'live', managedPayments: false }
+    });
   });
 
   it('validates Stripe keys, ids and the public base URL', () => {
@@ -108,7 +130,7 @@ describe('readLicensingConfig', () => {
       })
     );
 
-    expect(result.kind === 'invalid' && withoutGate(result.problems)).toEqual([
+    expect(problems(result)).toEqual([
       'STRIPE_SECRET_KEY is not a Stripe secret or restricted key',
       'STRIPE_WEBHOOK_SECRET is not a Stripe webhook signing secret',
       'STRIPE_PRICE_MONTHLY is not a Stripe price id',
@@ -123,16 +145,14 @@ describe('readLicensingConfig', () => {
   it('accepts a local http base URL only in Stripe test mode', () => {
     const local = { PUBLIC_BASE_URL: 'http://localhost:3000' };
 
-    const test = readLicensingConfig(stripeEnv(local));
-    expect(test.kind === 'invalid' && withoutGate(test.problems)).toEqual([]);
-    const live = readLicensingConfig(stripeEnv({ ...local, STRIPE_SECRET_KEY: 'sk_live_51abcdefghijklmnop' }));
-    expect(live.kind === 'invalid' && withoutGate(live.problems)).toEqual(['PUBLIC_BASE_URL must be an https origin without a path']);
+    expect(readLicensingConfig(stripeEnv(local)).kind).toBe('enabled');
+    expect(problems(readLicensingConfig(stripeEnv({ ...local, STRIPE_SECRET_KEY: 'sk_live_51abcdefghijklmnop' })))).toEqual([
+      'PUBLIC_BASE_URL must be an https origin without a path'
+    ]);
   });
 
   it('refuses Stripe and Paddle at the same time', () => {
-    const result = readLicensingConfig(stripeEnv({ PADDLE_API_KEY: 'pdl_sdbx_apikey_0123456789' }));
-
-    expect(result.kind === 'invalid' && withoutGate(result.problems)).toEqual([
+    expect(problems(readLicensingConfig(stripeEnv({ PADDLE_API_KEY: 'pdl_sdbx_apikey_0123456789' })))).toEqual([
       'Configure either the STRIPE_ or the PADDLE_ variables, not both'
     ]);
   });
