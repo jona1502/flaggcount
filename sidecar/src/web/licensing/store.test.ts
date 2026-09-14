@@ -20,7 +20,7 @@ if (DATABASE_URL) {
       const { migrate } = await import('../database/migrations');
       const { PostgresLicenseStore } = await import('./postgresStore');
       pool ??= new Pool({ connectionString: DATABASE_URL });
-      await pool.query('DROP TABLE IF EXISTS installations, webhook_events, licenses, schema_migrations CASCADE');
+      await pool.query('DROP TABLE IF EXISTS admin_audit_log, installations, webhook_events, licenses, schema_migrations CASCADE');
       await migrate(pool);
       return new PostgresLicenseStore(pool);
     },
@@ -70,9 +70,26 @@ describe.each(factories)('$name license store', (factory) => {
     const older = await store.applySubscription(update({ subscriptionId, status: 'canceled', occurredAt: T0 }), randomUUID, T0);
 
     expect(first).toMatchObject({ created: true, applied: true });
-    expect(newer).toMatchObject({ created: false, applied: true, license: { id: first.license.id, status: 'past_due' } });
-    expect(older).toMatchObject({ created: false, applied: false, license: { status: 'past_due' } });
-    expect(await store.findBySubscription('paddle', subscriptionId)).toMatchObject({ status: 'past_due', providerUpdatedAt: T2 });
+    expect(newer).toMatchObject({ created: false, applied: true, license: { id: first.license.id, providerStatus: 'past_due' } });
+    expect(older).toMatchObject({ created: false, applied: false, license: { providerStatus: 'past_due' } });
+    expect(await store.findBySubscription('paddle', subscriptionId)).toMatchObject({
+      source: 'paddle',
+      providerStatus: 'past_due',
+      providerUpdatedAt: T2,
+      supportStatus: 'none',
+      manualReason: null
+    });
+  });
+
+  it('stores every Stripe subscription status', async () => {
+    const subscriptionId = `sub_${randomUUID()}`;
+    const statuses = ['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'paused', 'unpaid', 'canceled'] as const;
+
+    for (const [index, status] of statuses.entries()) {
+      const occurredAt = new Date(Date.parse(T0) + index * 1000).toISOString();
+      const result = await store.applySubscription(update({ provider: 'stripe', subscriptionId, status, occurredAt }), randomUUID, T0);
+      expect(result.license.providerStatus).toBe(status);
+    }
   });
 
   it('finds licenses by code hash and customer and stores revocations', async () => {

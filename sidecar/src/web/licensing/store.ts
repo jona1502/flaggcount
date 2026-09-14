@@ -1,20 +1,60 @@
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'paused' | 'canceled';
+/** Subscription states as Stripe reports them; Paddle uses a subset. */
+export type SubscriptionStatus =
+  | 'incomplete'
+  | 'incomplete_expired'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'paused'
+  | 'unpaid'
+  | 'canceled';
 
-/** Everything the license service stores about a purchase. No names, email addresses or payment data. */
+export const SUBSCRIPTION_STATUSES: readonly SubscriptionStatus[] = [
+  'incomplete',
+  'incomplete_expired',
+  'trialing',
+  'active',
+  'past_due',
+  'paused',
+  'unpaid',
+  'canceled'
+];
+
+/** Where a license comes from: a payment provider such as `stripe`, or `manual` for licenses granted by support. */
+export type LicenseSource = string;
+
+export const MANUAL_SOURCE = 'manual';
+
+export type ManualReason = 'support' | 'creator' | 'testing' | 'promotion';
+
+export const MANUAL_REASONS: readonly ManualReason[] = ['support', 'creator', 'testing', 'promotion'];
+
+/** A support block ends Pro independently of billing, e.g. after abuse of the activation code. */
+export type SupportStatus = 'none' | 'blocked';
+
+/** Everything the license service stores about a license. No names, email addresses or payment data. */
 export type LicenseRecord = {
   id: string;
-  provider: string;
-  customerId: string;
-  subscriptionId: string;
-  status: SubscriptionStatus;
+  source: LicenseSource;
+  /** Customer, subscription and status at the payment provider; `null` for manual licenses. */
+  providerCustomerId: string | null;
+  providerSubscriptionId: string | null;
+  providerStatus: SubscriptionStatus | null;
+  /** End of the paid period; for a past-due subscription, the start of the unpaid period. */
   currentPeriodEndsAt: string | null;
   /** A cancellation the customer scheduled for the end of the paid period. */
   scheduledCancelAt: string | null;
   canceledAt: string | null;
   /** Set after a full refund or a chargeback; cleared if the chargeback is reversed. */
   revokedAt: string | null;
+  /** Manual licenses only: Pro ends here, or never if `null`. */
+  manualValidUntil: string | null;
+  manualReason: ManualReason | null;
+  supportStatus: SupportStatus;
+  /** Internal note of the support team. Must not contain names, addresses or payment data. */
+  supportNote: string | null;
   /** Time of the newest provider event applied, so events that arrive late cannot overwrite newer data. */
-  providerUpdatedAt: string;
+  providerUpdatedAt: string | null;
   codeHash: string | null;
   codeIssuedAt: string | null;
   createdAt: string;
@@ -82,18 +122,18 @@ export interface LicenseStore {
 
 /** Keeps everything in memory, for tests and local development without PostgreSQL. */
 export class MemoryLicenseStore implements LicenseStore {
-  private readonly licenses = new Map<string, LicenseRecord>();
-  private readonly installations: InstallationRecord[] = [];
+  protected readonly licenses = new Map<string, LicenseRecord>();
+  protected readonly installations: InstallationRecord[] = [];
   private readonly events = new Map<string, { processedAt: string | null }>();
 
   async applySubscription(update: SubscriptionUpdate, newId: () => string, now: string) {
     // The stored record itself, not a copy, so the update below is kept.
     const existing = [...this.licenses.values()].find(
-      (license) => license.provider === update.provider && license.subscriptionId === update.subscriptionId
+      (license) => license.source === update.provider && license.providerSubscriptionId === update.subscriptionId
     );
     const fields = {
-      customerId: update.customerId,
-      status: update.status,
+      providerCustomerId: update.customerId,
+      providerStatus: update.status,
       currentPeriodEndsAt: update.currentPeriodEndsAt,
       scheduledCancelAt: update.scheduledCancelAt,
       canceledAt: update.canceledAt,
@@ -103,9 +143,13 @@ export class MemoryLicenseStore implements LicenseStore {
     if (!existing) {
       const license: LicenseRecord = {
         id: newId(),
-        provider: update.provider,
-        subscriptionId: update.subscriptionId,
+        source: update.provider,
+        providerSubscriptionId: update.subscriptionId,
         revokedAt: null,
+        manualValidUntil: null,
+        manualReason: null,
+        supportStatus: 'none',
+        supportNote: null,
         codeHash: null,
         codeIssuedAt: null,
         createdAt: now,
@@ -114,7 +158,7 @@ export class MemoryLicenseStore implements LicenseStore {
       this.licenses.set(license.id, license);
       return { license: { ...license }, created: true, applied: true };
     }
-    if (Date.parse(update.occurredAt) < Date.parse(existing.providerUpdatedAt)) {
+    if (existing.providerUpdatedAt && Date.parse(update.occurredAt) < Date.parse(existing.providerUpdatedAt)) {
       return { license: { ...existing }, created: false, applied: false };
     }
     Object.assign(existing, fields);
@@ -128,7 +172,7 @@ export class MemoryLicenseStore implements LicenseStore {
 
   async findBySubscription(provider: string, subscriptionId: string) {
     const license = [...this.licenses.values()].find(
-      (candidate) => candidate.provider === provider && candidate.subscriptionId === subscriptionId
+      (candidate) => candidate.source === provider && candidate.providerSubscriptionId === subscriptionId
     );
     return license ? { ...license } : null;
   }
@@ -140,7 +184,7 @@ export class MemoryLicenseStore implements LicenseStore {
 
   async findByCustomer(provider: string, customerId: string) {
     return [...this.licenses.values()]
-      .filter((license) => license.provider === provider && license.customerId === customerId)
+      .filter((license) => license.source === provider && license.providerCustomerId === customerId)
       .map((license) => ({ ...license }));
   }
 
@@ -226,13 +270,13 @@ export class MemoryLicenseStore implements LicenseStore {
 
   async close() {}
 
-  private find(licenseId: string, installationId: string): InstallationRecord | undefined {
+  protected find(licenseId: string, installationId: string): InstallationRecord | undefined {
     return this.installations.find(
       (installation) => installation.licenseId === licenseId && installation.installationId === installationId
     );
   }
 
-  private update(licenseId: string, changes: Partial<LicenseRecord>): void {
+  protected update(licenseId: string, changes: Partial<LicenseRecord>): void {
     const license = this.licenses.get(licenseId);
     if (license) Object.assign(license, changes);
   }

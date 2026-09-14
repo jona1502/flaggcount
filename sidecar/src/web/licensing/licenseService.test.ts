@@ -4,8 +4,8 @@ import { OFFLINE_GRACE_MS, entitlementSigningPayload, type SignedEntitlement } f
 import { createEntitlementSigner, createEntitlementVerifier, generateSigningKeyPair } from '../../license/signature';
 import type { LogFields } from '../structuredLog';
 import type { BillingEvent, BillingProvider, MailMessage } from './billing';
-import { LicenseService, PAST_DUE_GRACE_MS } from './licenseService';
-import { MemoryLicenseStore } from './store';
+import { LicenseService, PAST_DUE_GRACE_MS, licenseAccess } from './licenseService';
+import { MemoryLicenseStore, type LicenseRecord } from './store';
 
 const START = Date.parse('2026-09-13T10:00:00.000Z');
 const DAY = 24 * 60 * 60 * 1000;
@@ -318,7 +318,89 @@ describe('LicenseService', () => {
 
     expect(
       await service.portal({ licenseId: activation.licenseId, installationId: INSTALL_A, secret: activation.activationSecret })
-    ).toEqual({ url: 'https://portal.example/ctm_1/sub_1' });
-    expect(await service.portal({ licenseId: activation.licenseId, installationId: INSTALL_A, secret: 'nope' })).toBeNull();
+    ).toEqual({ ok: true, url: 'https://portal.example/ctm_1/sub_1' });
+    expect(await service.portal({ licenseId: activation.licenseId, installationId: INSTALL_A, secret: 'nope' })).toEqual({
+      ok: false,
+      error: 'invalid-installation'
+    });
+  });
+
+  it('sends the activation code only once the first payment succeeded', async () => {
+    const { subscription, mails, store } = createService();
+
+    await subscription({ status: 'incomplete' });
+    expect(mails).toHaveLength(0);
+    expect((await store.findBySubscription('paddle', 'sub_1'))?.codeHash).toBeNull();
+
+    await subscription({ status: 'active' }, 'subscription.updated');
+    await subscription({ status: 'active' }, 'subscription.updated');
+    expect(mails.map((mail) => mail.subject)).toEqual(['Dein Aktivierungscode für FlagCount Pro']);
+  });
+
+  it('refuses Pro for subscriptions that were never or are no longer paid', async () => {
+    const { subscription, activate, advance } = createService();
+    await subscription();
+
+    for (const status of ['unpaid', 'incomplete_expired', 'paused']) {
+      advance(1000);
+      await subscription({ status }, 'subscription.updated');
+      expect(await activate()).toMatchObject({ ok: false, error: 'license-inactive' });
+    }
+  });
+});
+
+describe('licenseAccess', () => {
+  const NOW = Date.parse('2026-09-14T12:00:00.000Z');
+  const base: LicenseRecord = {
+    id: 'license-1',
+    source: 'stripe',
+    providerCustomerId: 'cus_1',
+    providerSubscriptionId: 'sub_1',
+    providerStatus: 'active',
+    currentPeriodEndsAt: null,
+    scheduledCancelAt: null,
+    canceledAt: null,
+    revokedAt: null,
+    manualValidUntil: null,
+    manualReason: null,
+    supportStatus: 'none',
+    supportNote: null,
+    providerUpdatedAt: '2026-09-14T11:00:00.000Z',
+    codeHash: null,
+    codeIssuedAt: null,
+    createdAt: '2026-09-14T11:00:00.000Z',
+    updatedAt: '2026-09-14T11:00:00.000Z'
+  };
+  const manual: LicenseRecord = {
+    ...base,
+    source: 'manual',
+    providerCustomerId: null,
+    providerSubscriptionId: null,
+    providerStatus: null,
+    providerUpdatedAt: null,
+    manualReason: 'creator'
+  };
+
+  it('grants manual licenses until their end date', () => {
+    expect(licenseAccess(manual, NOW)).toEqual({ status: 'active', endsAt: null });
+    expect(licenseAccess({ ...manual, manualValidUntil: new Date(NOW + DAY).toISOString() }, NOW)).toEqual({
+      status: 'active',
+      endsAt: NOW + DAY
+    });
+    expect(licenseAccess({ ...manual, manualValidUntil: new Date(NOW).toISOString() }, NOW)).toBeNull();
+  });
+
+  it('ends Pro for blocked and revoked licenses of any source', () => {
+    expect(licenseAccess({ ...base, supportStatus: 'blocked' }, NOW)).toBeNull();
+    expect(licenseAccess({ ...manual, supportStatus: 'blocked' }, NOW)).toBeNull();
+    expect(licenseAccess({ ...base, revokedAt: new Date(NOW).toISOString() }, NOW)).toBeNull();
+  });
+
+  it('grants past-due subscriptions a grace period after the paid period', () => {
+    const paidThrough = NOW - 2 * DAY;
+    expect(licenseAccess({ ...base, providerStatus: 'past_due', currentPeriodEndsAt: new Date(paidThrough).toISOString() }, NOW)).toEqual({
+      status: 'grace',
+      endsAt: paidThrough + PAST_DUE_GRACE_MS
+    });
   });
 });

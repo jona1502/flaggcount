@@ -170,8 +170,8 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
       case 'portal': {
         const body = await readJson(request);
         const portal = await licenses.portal({ licenseId: body['licenseId'], installationId: body['installationId'], secret: body['secret'] });
-        if (portal) sendJson(response, 200, portal);
-        else sendJson(response, 401, { error: 'invalid-installation' });
+        if (portal.ok) sendJson(response, 200, { url: portal.url });
+        else sendJson(response, portal.error === 'invalid-installation' ? 401 : 409, { error: portal.error });
         return;
       }
       case 'checkout': {

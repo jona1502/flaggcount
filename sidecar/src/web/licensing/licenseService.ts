@@ -19,7 +19,7 @@ import {
   normalizeActivationCode,
   secretMatches
 } from './secrets';
-import type { InstallationRecord, LicenseRecord, LicenseStore } from './store';
+import { MANUAL_SOURCE, type InstallationRecord, type LicenseRecord, type LicenseStore } from './store';
 
 export const MAX_INSTALLATIONS = 3;
 /** Pro keeps working this long after a renewal payment failed, while the provider retries it. */
@@ -34,12 +34,20 @@ export type LicenseAccess = {
   endsAt: number | null;
 };
 
-/** Whether a license grants Pro right now. Cancelling keeps access until the paid period ends. */
+/**
+ * Whether a license grants Pro right now. Cancelling keeps access until the paid period ends; a
+ * subscription whose first payment is still open, or that stopped being paid, never grants it.
+ */
 export function licenseAccess(license: LicenseRecord, now: number): LicenseAccess | null {
-  if (license.revokedAt) return null;
+  if (license.revokedAt || license.supportStatus === 'blocked') return null;
   const time = (value: string | null): number | null => (value === null ? null : Date.parse(value));
 
-  switch (license.status) {
+  if (license.source === MANUAL_SOURCE) {
+    const endsAt = time(license.manualValidUntil);
+    return endsAt !== null && endsAt <= now ? null : { status: 'active', endsAt };
+  }
+
+  switch (license.providerStatus) {
     case 'active':
     case 'trialing': {
       const endsAt = time(license.scheduledCancelAt);
@@ -53,7 +61,11 @@ export function licenseAccess(license: LicenseRecord, now: number): LicenseAcces
       const endsAt = time(license.scheduledCancelAt) ?? time(license.currentPeriodEndsAt);
       return endsAt !== null && endsAt > now ? { status: 'active', endsAt } : null;
     }
+    case 'incomplete':
+    case 'incomplete_expired':
+    case 'unpaid':
     case 'paused':
+    case null:
       return null;
   }
 }
@@ -80,6 +92,8 @@ export type InstallationCredentials = {
 };
 
 export type WebhookResult = { status: 200 | 400 | 401 | 500 };
+
+export type PortalResult = { ok: true; url: string } | { ok: false; error: 'invalid-installation' | 'no-subscription' };
 
 export type LicenseServiceOptions = {
   store: LicenseStore;
@@ -140,11 +154,12 @@ export class LicenseService {
           logger('info', 'subscription-synced', {
             eventType: event.eventType,
             license: licenseReference(license.id),
-            status: license.status,
+            status: license.providerStatus,
             created,
             applied
           });
-          if (created) {
+          // The first code goes out once the license grants Pro, not while the first payment is still open.
+          if (license.codeHash === null && licenseAccess(license, this.now())) {
             await this.issueActivationCode(license, 'activation');
           }
           break;
@@ -217,7 +232,7 @@ export class LicenseService {
     await store.touchInstallation(license.id, installation.installationId, this.timestamp());
     const access = licenseAccess(license, this.now());
     if (!access) {
-      this.options.logger('info', 'refresh-denied', { license: licenseReference(license.id), status: license.status });
+      this.options.logger('info', 'refresh-denied', { license: licenseReference(license.id), status: license.providerStatus ?? license.source });
       return { ok: false, error: 'license-inactive' };
     }
     return { ok: true, entitlement: this.sign(license, installation.installationId, access) };
@@ -259,11 +274,19 @@ export class LicenseService {
     }
   }
 
-  /** A short-lived link to the provider's customer portal for cancelling or updating payment. */
-  async portal(credentials: InstallationCredentials): Promise<{ url: string } | null> {
+  /**
+   * A short-lived link to the provider's customer portal for invoices, payment methods and cancelling.
+   * Created for every request and never stored. Manual licenses have no subscription to manage.
+   */
+  async portal(credentials: InstallationCredentials): Promise<PortalResult> {
     const verified = await this.verifyInstallation(credentials);
-    if (!verified) return null;
-    return this.options.provider.createPortalSession(verified.license.customerId, verified.license.subscriptionId);
+    if (!verified) return { ok: false, error: 'invalid-installation' };
+    const { license } = verified;
+    if (license.source !== this.options.provider.name || !license.providerCustomerId || !license.providerSubscriptionId) {
+      return { ok: false, error: 'no-subscription' };
+    }
+    const { url } = await this.options.provider.createPortalSession(license.providerCustomerId, license.providerSubscriptionId);
+    return { ok: true, url };
   }
 
   checkout(plan: BillingPlanId): Promise<{ url: string }> {
@@ -304,7 +327,7 @@ export class LicenseService {
 
     // A failed email must not fail the purchase: the customer can request the code again.
     try {
-      const email = await provider.customerEmail(license.customerId);
+      const email = license.providerCustomerId ? await provider.customerEmail(license.providerCustomerId) : null;
       if (!email) {
         logger('warn', 'activation-mail-skipped', { license: licenseReference(license.id), reason: 'no-email' });
         return;

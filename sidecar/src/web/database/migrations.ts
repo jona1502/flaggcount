@@ -53,6 +53,53 @@ export const MIGRATIONS: readonly Migration[] = [
         processed_at timestamptz
       );
     `
+  },
+  {
+    version: 2,
+    name: 'provider_neutral_licenses',
+    sql: `
+      ALTER TABLE licenses RENAME COLUMN provider TO source;
+      ALTER TABLE licenses RENAME COLUMN customer_id TO provider_customer_id;
+      ALTER TABLE licenses RENAME COLUMN subscription_id TO provider_subscription_id;
+      ALTER TABLE licenses RENAME COLUMN status TO provider_status;
+      ALTER INDEX licenses_customer RENAME TO licenses_provider_customer;
+
+      ALTER TABLE licenses DROP CONSTRAINT licenses_status_check;
+      ALTER TABLE licenses
+        ALTER COLUMN provider_customer_id DROP NOT NULL,
+        ALTER COLUMN provider_subscription_id DROP NOT NULL,
+        ALTER COLUMN provider_status DROP NOT NULL,
+        ALTER COLUMN provider_updated_at DROP NOT NULL,
+        ADD COLUMN manual_valid_until timestamptz,
+        ADD COLUMN manual_reason text,
+        ADD COLUMN support_note text,
+        ADD CONSTRAINT licenses_provider_status_check CHECK (provider_status IN
+          ('incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'paused', 'unpaid', 'canceled')),
+        ADD CONSTRAINT licenses_manual_reason_check CHECK (manual_reason IN ('support', 'creator', 'testing', 'promotion')),
+        ADD CONSTRAINT licenses_support_status_check CHECK (support_status IN ('none', 'blocked')),
+        ADD CONSTRAINT licenses_support_note_length CHECK (char_length(support_note) <= 500),
+        -- Manual licenses never carry invented provider ids; provider licenses never carry a manual reason.
+        ADD CONSTRAINT licenses_source_fields CHECK (
+          (source = 'manual'
+            AND provider_customer_id IS NULL AND provider_subscription_id IS NULL
+            AND provider_status IS NULL AND provider_updated_at IS NULL AND manual_reason IS NOT NULL)
+          OR (source <> 'manual'
+            AND provider_customer_id IS NOT NULL AND provider_subscription_id IS NOT NULL
+            AND provider_status IS NOT NULL AND provider_updated_at IS NOT NULL
+            AND manual_reason IS NULL AND manual_valid_until IS NULL)
+        );
+
+      CREATE TABLE admin_audit_log (
+        id uuid PRIMARY KEY,
+        admin_subject text NOT NULL,
+        action text NOT NULL,
+        license_id uuid REFERENCES licenses (id) ON DELETE SET NULL,
+        metadata jsonb NOT NULL DEFAULT '{}',
+        created_at timestamptz NOT NULL
+      );
+      CREATE INDEX admin_audit_log_license ON admin_audit_log (license_id, created_at);
+      CREATE INDEX admin_audit_log_created ON admin_audit_log (created_at);
+    `
   }
 ];
 

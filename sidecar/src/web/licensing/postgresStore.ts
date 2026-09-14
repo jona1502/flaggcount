@@ -4,21 +4,27 @@ import type {
   InstallationRecord,
   LicenseRecord,
   LicenseStore,
+  ManualReason,
   SubscriptionStatus,
-  SubscriptionUpdate
+  SubscriptionUpdate,
+  SupportStatus
 } from './store';
 
-type LicenseRow = {
+export type LicenseRow = {
   id: string;
-  provider: string;
-  customer_id: string;
-  subscription_id: string;
-  status: SubscriptionStatus;
+  source: string;
+  provider_customer_id: string | null;
+  provider_subscription_id: string | null;
+  provider_status: SubscriptionStatus | null;
   current_period_ends_at: Date | null;
   scheduled_cancel_at: Date | null;
   canceled_at: Date | null;
   revoked_at: Date | null;
-  provider_updated_at: Date;
+  manual_valid_until: Date | null;
+  manual_reason: ManualReason | null;
+  support_status: SupportStatus;
+  support_note: string | null;
+  provider_updated_at: Date | null;
   code_hash: string | null;
   code_issued_at: Date | null;
   created_at: Date;
@@ -34,20 +40,24 @@ type InstallationRow = {
   deactivated_at: Date | null;
 };
 
-const iso = (value: Date | null): string | null => (value ? value.toISOString() : null);
+export const iso = (value: Date | null): string | null => (value ? value.toISOString() : null);
 
-function toLicense(row: LicenseRow): LicenseRecord {
+export function toLicense(row: LicenseRow): LicenseRecord {
   return {
     id: row.id,
-    provider: row.provider,
-    customerId: row.customer_id,
-    subscriptionId: row.subscription_id,
-    status: row.status,
+    source: row.source,
+    providerCustomerId: row.provider_customer_id,
+    providerSubscriptionId: row.provider_subscription_id,
+    providerStatus: row.provider_status,
     currentPeriodEndsAt: iso(row.current_period_ends_at),
     scheduledCancelAt: iso(row.scheduled_cancel_at),
     canceledAt: iso(row.canceled_at),
     revokedAt: iso(row.revoked_at),
-    providerUpdatedAt: row.provider_updated_at.toISOString(),
+    manualValidUntil: iso(row.manual_valid_until),
+    manualReason: row.manual_reason,
+    supportStatus: row.support_status,
+    supportNote: row.support_note,
+    providerUpdatedAt: iso(row.provider_updated_at),
     codeHash: row.code_hash,
     codeIssuedAt: iso(row.code_issued_at),
     createdAt: row.created_at.toISOString(),
@@ -55,7 +65,7 @@ function toLicense(row: LicenseRow): LicenseRecord {
   };
 }
 
-function toInstallation(row: InstallationRow): InstallationRecord {
+export function toInstallation(row: InstallationRow): InstallationRecord {
   return {
     licenseId: row.license_id,
     installationId: row.installation_id,
@@ -66,22 +76,23 @@ function toInstallation(row: InstallationRow): InstallationRecord {
   };
 }
 
-const LICENSE_COLUMNS = `id, provider, customer_id, subscription_id, status, current_period_ends_at, scheduled_cancel_at,
-  canceled_at, revoked_at, provider_updated_at, code_hash, code_issued_at, created_at, updated_at`;
+export const LICENSE_COLUMNS = `id, source, provider_customer_id, provider_subscription_id, provider_status,
+  current_period_ends_at, scheduled_cancel_at, canceled_at, revoked_at, manual_valid_until, manual_reason,
+  support_status, support_note, provider_updated_at, code_hash, code_issued_at, created_at, updated_at`;
 
 /** License, installation and webhook data in PostgreSQL. Run `migrate` before using it. */
 export class PostgresLicenseStore implements LicenseStore {
-  constructor(private readonly pool: Pool) {}
+  constructor(protected readonly pool: Pool) {}
 
   async applySubscription(update: SubscriptionUpdate, newId: () => string, now: string) {
     // One statement: inserts the license or updates it unless the stored state is newer than the event.
     const { rows } = await this.pool.query<LicenseRow & { inserted: boolean }>(
-      `INSERT INTO licenses (id, provider, customer_id, subscription_id, status, current_period_ends_at,
-         scheduled_cancel_at, canceled_at, provider_updated_at, created_at, updated_at)
+      `INSERT INTO licenses (id, source, provider_customer_id, provider_subscription_id, provider_status,
+         current_period_ends_at, scheduled_cancel_at, canceled_at, provider_updated_at, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
-       ON CONFLICT (provider, subscription_id) DO UPDATE SET
-         customer_id = EXCLUDED.customer_id,
-         status = EXCLUDED.status,
+       ON CONFLICT (source, provider_subscription_id) DO UPDATE SET
+         provider_customer_id = EXCLUDED.provider_customer_id,
+         provider_status = EXCLUDED.provider_status,
          current_period_ends_at = EXCLUDED.current_period_ends_at,
          scheduled_cancel_at = EXCLUDED.scheduled_cancel_at,
          canceled_at = EXCLUDED.canceled_at,
@@ -116,7 +127,7 @@ export class PostgresLicenseStore implements LicenseStore {
   }
 
   async findBySubscription(provider: string, subscriptionId: string) {
-    return this.findLicense('provider = $1 AND subscription_id = $2', [provider, subscriptionId]);
+    return this.findLicense('source = $1 AND provider_subscription_id = $2', [provider, subscriptionId]);
   }
 
   async findByCodeHash(codeHash: string) {
@@ -125,7 +136,7 @@ export class PostgresLicenseStore implements LicenseStore {
 
   async findByCustomer(provider: string, customerId: string) {
     const { rows } = await this.pool.query<LicenseRow>(
-      `SELECT ${LICENSE_COLUMNS} FROM licenses WHERE provider = $1 AND customer_id = $2 ORDER BY created_at`,
+      `SELECT ${LICENSE_COLUMNS} FROM licenses WHERE source = $1 AND provider_customer_id = $2 ORDER BY created_at`,
       [provider, customerId]
     );
     return rows.map(toLicense);
@@ -240,12 +251,12 @@ export class PostgresLicenseStore implements LicenseStore {
     await this.pool.end();
   }
 
-  private async findLicense(where: string, values: unknown[]): Promise<LicenseRecord | null> {
+  protected async findLicense(where: string, values: unknown[]): Promise<LicenseRecord | null> {
     const { rows } = await this.pool.query<LicenseRow>(`SELECT ${LICENSE_COLUMNS} FROM licenses WHERE ${where}`, values);
     return rows[0] ? toLicense(rows[0]) : null;
   }
 
-  private async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+  protected async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
