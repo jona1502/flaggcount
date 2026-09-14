@@ -2,35 +2,97 @@
 
 Dieses Runbook beschreibt die wiederholbaren Abläufe für Billing, Lizenzen und Support. Es enthält keine
 Rechtsberatung; Impressum, Datenschutzerklärung, AGB und Widerrufstext müssen vor dem Launch rechtlich geprüft
-und in die öffentliche Website eingebunden werden.
+und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe steht in
+`FLAGCOUNT_PRO_STRIPE.md`.
 
 ## Billing und Webhooks
 
-- Paddle bleibt Merchant of Record und liefert Preise, Steuern und Checkout-URLs.
-- `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET` und die Price IDs werden ausschließlich als Server-Secrets gesetzt.
-- Webhooks werden über die Signatur geprüft, dedupliziert und erst danach auf den Lizenzbestand angewendet.
-- Bei Provider-Ausfall bleibt der Kauf deaktiviert; niemals manuell eine Lizenz ohne bestätigten Webhook ausstellen.
+- Zahlungsanbieter ist Stripe. Mit `STRIPE_MANAGED_PAYMENTS_ENABLED=true` ist Stripe Merchant of Record und
+  übernimmt die Umsatzsteuer; ohne Managed Payments berechnet Stripe Tax die Steuer, Registrierung, Meldung und
+  Abführung liegen dann beim Betreiber.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Price IDs und die Portal-Konfiguration werden ausschließlich als
+  Server-Secrets gesetzt. Test- und Live-Keys nie mischen; der Server erkennt den Modus am Key.
+- Webhooks werden über die `Stripe-Signature` geprüft, per Event-ID dedupliziert und erst danach verarbeitet.
+  Abo-Ereignisse lösen einen Abgleich aus: Der Server liest das Abo aktuell bei Stripe, dadurch sind Reihenfolge
+  und Verspätung der Ereignisse egal.
+- Die Rückkehr aus dem Checkout aktiviert nichts. Lizenzen und Aktivierungscodes entstehen nur aus verifizierten
+  Webhooks, und der erste Code wird erst verschickt, wenn das Abo aktiv ist.
+- Pro gibt es bei `active` und `trialing`, bei `past_due` noch 14 Tage ab Beginn der unbezahlten Periode. Bei
+  `incomplete`, `incomplete_expired`, `unpaid`, `paused`, beendeten Abos, vollständiger Erstattung, Chargeback und
+  Support-Sperre gibt es kein Pro. Free bleibt immer nutzbar.
+- Bei Provider-Ausfall bleibt der Kauf deaktiviert; niemals eine bezahlte Lizenz ohne bestätigten Webhook
+  nachbauen. Für Ausnahmen gibt es manuelle Lizenzen.
 
-## Refunds und Chargebacks
+## Admin-Bereich
 
-1. Vorgang im Paddle-Dashboard prüfen.
-2. Refund/Chargeback nicht direkt in der Datenbank nachbauen; die Provider-Aktion auslösen.
-3. Das resultierende Webhook-Ereignis abwarten und die Lizenzreferenz im Support-Ticket dokumentieren.
+- Erreichbar unter `/admin`, nur wenn `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET` und
+  `ADMIN_GITHUB_USER_IDS` gesetzt sind. Anmeldung über GitHub, Zugriff nur für die eingetragenen numerischen
+  GitHub-Konto-IDs. Kein gemeinsames Admin-Passwort, keine Wiederverwendung des Dashboard-Passworts.
+- Sitzungen liegen im Speicher des Servers: 30 Minuten Leerlauf, höchstens 8 Stunden; ein Neustart meldet ab.
+- Jede Änderung braucht ein CSRF-Token und landet im Audit-Protokoll (`admin_audit_log`) mit GitHub-Konto,
+  Aktion und Zeitpunkt, ohne Codes, Hinweistexte oder Kundendaten.
+- Admins dürfen: Installationen deaktivieren, Aktivierungscodes erneuern (anzeigen oder per E-Mail senden),
+  Lizenzen sperren und entsperren, interne Hinweise pflegen, manuelle Lizenzen anlegen und verlängern.
+- Admins dürfen nicht: bezahlt/unbezahlt, Abo-Laufzeit, Preis, Kündigung oder Erstattung einer Stripe-Lizenz
+  ändern. Das passiert im Stripe-Dashboard; der Webhook übernimmt den neuen Stand.
+- Interne Hinweise enthalten keine Namen, E-Mail-Adressen oder Zahlungsdaten; Tickets verweisen auf die
+  Lizenzreferenz `FC-…`.
+- Zugriff entziehen: GitHub-ID aus `ADMIN_GITHUB_USER_IDS` entfernen und den Server neu starten (beendet alle
+  Sitzungen). Bei Verdacht zusätzlich das Client Secret der OAuth App rotieren.
+
+## Manuelle Lizenzen
+
+- Nur für Support, Creator-Kooperationen, Tests oder Aktionen; der Grund ist Pflicht.
+- Möglichst mit Ablaufdatum (höchstens fünf Jahre). Keine erfundenen Stripe-Kunden oder -Abos.
+- Der Aktivierungscode wird beim Anlegen einmal angezeigt und nur als Hash gespeichert. Geht er verloren, im
+  Admin-Bereich einen neuen Code anzeigen lassen.
+
+## Refunds, Kündigungen und Chargebacks
+
+1. Vorgang im Stripe-Dashboard prüfen und dort auslösen (Erstattung, Kündigung, Beleg).
+2. Nichts davon in der Datenbank oder im Admin-Bereich nachbauen.
+3. Das Webhook-Ereignis abwarten: Eine vollständige Erstattung oder ein Chargeback beendet Pro sofort, eine
+   gewonnene Anfechtung stellt es wieder her, Teilerstattungen und Anfragen (Inquiries) ändern nichts.
+4. Lizenzreferenz im Support-Ticket dokumentieren.
 
 ## Incident und Recovery
 
-- Bei Billing-Fehlern zuerst `/api/v1/billing/prices` und die Server-Readiness prüfen.
-- Secrets rotieren, wenn ein Schlüssel versehentlich offengelegt wurde; danach Webhook-Signatur testen.
+- Bei Billing-Fehlern zuerst `/readyz`, `/api/v1/billing/prices` und im Stripe-Dashboard die Zustellungen des
+  Webhook-Endpoints prüfen. Fehlgeschlagene Ereignisse erneut senden; der Server verarbeitet sie idempotent.
+- Secrets rotieren, wenn ein Schlüssel versehentlich offengelegt wurde (Stripe-Key, Webhook-Secret, GitHub-Client-
+  Secret, `LICENSE_CODE_PEPPER` nur im äußersten Notfall, weil alle Codes ungültig werden); danach einen Testkauf
+  im Test Mode und die Webhook-Signatur prüfen.
 - Datenbank-Backups verschlüsselt und regelmäßig wiederherstellbar testen. Aktivierungscodes und Secrets nie in Logs.
+- Kunden ohne Code: Wiederherstellung über die App (E-Mail-Adresse des Kaufs) oder im Admin-Bereich
+  „Neuen Code per E-Mail“.
 
-## Support und Datenschutz
+## Datenschutz
 
-- Support erhält nur die bereinigte Lizenzreferenz, Plan-/Statusangaben und die freiwillige Fehlerbeschreibung.
-- Logs, IP-Adressen und Zahlungsdaten werden nicht automatisch an Support gesendet.
-- Lösch- und Auskunftsanfragen nach dem geprüften Datenschutzprozess bearbeiten.
+Gespeichert werden für FlagCount Pro:
+
+- interne Lizenz-ID, Stripe-Kunden- und Abo-Kennung, Abo-Status, bezahltes Periodenende, geplante Kündigung;
+- Hash des Aktivierungscodes und Zeitpunkt der Ausstellung;
+- pseudonyme Installationskennungen der App mit Aktivierung und letztem Kontakt (höchstens drei aktive);
+- Webhook-Ereignis-IDs zur Deduplizierung;
+- Support-Sperre, interne Hinweise und das Admin-Audit-Protokoll mit der GitHub-Konto-ID des Admins.
+
+Nicht gespeichert werden E-Mail-Adressen, Namen, Adressen und Zahlungsdaten der Kunden. Die E-Mail-Adresse wird
+nur zum Versand eines Codes bei Stripe abgefragt. Logs enthalten weder Codes, Secrets, E-Mail-Adressen noch
+IP-Adressen.
+
+Beteiligte Dienste für die Datenschutzerklärung und Verträge zur Auftragsverarbeitung:
+
+- **Stripe**: Checkout, Zahlungen, Belege, Kundenportal, Steuer (bei Managed Payments als Merchant of Record);
+- **E-Mail-Anbieter** (SMTP): Versand der Aktivierungscodes;
+- **GitHub**: nur Anmeldung der Admins, keine Kundendaten;
+- **Hosting** der Website, des Lizenzdienstes und der Datenbank.
+
+Lösch- und Auskunftsanfragen nach dem geprüften Datenschutzprozess bearbeiten: Die Lizenz über die Stripe-Kunden-ID
+im Admin-Bereich finden; Kundendaten selbst liegen bei Stripe.
 
 ## Recht vor Launch
 
 Vor Veröffentlichung müssen die zuständigen Betreiber die Rechtstexte prüfen lassen und verlinken: Impressum,
-Datenschutzerklärung, AGB, Widerruf/Verbraucherinformationen, Preisangaben sowie Hinweise zur automatischen
-Verlängerung und Kündigung.
+Datenschutzerklärung (mit den oben genannten Diensten), AGB, Widerruf/Verbraucherinformationen inklusive der
+Zustimmung zur sofortigen Bereitstellung digitaler Inhalte, Preisangaben sowie Hinweise zur automatischen
+Verlängerung und Kündigung. Ohne Managed Payments zusätzlich die steuerlichen Pflichten (z. B. OSS) klären.

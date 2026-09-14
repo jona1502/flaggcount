@@ -221,8 +221,19 @@ export function ProPreview(): React.JSX.Element {
             <p>Ja. Der rote/weiße Flaggenzähler, das Standard-Overlay und die grundlegende Gestaltung bleiben Free.</p>
           </details>
           <details>
-            <summary>Kann ich Pro schon kaufen?</summary>
-            <p>Nein. Checkout und Lizenzen sind noch nicht verfügbar. Die Warteliste ist ausdrücklich unverbindlich.</p>
+            <summary>Wie läuft der Kauf ab?</summary>
+            <p>
+              Bezahlt wird über Stripe. Nach der Zahlung bekommst du einen Aktivierungscode per E-Mail und aktivierst Pro
+              damit in der App – ein FlagCount-Konto brauchst du nicht. Rechnungen, Zahlungsmethode und Kündigung
+              verwaltest du im Kundenportal von Stripe. Die Warteliste bleibt unverbindlich.
+            </p>
+          </details>
+          <details>
+            <summary>Welche Daten speichert FlagCount für Pro?</summary>
+            <p>
+              Nur Kennungen des Stripe-Kunden und Abos, den Abo-Status und pseudonyme Kennungen deiner aktivierten
+              Computer. Namen, E-Mail- und Zahlungsdaten verarbeitet Stripe; FlagCount speichert sie nicht.
+            </p>
           </details>
           <details>
             <summary>Werden Zuschauer oder Chats gespeichert?</summary>

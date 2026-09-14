@@ -248,16 +248,18 @@ type RoundRecord = {
 
 ### Anbieterentscheidung
 
-Für Version 1 einen Merchant of Record verwenden. Bevorzugter Anbieter ist **Paddle**; die Integration muss hinter `BillingProvider` abstrahiert werden, damit ein Wechsel möglich bleibt. Vor Implementierungsbeginn aktuelle offizielle Paddle-Dokumentation, unterstützte Länder, Webhook-Signaturverfahren, Steuerdarstellung, Sandbox und Kündigungsablauf prüfen.
+Zahlungsanbieter ist **Stripe** (ursprünglich war Paddle vorgesehen; die Paddle-Integration bleibt bis zum abgeschlossenen Stripe-Test im Code). Die Integration liegt hinter `BillingProvider`. Ob Stripe über **Managed Payments** als Merchant of Record auftritt oder normales Stripe mit Stripe Tax und eigener steuerlicher Verantwortung genutzt wird, wird über `STRIPE_MANAGED_PAYMENTS_ENABLED` gesteuert; die Entscheidung ist steuerlich und rechtlich zu treffen. Einrichtung und Tests: `FLAGCOUNT_PRO_STRIPE.md`.
 
-Keine geheimen Paddle-Schlüssel in Desktop-App, Webbundle, GitHub Actions Logs oder Overlay-URLs aufnehmen.
+Keine geheimen Stripe-Schlüssel in Desktop-App, Webbundle, GitHub Actions Logs oder Overlay-URLs aufnehmen.
+
+Kunden brauchen kein FlagCount-Konto: Aktivierung über Lizenzcode, danach Geräteauthentifizierung, Billing-Verwaltung im Stripe-Kundenportal. Ein separater Admin-Bereich mit GitHub-Anmeldung dient nur dem Support; bezahlter Status, Laufzeit, Preis, Kündigung und Erstattung werden ausschließlich in Stripe geändert.
 
 ### Kaufablauf
 
 1. Nutzer klickt in FlagCount oder auf der Landingpage auf „Pro holen“.
 2. Gehosteter Checkout öffnet sich im Systembrowser.
-3. Paddle verarbeitet Zahlung, Steuer und Beleg.
-4. Ein signierter Webhook aktualisiert das Abonnement im FlagCount-Lizenzdienst.
+3. Stripe verarbeitet Zahlung, Steuer und Beleg.
+4. Ein signierter Webhook löst den Abgleich des Abonnements im FlagCount-Lizenzdienst aus; die Weiterleitung auf die Erfolgsseite allein aktiviert nichts.
 5. Nach erfolgreichem Kauf erhält der Kunde per E-Mail einen Aktivierungscode bzw. einen sicheren Aktivierungslink.
 6. In der Desktop-App wird Pro über diesen Code aktiviert.
 7. Der Lizenzdienst liefert ein signiertes Entitlement-Dokument zurück.

@@ -96,3 +96,29 @@ einer lokalen Datei statt im Postfach (nur mit Test-Keys erlaubt).
 Testkarten: `4242 4242 4242 4242` (erfolgreich), `4000 0000 0000 0341` (Karte wird gespeichert, spätere
 Zahlungen scheitern), `4000 0025 0000 3155` (3D Secure). Einzelne Ereignisse lassen sich mit
 `stripe trigger <event>` auslösen; Verlängerungen und Mahnläufe mit Test Clocks.
+
+## 6. Admin-Bereich
+
+1. Auf GitHub unter Settings → Developer settings → OAuth Apps eine App anlegen:
+   - Homepage URL: `https://<domain>`
+   - Authorization callback URL: `https://<domain>/admin/auth/callback`
+   - Für lokale Tests eine eigene App mit `http://localhost:3000/admin/auth/callback`.
+2. Client ID und ein neues Client Secret als `ADMIN_GITHUB_CLIENT_ID` und `ADMIN_GITHUB_CLIENT_SECRET` setzen.
+3. Die eigene numerische GitHub-ID (`https://api.github.com/users/<name>` → `id`) in `ADMIN_GITHUB_USER_IDS`
+   eintragen; mehrere IDs mit Komma trennen.
+4. Server neu starten und `/admin` öffnen. Der Admin-Bereich braucht den laufenden Lizenzdienst.
+
+## 7. Umstellung abschließen und Live Mode
+
+Die Paddle-Integration bleibt im Code, bis Stripe vollständig getestet ist. Reihenfolge:
+
+1. Vollständigen Testkauf im Test Mode durchführen (monatlich und jährlich), Aktivierungsmail und Aktivierung in
+   der App prüfen.
+2. Kündigung zum Periodenende, fehlgeschlagene Verlängerung (Test Clock), Voll- und Teilerstattung, Anfechtung
+   und Gerätewechsel (drei Installationen, vierte ersetzt eine) testen.
+3. Admin-Bereich prüfen: Suche, Sperre, manuelle Lizenz, neuer Code per E-Mail.
+4. Datenschutzerklärung und Rechtstexte aktualisieren (siehe `FLAGCOUNT_PRO_OPERATIONS.md`).
+5. Erst danach den Paddle-Code, die Paddle-Variablen, die Paddle-Domains in der Desktop-Allowlist und die
+   Paddle-Dokumentation entfernen.
+6. Live Mode: Produkt, Preise, Portal und Webhook-Endpoint im Live-Modus neu anlegen, Live-Keys und eigene
+   Live-Datenbank setzen, `MAIL_OUTBOX_FILE` entfernen, kontrollierten Echtkauf mit Rückerstattung durchführen.

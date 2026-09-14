@@ -48,7 +48,7 @@ describe('LandingPage', () => {
     expect(screen.getByRole('link', { name: 'Web-Dashboard' }).getAttribute('href')).toBe('/dashboard');
   });
 
-  it('shows the planned Pro offer without pretending that checkout is available', () => {
+  it('shows the Pro offer with the purchase flow and what FlagCount stores', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })));
 
     render(<LandingPage />);
@@ -56,8 +56,9 @@ describe('LandingPage', () => {
     expect(screen.getByRole('heading', { name: 'FlagCount Pro' })).toBeTruthy();
     expect(screen.getByText('6,99 € / Monat')).toBeTruthy();
     expect(screen.getByText('oder 59,00 € / Jahr')).toBeTruthy();
-    expect(screen.getByText(/Checkout und Lizenzen sind noch nicht verfügbar/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /kaufen/i })).toBeNull();
+    expect(screen.getByText(/Bezahlt wird über Stripe/)).toBeTruthy();
+    expect(screen.getByText(/ein FlagCount-Konto brauchst du nicht/)).toBeTruthy();
+    expect(screen.getByText(/FlagCount speichert sie nicht/)).toBeTruthy();
   });
 
   it('shows the prices reported by the payment provider', async () => {

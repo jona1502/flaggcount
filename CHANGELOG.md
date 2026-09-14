@@ -1,5 +1,13 @@
 # Änderungsverlauf
 
+## Noch nicht veröffentlicht
+
+- FlagCount Pro wird über Stripe verkauft: Checkout, Kundenportal für Rechnungen, Zahlungsmethode und Kündigung sowie Lizenzwiederherstellung per E-Mail. Ein FlagCount-Konto ist weiterhin nicht nötig.
+- Lizenzen folgen dem aktuellen Stand des Stripe-Abos; der Aktivierungscode kommt erst nach bestätigter Zahlung.
+- Die Desktop-App öffnet Stripe Checkout und das Stripe-Kundenportal.
+- Die Seiten `/pro` und `/pro/erfolgreich` sind erreichbar und zeigen die aktuellen Preise.
+- Neuer Admin-Bereich mit GitHub-Anmeldung für Support: Lizenzen suchen, Installationen deaktivieren, Codes erneuern, Lizenzen sperren und manuelle Lizenzen vergeben – mit Audit-Protokoll.
+
 ## 0.3.0 – 2026-09-14
 
 - FlagCount Pro eingeführt: sichere Lizenzaktivierung in der Desktop-App, Abos über Paddle und öffentliche Preis-/Checkout-Seite.
