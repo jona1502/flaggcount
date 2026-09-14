@@ -54,8 +54,6 @@ export type Settings = {
   /** Last TikTok username the user connected to; empty if none. */
   username: string;
   activeProfileId: string;
-  /** Privacy-first product telemetry is disabled until the user explicitly opts in. */
-  telemetryEnabled?: boolean;
   /** Never empty. */
   profiles: StreamProfile[];
 };
@@ -129,7 +127,6 @@ export function migrateSettingsV1(settings: SettingsV1, now: string): Settings {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: settings.username,
     activeProfileId: DEFAULT_PROFILE_ID,
-    telemetryEnabled: settings.telemetryEnabled === true,
     profiles: [
       {
         id: DEFAULT_PROFILE_ID,
@@ -159,8 +156,7 @@ export function parseSettingsV1(value: unknown): SettingsV1 {
   return {
     username: parseUsername(record['username']),
     target: typeof target === 'number' && isValidTarget(target) ? target : DEFAULT_TARGET,
-    overlay: parseOverlaySettings(record['overlay']) ?? { ...DEFAULT_OVERLAY_SETTINGS },
-    telemetryEnabled: record['telemetryEnabled'] === true
+    overlay: parseOverlaySettings(record['overlay']) ?? { ...DEFAULT_OVERLAY_SETTINGS }
   };
 }
 
@@ -232,7 +228,6 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: parseUsername(record['username']),
-    telemetryEnabled: record['telemetryEnabled'] === true,
     activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
       ? (activeProfileId as string)
       : (profiles[0] as StreamProfile).id,

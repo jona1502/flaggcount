@@ -5,7 +5,6 @@ import { OVERVIEW_SCOPE, buildCounterViews, type BoardAccess } from '../../share
 import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
-import { TELEMETRY_ERROR_CODES, voteCountBucket, type TelemetryErrorCode, type TelemetryEvent } from '../../shared/analytics';
 import type { LicenseManager } from './license/licenseManager';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { trimHistory, type RoundRecord } from '../../shared/history';
@@ -28,8 +27,6 @@ export type SidecarAppOptions = {
   entitlements?: Entitlements;
   /** Manages FlagCount Pro on the desktop; the web version runs without it. */
   license?: LicenseManager;
-  onTelemetry?: (event: TelemetryEvent) => void;
-  onTelemetryEnabled?: (enabled: boolean) => void;
   history?: RoundRecord[];
   onHistoryChanged?: (history: RoundRecord[]) => void;
 };
@@ -47,8 +44,6 @@ export class SidecarApp {
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
   private readonly boardListeners = new Set<() => void>();
   private lastVotes: string;
-  private readonly onTelemetry: (event: TelemetryEvent) => void;
-  private readonly onTelemetryEnabled: (enabled: boolean) => void;
   private history: RoundRecord[];
   private readonly onHistoryChanged: (history: RoundRecord[]) => void;
   private readonly startedAt = new Map<string, string>();
@@ -63,8 +58,6 @@ export class SidecarApp {
   ) {
     this.entitlements = options.entitlements ?? FREE_ENTITLEMENTS;
     this.license = options.license ?? null;
-    this.onTelemetry = options.onTelemetry ?? (() => undefined);
-    this.onTelemetryEnabled = options.onTelemetryEnabled ?? (() => undefined);
     this.history = options.history ?? [];
     this.onHistoryChanged = options.onHistoryChanged ?? (() => undefined);
     this.requested = options.counters ?? [createRedFlagCounter()];
@@ -81,17 +74,12 @@ export class SidecarApp {
     this.live = new TikTokLiveService(createConnection, {
       onStatus: (connection) => {
         send({ type: 'status', connection });
-        if (connection.status === 'connected') this.onTelemetry({ version: 1, name: 'connection_succeeded' });
       },
       onChat: (message) => {
         this.engine.handleComment(message.userId, message.comment);
       },
       onError: (error) => {
         send({ type: 'error', error });
-        const code = TELEMETRY_ERROR_CODES.includes(error.code as TelemetryErrorCode)
-          ? (error.code as TelemetryErrorCode)
-          : 'unknown';
-        this.onTelemetry({ version: 1, name: 'error', code });
       },
       onLog: (level, message) => send({ type: 'log', level, message })
     });
@@ -210,11 +198,6 @@ export class SidecarApp {
         break;
       }
       case 'reset':
-        for (const snapshot of this.engine.getSnapshots()) {
-          if ((!command.counterId || command.counterId === snapshot.counterId) && snapshot.totalCount > 0) {
-            this.onTelemetry({ version: 1, name: 'round_completed', voteCountBucket: voteCountBucket(snapshot.totalCount) });
-          }
-        }
         this.finishRounds(command.counterId, 'reset');
         this.engine.reset(command.counterId);
         break;
@@ -237,9 +220,6 @@ export class SidecarApp {
         break;
       case 'openCustomerPortal':
         await this.license?.openCustomerPortal();
-        break;
-      case 'setTelemetryEnabled':
-        this.onTelemetryEnabled(command.enabled);
         break;
       case 'clearHistory':
         this.history = [];

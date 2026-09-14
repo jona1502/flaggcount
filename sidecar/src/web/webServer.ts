@@ -6,7 +6,6 @@ import type { AppError, AppState } from '../../../shared/appState';
 import { isBoardScope, parseCounterViews } from '../../../shared/overlayBoard';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
-import { parseTelemetryEnvelope, type TelemetryEnvelope } from '../../../shared/analytics';
 import { OVERLAY_CSP, renderOverlayPage } from '../overlay/overlayAssets';
 import { renderBoardPage } from '../overlay/boardAssets';
 import { parseOverlaySettings } from '../protocol';
@@ -41,7 +40,6 @@ export type WebBackend = OverlaySource & {
   resetVotes: () => CommandResult;
   setTarget: (target: unknown) => CommandResult;
   setOverlaySettings: (overlay: unknown) => CommandResult;
-  setTelemetryEnabled: (enabled: unknown) => CommandResult;
 };
 
 export type WebServerOptions = {
@@ -69,9 +67,6 @@ export type WebServerOptions = {
   sessionMaxAgeMs?: number;
   now?: () => number;
   onError?: (error: unknown) => void;
-  /** Receives an already validated, aggregate-only event. */
-  onTelemetry?: (event: TelemetryEnvelope) => void;
-  maxTelemetryEventsPerMinute?: number;
   waitlist?: {
     subscribe: (email: unknown, consent: unknown) => Promise<WaitlistResult>;
     unsubscribe: (email: unknown) => Promise<WaitlistResult>;
@@ -88,7 +83,6 @@ const MAX_BODY_BYTES = 4096;
 const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
-const DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE = 60;
 const DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE = 10;
 const APP_ENTRY = '/web.html';
 const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
@@ -261,7 +255,7 @@ class LoginLimiter {
   }
 }
 
-/** An ephemeral address-based limiter; addresses are never included in telemetry or persisted. */
+/** An ephemeral address-based limiter; addresses are never persisted. */
 class FixedWindowLimiter {
   private readonly clients = new Map<string, { count: number; resetAt: number }>();
 
@@ -298,30 +292,10 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     options.lockoutMs ?? DEFAULT_LOCKOUT_MS,
     now
   );
-  const telemetryLimiter = new FixedWindowLimiter(
-    options.maxTelemetryEventsPerMinute ?? DEFAULT_MAX_TELEMETRY_EVENTS_PER_MINUTE,
-    now
-  );
   const waitlistLimiter = new FixedWindowLimiter(
     options.maxWaitlistRequestsPerMinute ?? DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE,
     now
   );
-
-  const receiveTelemetry = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    const accepted = await acceptPost(request, response);
-    if (!accepted) return;
-    if (!telemetryLimiter.accepts(clientAddress(request))) {
-      sendJson(response, 429, { error: 'too-many-events' }, { 'Retry-After': '60' });
-      return;
-    }
-    const event = parseTelemetryEnvelope(accepted.body);
-    if (!event) {
-      sendJson(response, 400, { error: 'invalid-event' });
-      return;
-    }
-    options.onTelemetry?.(event);
-    sendNoContent(response);
-  };
 
   const updateWaitlist = async (
     unsubscribe: boolean,
@@ -363,8 +337,7 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     ['/api/manual-vote/remove', () => backend.removeManualVote()],
     ['/api/reset', () => backend.resetVotes()],
     ['/api/target', (body) => backend.setTarget(field(body, 'target'))],
-    ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))],
-    ['/api/telemetry', (body) => backend.setTelemetryEnabled(field(body, 'enabled'))]
+    ['/api/overlay', (body) => backend.setOverlaySettings(field(body, 'overlay'))]
   ]);
 
   const isSignedIn = (request: IncomingMessage): boolean =>
@@ -592,10 +565,6 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
   };
 
   const handleApi = async (pathname: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    if (pathname === '/api/v1/analytics/events') {
-      await receiveTelemetry(request, response);
-      return;
-    }
     if (pathname === '/api/v1/waitlist' || pathname === '/api/v1/waitlist/unsubscribe') {
       await updateWaitlist(pathname.endsWith('/unsubscribe'), request, response);
       return;

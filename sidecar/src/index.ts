@@ -11,10 +11,7 @@ import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
-import { AnalyticsClient } from './analytics';
 import { RoundHistoryStore } from './historyStore';
-
-declare const __FLAGCOUNT_VERSION__: string;
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -84,9 +81,6 @@ async function startRelay(app: SidecarApp): Promise<RunningRelays | null> {
 }
 
 async function main(): Promise<void> {
-  const serviceUrl = process.env['FLAGCOUNT_RELAY_URL'] || DEFAULT_RELAY_URL;
-  const appVersion = typeof __FLAGCOUNT_VERSION__ === 'string' ? __FLAGCOUNT_VERSION__ : '0.0.0';
-  const analytics = new AnalyticsClient({ baseUrl: serviceUrl, appVersion });
   const historyStore = process.env['FLAGCOUNT_DATA_DIR'] ? new RoundHistoryStore(`${process.env['FLAGCOUNT_DATA_DIR']}\\round-history.json`) : null;
   const history = historyStore ? await historyStore.load() : [];
   // The license service runs on the same FlagCount server as the online overlay.
@@ -99,8 +93,6 @@ async function main(): Promise<void> {
   });
   const app = new SidecarApp(createTikTokConnection, send, {
     license,
-    onTelemetry: (event) => analytics.track(event),
-    onTelemetryEnabled: (enabled) => analytics.setEnabled(enabled),
     history,
     onHistoryChanged: (records) => { void historyStore?.replace(records).catch(() => log('error', 'Saving round history failed')); }
   });
@@ -117,7 +109,6 @@ async function main(): Promise<void> {
       subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
       getBoard: (scope) => app.getBoard(scope),
       subscribeBoard: (listener) => app.subscribeBoard(listener),
-      onOverlayOpened: () => analytics.track({ version: 1, name: 'overlay_opened', kind: 'local' }),
       assetDirectory: process.env['FLAGCOUNT_DATA_DIR'] ? `${process.env['FLAGCOUNT_DATA_DIR']}\\overlay-assets` : undefined
     },
     DEFAULT_OVERLAY_PORT

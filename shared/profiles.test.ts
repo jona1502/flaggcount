@@ -47,7 +47,6 @@ describe('settings migration', () => {
       schemaVersion: 2,
       username: 'streamer',
       activeProfileId: 'default',
-      telemetryEnabled: false,
       profiles: [
         {
           id: 'default',

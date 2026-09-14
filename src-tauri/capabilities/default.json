@@ -18,7 +18,6 @@
     "allow-set-target",
     "allow-set-overlay-settings",
     "allow-import-overlay-asset",
-    "allow-set-telemetry-enabled",
     "allow-clear-history",
     "allow-export-history-csv",
     "allow-create-profile",

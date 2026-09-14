@@ -462,8 +462,6 @@ pub struct Settings {
     /// Last TikTok username the user connected to; empty if none.
     pub username: String,
     pub active_profile_id: String,
-    #[serde(default)]
-    pub telemetry_enabled: bool,
     /// Never empty.
     pub profiles: Vec<StreamProfile>,
 }
@@ -491,7 +489,6 @@ impl Settings {
             schema_version: SETTINGS_SCHEMA_VERSION,
             username: settings.username,
             active_profile_id: DEFAULT_PROFILE_ID.into(),
-            telemetry_enabled: false,
             profiles: vec![StreamProfile {
                 id: DEFAULT_PROFILE_ID.into(),
                 name: "Standard".into(),
@@ -507,7 +504,6 @@ impl Settings {
         username: Option<Value>,
         active_profile_id: Option<Value>,
         profiles: Option<Value>,
-        telemetry_enabled: Option<Value>,
     ) -> Option<Self> {
         let profiles = profiles
             .filter(|value| value.as_array().is_some_and(|items| items.iter().all(Value::is_object)))
@@ -529,7 +525,6 @@ impl Settings {
                 .and_then(normalize_username)
                 .unwrap_or_default(),
             active_profile_id,
-            telemetry_enabled: telemetry_enabled.as_ref().and_then(Value::as_bool).unwrap_or(false),
             profiles,
         })
     }
@@ -542,7 +537,7 @@ impl Settings {
             None => (Self::migrated(legacy(), now), Migration::FromV1),
             Some(version) => {
                 let current = (version.as_u64() == Some(u64::from(SETTINGS_SCHEMA_VERSION)))
-                    .then(|| Self::from_document(read("username"), read("activeProfileId"), read("profiles"), read("telemetryEnabled")))
+                    .then(|| Self::from_document(read("username"), read("activeProfileId"), read("profiles")))
                     .flatten();
                 match current {
                     Some(settings) => (settings, Migration::None),
@@ -795,7 +790,6 @@ mod tests {
                 "schemaVersion": 2,
                 "username": "",
                 "activeProfileId": "default",
-                "telemetryEnabled": false,
                 "profiles": [{
                     "id": "default",
                     "name": "Standard",

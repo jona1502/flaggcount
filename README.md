@@ -14,10 +14,6 @@ FlagCount ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines T
 
 Benutzername, Stimmenziel und die Darstellung des Overlays bleiben nach einem Neustart erhalten. Stimmen werden nie gespeichert – nach einem Neustart beginnt eine neue Runde.
 
-## Datenschutzfreundliche Nutzungsdaten
-
-Die Übertragung anonymer Nutzungsdaten ist standardmäßig ausgeschaltet und kann im Dashboard unter **Datenschutz** freiwillig aktiviert oder jederzeit wieder deaktiviert werden. Übertragen werden ausschließlich App-Version, Betriebssystem-Hauptversion und fest definierte Ereignisse wie App-Start, erfolgreiche Verbindung oder eine grobe Größenklasse abgeschlossener Runden. TikTok-Benutzernamen, Zuschaueridentitäten, Chattexte, eigene Bezeichnungen, URLs, Lizenzdaten und lokale Dateipfade werden weder erfasst noch übertragen.
-
 ## Streaming-Overlay einrichten
 
 1. In FlagCount im Bereich **Streaming-Overlay** auf **URL kopieren** klicken. Standardmäßig lautet die Adresse `http://127.0.0.1:3847/overlay`.
@@ -95,7 +91,7 @@ Der Installer installiert FlagCount für den aktuellen Benutzer, ohne Administra
 
 | Was | Ort |
 | --- | --- |
-| Einstellungen (Benutzername, Stimmenziel, Overlay, Telemetrie-Einwilligung) | `%APPDATA%\com.jona1502.flagcount\settings.json` |
+| Einstellungen (Benutzername, Stimmenziel, Overlay) | `%APPDATA%\com.jona1502.flagcount\settings.json` |
 | Logdatei | `%LOCALAPPDATA%\com.jona1502.flagcount\logs\FlagCount.log` |
 
 Die Logdatei enthält keine Benutzernamen, Chatinhalte oder Zugangsdaten. FlagCount benötigt keine TikTok-Anmeldung.

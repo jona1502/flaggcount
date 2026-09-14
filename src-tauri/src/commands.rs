@@ -313,17 +313,6 @@ pub fn import_overlay_asset<R: Runtime>(app: AppHandle<R>, sidecar: State<'_, Si
 }
 
 #[tauri::command]
-pub fn set_telemetry_enabled<R: Runtime>(
-    app: AppHandle<R>,
-    sidecar: State<'_, Sidecar>,
-    saver: State<'_, SettingsSaver>,
-    enabled: bool,
-) -> Result<(), AppError> {
-    saver.save(&sidecar.update_settings(&app, |settings| settings.telemetry_enabled = enabled));
-    sidecar.send(&SidecarCommand::SetTelemetryEnabled { enabled })
-}
-
-#[tauri::command]
 pub fn clear_history(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
     sidecar.send(&SidecarCommand::ClearHistory)
 }

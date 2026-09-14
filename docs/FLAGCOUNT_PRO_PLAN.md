@@ -442,7 +442,7 @@ GET  /o/:channelId/events
 Vor öffentlichem Verkauf müssen vorhanden sein:
 
 - Impressum;
-- Datenschutzerklärung für Website, Billing, Lizenzdienst, Support, Telemetrie und Relay;
+- Datenschutzerklärung für Website, Billing, Lizenzdienst, Support und Relay;
 - AGB bzw. klare Nutzungsbedingungen;
 - Preis- und Verlängerungshinweise;
 - Widerrufs-/Erstattungsprozess für digitale Leistungen;
@@ -453,30 +453,6 @@ Vor öffentlichem Verkauf müssen vorhanden sein:
 Rechtstexte nicht von Claude erfinden und ungeprüft veröffentlichen. Entwürfe dürfen technische Datenflüsse dokumentieren, müssen vor Veröffentlichung fachlich/rechtlich geprüft werden.
 
 Die bestehende Aussage „kein offizielles Produkt von TikTok“ bleibt sichtbar. Keine TikTok-Logos verwenden und keine Partnerschaft suggerieren.
-
-## Datenschutzfreundliche Produktmessung
-
-Telemetrie ist eine eigene, vor Billing umzusetzende Entscheidung und standardmäßig opt-in, solange keine abschließende rechtliche Bewertung vorliegt.
-
-Erlaubte aggregierte Ereignisse:
-
-- App-Version und Betriebssystem-Hauptversion;
-- `app_started`;
-- `connection_succeeded`;
-- `round_completed` mit grober Stimmen-Bucketgröße, nicht exakter Nutzerliste;
-- `overlay_opened` getrennt nach lokal/online;
-- `profile_created`;
-- `pro_viewed`, `checkout_started`, `license_activated`;
-- Fehlercode aus einer festen, bereinigten Liste.
-
-Verbotene Telemetrie:
-
-- TikTok-Username;
-- Zuschauer-ID, Nickname oder Chattext;
-- freie Profil-, Options- oder Triggertexte;
-- Overlay-URL, Relay-Key, Lizenzcode, E-Mail oder lokale Dateipfade.
-
-Es muss einen sichtbaren Schalter geben. Deaktivierung stoppt zukünftige Übertragung. Kernfunktionen dürfen davon nicht abhängen.
 
 ## Teststrategie
 
@@ -545,19 +521,7 @@ Jeder Punkt wird als eigener Commit abgeschlossen. Nur zugehörige Dateien stage
 
 ### Phase 0 – Nachfrage validieren
 
-#### 1. Produktmessung und Datenschutzschalter
-
-- Ereignisschema und Opt-in-Einstellung implementieren.
-- Serverseitige Annahme mit Datenminimierung und Rate-Limit.
-- Keine eindeutige dauerhafte Geräte-ID für reine Nutzungsanalyse.
-
-Commit:
-
-```text
-feat(analytics): add privacy-first product telemetry
-```
-
-#### 2. Pro-Seite und unverbindliche Warteliste
+#### 1. Pro-Seite und unverbindliche Warteliste
 
 - Featurevergleich, geplante Preise und FAQ ergänzen.
 - Interesse messen, aber noch keinen Kauf vortäuschen.
@@ -808,7 +772,7 @@ release: prepare FlagCount Pro launch
 - Gefälschte, abgelaufene oder für ein anderes Gerät ausgestellte Entitlements werden abgelehnt.
 - Unsigned/invalid Paddle-Webhooks ändern keine Daten.
 - Lizenz- und Relay-Endpunkte sind rate-limited.
-- Keine Zuschaueridentität und kein Chattext erscheint in Persistenz, Telemetrie, Logs, Billing oder Relay.
+- Keine Zuschaueridentität und kein Chattext erscheint in Persistenz, Logs, Billing oder Relay.
 - Uploads akzeptieren nur erlaubte Rasterbilder innerhalb der Größenlimits.
 - Tokens, Aktivierungscodes und Provider-Schlüssel erscheinen nicht in UI, Logs oder URLs.
 

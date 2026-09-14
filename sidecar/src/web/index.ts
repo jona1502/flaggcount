@@ -81,13 +81,6 @@ async function main(): Promise<void> {
     verifyBoardEntitlement,
     licensing: licensingHandler,
     waitlist,
-    onTelemetry: (event) => jsonLogger('info', 'product_telemetry', {
-      name: event.event.name,
-      version: event.event.version,
-      platform: event.platform,
-      appVersion: event.appVersion,
-      osMajor: event.osMajor
-    }),
     host,
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`)

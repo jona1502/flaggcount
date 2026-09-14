@@ -57,7 +57,6 @@ await build({
   platform: 'node',
   format: 'cjs',
   target: 'node22',
-  define: { __FLAGCOUNT_VERSION__: JSON.stringify(process.env['npm_package_version'] ?? '0.0.0') },
   logLevel: 'warning'
 });
 

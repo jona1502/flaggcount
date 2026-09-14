@@ -10,7 +10,6 @@ import { ConnectionPanel } from './ConnectionPanel';
 import { CountersBoard } from './CountersBoard';
 import { ErrorBanner } from './ErrorBanner';
 import { OverlayPanel } from './OverlayPanel';
-import { PrivacyPanel } from './PrivacyPanel';
 import { VotesPanel } from './VotesPanel';
 import { UpdateNotice } from '../updater/UpdateNotice';
 import type { UpdaterController } from '../updater/useUpdater';
@@ -168,11 +167,6 @@ export function Dashboard({
             allowedCounters: limitFor(entitlements, 'overlayUrls'),
             overviewAllowed: canUse(entitlements, 'parallel-counters')
           }}
-        />
-        <PrivacyPanel
-          enabled={appState.settings.telemetryEnabled === true}
-          disabled={pending}
-          onChange={(enabled) => void actions.setTelemetryEnabled(enabled)}
         />
       </div>
     );

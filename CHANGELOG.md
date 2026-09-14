@@ -9,9 +9,6 @@
 - Private Rundenhistorie mit aggregierten Statistiken und sicherem CSV-Export.
 - Priorisierter Support für Pro-Kunden.
 - Die Free-Version funktioniert weiterhin ohne Lizenz und ohne Konto.
-- Freiwillige, standardmäßig deaktivierte Produkttelemetrie mit sichtbarem Datenschutzschalter ergänzt.
-- Telemetrie strikt auf App-/OS-Version, feste Ereignisse, grobe Stimm-Buckets und bereinigte Fehlercodes begrenzt.
-- Öffentlichen Telemetrie-Endpunkt mit Schema-Prüfung und Rate-Limit ergänzt.
 
 ## 0.2.3 – 2026-09-13
 

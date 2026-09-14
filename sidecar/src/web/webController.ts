@@ -141,14 +141,6 @@ export class WebController {
     return null;
   }
 
-  async setTelemetryEnabled(value: unknown): Promise<AppError | null> {
-    if (typeof value !== 'boolean') {
-      return { code: 'unknown', message: 'Telemetry preference must be a boolean' };
-    }
-    await this.updateSettings((settings) => ({ ...settings, telemetryEnabled: value }));
-    return null;
-  }
-
   shutdown(): Promise<void> {
     return this.app.shutdown();
   }

@@ -27,7 +27,6 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::set_target,
             commands::set_overlay_settings,
             commands::import_overlay_asset,
-            commands::set_telemetry_enabled,
             commands::clear_history,
             commands::export_history_csv,
             commands::create_profile,
