@@ -208,7 +208,7 @@ describe('Counters in the Tauri app', () => {
     const name = screen.getByLabelText('Name');
     await user.clear(name);
     await user.type(name, 'Flaggen-Runde');
-    await user.click(screen.getByRole('button', { name: 'Zähler speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Änderungen speichern' }));
 
     const saved = payloadOf('save_counters') as { counters: { name: string }[] } | undefined;
     expect(saved?.counters.map((counter) => counter.name)).toEqual(['Flaggen-Runde']);

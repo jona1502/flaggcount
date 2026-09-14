@@ -31,7 +31,7 @@ async function openCounters(user: ReturnType<typeof userEvent.setup>): Promise<v
 
 // Reported problem: Pro is active, but creating a poll is hidden inside the profile section.
 describe('Pro poll discovery', () => {
-  it.fails('lets an active Pro user find "Neues Element" and choose a poll', async () => {
+  it('lets an active Pro user find "Neues Element" and choose a poll', async () => {
     const { user } = renderDesktop(createAppState({ license: LICENSES.pro }));
 
     await openCounters(user);
@@ -42,7 +42,7 @@ describe('Pro poll discovery', () => {
     expect(poll.disabled).toBe(false);
   });
 
-  it.fails('explains a Pro license without the poll feature instead of hiding the action', async () => {
+  it('explains a Pro license without the poll feature instead of hiding the action', async () => {
     const { actions, user } = renderDesktop(createAppState({ license: LICENSES.proWithoutPolls }));
 
     await openCounters(user);

@@ -13,6 +13,7 @@ import {
   entitlementsFor,
   isProfileUsable,
   limitFor,
+  missingProFeatures,
   requireFeature,
   requireWithinLimit,
   requiredFeatures
@@ -198,5 +199,16 @@ describe('effectiveCounters', () => {
 
     expect(effectiveCounters(onlyPolls, FREE_ENTITLEMENTS)).toEqual([createRedFlagCounter(12, overlay)]);
     expect(effectiveCounters([poll('poll')], FREE_ENTITLEMENTS)).toEqual([createRedFlagCounter(100, DEFAULT_OVERLAY_SETTINGS)]);
+  });
+});
+
+describe('missingProFeatures', () => {
+  it('reports features a Pro license lacks, but nothing for Free or a complete Pro license', () => {
+    expect(missingProFeatures('free', [])).toEqual([]);
+    expect(missingProFeatures('pro', [...FEATURES])).toEqual([]);
+    expect(missingProFeatures('pro', FEATURES.filter((feature) => feature !== 'multi-option-polls' && feature !== 'history'))).toEqual([
+      'multi-option-polls',
+      'history'
+    ]);
   });
 });

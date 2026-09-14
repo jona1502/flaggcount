@@ -102,6 +102,15 @@ export function limitFor(entitlements: Entitlements, limit: LimitName): number {
   return entitlements.limits[limit];
 }
 
+/**
+ * Pro features a Pro license does not grant. Free and complete Pro licenses have none; anything else is
+ * explained to the streamer with a refresh action instead of silently hiding the feature.
+ */
+export function missingProFeatures(plan: Plan, grantedFeatures: readonly string[]): Feature[] {
+  if (plan !== 'pro') return [];
+  return FEATURES.filter((feature) => !grantedFeatures.includes(feature));
+}
+
 export type EntitlementViolation =
   | { kind: 'feature'; feature: Feature }
   | { kind: 'limit'; limit: LimitName; allowed: number; requested: number };

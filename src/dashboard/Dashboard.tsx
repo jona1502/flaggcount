@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
 import type { FlagCountActions } from '../api/useFlagCount';
 import { AppShell } from '../app-shell/AppShell';
 import { createAppModel } from '../app-shell/appModel';
 import { DESKTOP_PAGES, WEB_PAGES, type PageId, type Route } from '../app-shell/navigation';
-import { Skeleton, ToastProvider } from '../components/ui';
+import { ConfirmDialog, Skeleton, ToastProvider } from '../components/ui';
 import { CountersPage } from '../pages/CountersPage';
 import { HistoryPage } from '../pages/HistoryPage';
 import { LicensePage } from '../pages/LicensePage';
@@ -65,6 +65,23 @@ export function Dashboard({
   const current = pages.includes(route.page) ? route : routeTo(pages[0] as PageId);
   const model = useMemo(() => (state ? createAppModel(state) : null), [state]);
 
+  // Pages with unsaved edits block leaving until the streamer decides.
+  const unsaved = useRef(false);
+  const [blockedRoute, setBlockedRoute] = useState<Route | null>(null);
+  const onUnsavedChanges = useCallback((dirty: boolean) => {
+    unsaved.current = dirty;
+  }, []);
+  const navigate = useCallback(
+    (next: Route) => {
+      if (unsaved.current && next.page !== current.page) {
+        setBlockedRoute(next);
+        return;
+      }
+      setRoute(next);
+    },
+    [current.page]
+  );
+
   const renderPage = (props: PageProps): React.JSX.Element => {
     switch (props.route.page) {
       case 'overview':
@@ -91,7 +108,7 @@ export function Dashboard({
       <AppShell
         pages={pages}
         current={current.page}
-        onNavigate={setRoute}
+        onNavigate={navigate}
         model={model}
         error={error}
         onDismissError={onDismissError}
@@ -101,10 +118,23 @@ export function Dashboard({
         desktop={desktop}
       >
         {model ? (
-          renderPage({ model, route: current, pending, actions, navigate: setRoute, onCopyText, desktop })
+          renderPage({ model, route: current, pending, error, actions, navigate, onCopyText, onUnsavedChanges, desktop })
         ) : (
           <LoadingPage />
         )}
+        <ConfirmDialog
+          open={blockedRoute !== null}
+          title="Ungespeicherte Änderungen"
+          message="Deine Änderungen sind noch nicht gespeichert. Wenn du die Seite verlässt, gehen sie verloren."
+          confirmLabel="Verwerfen und verlassen"
+          cancelLabel="Weiter bearbeiten"
+          onCancel={() => setBlockedRoute(null)}
+          onConfirm={() => {
+            unsaved.current = false;
+            if (blockedRoute) setRoute(blockedRoute);
+            setBlockedRoute(null);
+          }}
+        />
       </AppShell>
     </ToastProvider>
   );

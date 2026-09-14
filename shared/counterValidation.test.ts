@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { changeCounterMode, createPollCounter, createPollOption, findCounterProblems } from './counterValidation';
+import {
+  appendPollOption,
+  changeCounterMode,
+  createPollCounter,
+  createPollOption,
+  createSingleCounter,
+  duplicateCounter,
+  findCounterProblems
+} from './counterValidation';
+import { requiredFeatures } from './entitlements';
 import { createRedFlagCounter, parseCounterDefinition, type CounterDefinition } from './profiles';
 
 describe('findCounterProblems', () => {
@@ -84,5 +93,38 @@ describe('poll factories', () => {
     const single = changeCounterMode(poll, 'single');
     expect(single.options).toEqual([flags.options[0]]);
     expect(changeCounterMode(single, 'single')).toBe(single);
+  });
+});
+
+describe('counter creation helpers', () => {
+  it('creates a single counter Free can run and one with custom triggers', () => {
+    const flags = createSingleCounter('Flaggen');
+    expect(findCounterProblems(flags)).toEqual([]);
+    expect(parseCounterDefinition(flags)).not.toBeNull();
+    expect(requiredFeatures(flags)).toEqual([]);
+
+    const fire = createSingleCounter('Feuer', [{ kind: 'emoji', value: '🔥', match: 'contains' }], []);
+    expect(requiredFeatures(fire)).toEqual(['custom-triggers']);
+    expect(fire.id).not.toBe(flags.id);
+  });
+
+  it('duplicates a counter with new ids and a marked name within the length limit', () => {
+    const poll = createPollCounter('Welches Team?');
+    const copy = duplicateCounter(poll);
+
+    expect(copy.name).toBe('Welches Team? (Kopie)');
+    expect(copy.id).not.toBe(poll.id);
+    expect(copy.options.map((option) => option.id)).not.toEqual(poll.options.map((option) => option.id));
+    expect(copy.options.map((option) => option.triggers)).toEqual(poll.options.map((option) => option.triggers));
+    expect(parseCounterDefinition(copy)).not.toBeNull();
+    expect([...duplicateCounter({ ...poll, name: 'x'.repeat(60) }).name]).toHaveLength(60);
+  });
+
+  it('appends lettered options without reusing a trigger of the counter', () => {
+    const poll = createPollCounter();
+    expect(appendPollOption(poll).options[2]).toMatchObject({ label: 'C', triggers: [{ kind: 'text', value: 'C', match: 'word' }] });
+
+    const taken: CounterDefinition = { ...poll, withdrawalTriggers: [{ kind: 'text', value: 'c', match: 'word' }] };
+    expect(appendPollOption(taken).options[2]?.triggers).toEqual([]);
   });
 });

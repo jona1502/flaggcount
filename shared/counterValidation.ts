@@ -9,6 +9,7 @@ import {
   type PollOption
 } from './profiles';
 import { DEFAULT_OVERLAY_SETTINGS, isHexColor } from './settings';
+import { RED_FLAG, WHITE_FLAG } from './voting/redFlag';
 import { createRandomRoundId } from './voting/VotingEngine';
 import { isValidTarget } from './voting/target';
 import { parseTrigger, triggerKey, type Trigger } from './voting/triggers';
@@ -105,18 +106,54 @@ export function createPollCounter(name = 'Abstimmung'): CounterDefinition {
   };
 }
 
+/** A single counter; without triggers it counts 🚩 and withdraws with 🏳️, exactly what Free allows. */
+export function createSingleCounter(
+  name = 'Zähler',
+  triggers: Trigger[] = [{ kind: 'emoji', value: RED_FLAG, match: 'contains' }],
+  withdrawalTriggers: Trigger[] = [{ kind: 'emoji', value: `${WHITE_FLAG}️`, match: 'contains' }]
+): CounterDefinition {
+  return {
+    id: newId('counter'),
+    name,
+    mode: 'single',
+    target: null,
+    options: [{ id: newId('option'), label: name, triggers, accentColor: DEFAULT_OVERLAY_SETTINGS.accentColor }],
+    withdrawalTriggers,
+    overlay: { ...DEFAULT_OVERLAY_SETTINGS }
+  };
+}
+
+/** A copy with new counter and option ids, so it runs its own round and gets its own overlay. */
+export function duplicateCounter(counter: CounterDefinition): CounterDefinition {
+  const suffix = ' (Kopie)';
+  const base = [...counter.name.trim()].slice(0, MAX_NAME_LENGTH - suffix.length).join('');
+  return {
+    ...counter,
+    id: newId('counter'),
+    name: `${base}${suffix}`,
+    options: counter.options.map((option) => ({ ...option, id: newId('option'), triggers: option.triggers.map((trigger) => ({ ...trigger })) })),
+    withdrawalTriggers: counter.withdrawalTriggers.map((trigger) => ({ ...trigger })),
+    overlay: { ...counter.overlay }
+  };
+}
+
+/** Adds the next lettered option. Its trigger stays empty if the letter is already used in this counter. */
+export function appendPollOption(counter: CounterDefinition): CounterDefinition {
+  const next = createPollOption(counter.options.length);
+  const used = new Set([...counter.options.flatMap((option) => option.triggers), ...counter.withdrawalTriggers].map(triggerKey));
+  const option = next.triggers.every((trigger) => !used.has(triggerKey(trigger))) ? next : { ...next, triggers: [] };
+  return { ...counter, options: [...counter.options, option] };
+}
+
 /** Switches between a single counter and a poll while keeping as much of the counter as possible. */
 export function changeCounterMode(counter: CounterDefinition, mode: CounterMode): CounterDefinition {
   if (counter.mode === mode) return counter;
   if (mode === 'single') {
     return { ...counter, mode, options: counter.options.slice(0, 1) };
   }
-  const options = [...counter.options];
-  while (options.length < MIN_POLL_OPTIONS) {
-    const next = createPollOption(options.length);
-    // Never create a trigger that is already in use.
-    const used = new Set(options.flatMap((option) => option.triggers.map(triggerKey)));
-    options.push(next.triggers.every((trigger) => !used.has(triggerKey(trigger))) ? next : { ...next, triggers: [] });
+  let poll: CounterDefinition = { ...counter, mode, options: [...counter.options] };
+  while (poll.options.length < MIN_POLL_OPTIONS) {
+    poll = appendPollOption(poll);
   }
-  return { ...counter, mode, options };
+  return poll;
 }
