@@ -1,4 +1,5 @@
-import type { BillingPlanId, BillingProvider, PriceQuote, SubscriptionSnapshot, WebhookVerification } from './billing';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { BillingEvent, BillingPlanId, BillingProvider, PriceQuote, SubscriptionSnapshot, WebhookVerification } from './billing';
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from './store';
 
 /** Derived from the secret key: `sk_test_…`/`rk_test_…` or `sk_live_…`/`rk_live_…`. */
@@ -29,6 +30,9 @@ export const STRIPE_API_BASE = 'https://api.stripe.com';
  * parsers also accept the pre-basil fields, because webhook endpoints may still render an older version.
  */
 export const STRIPE_API_VERSION = '2025-03-31.basil';
+
+/** Stripe's documented default tolerance between the signature timestamp and the current time. */
+export const DEFAULT_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 const SECRET_KEY_PATTERN = /^(sk|rk)_(test|live)_[A-Za-z0-9]{10,}$/;
 const ZERO_DECIMAL_CURRENCIES = new Set(['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf']);
@@ -79,6 +83,25 @@ export function encodeParams(params: Params): URLSearchParams {
   return search;
 }
 
+function parseSignatureHeader(header: string): { timestamp: number; signatures: string[] } | null {
+  let timestamp = Number.NaN;
+  const signatures: string[] = [];
+  for (const part of header.split(',')) {
+    const separator = part.indexOf('=');
+    const key = part.slice(0, separator).trim();
+    const value = part.slice(separator + 1).trim();
+    if (key === 't' && /^\d{1,12}$/.test(value)) timestamp = Number(value);
+    if (key === 'v1' && /^[0-9a-f]{64}$/i.test(value)) signatures.push(value.toLowerCase());
+  }
+  return Number.isFinite(timestamp) && signatures.length > 0 ? { timestamp, signatures } : null;
+}
+
+/** Since 2025-03-31.basil an invoice names its subscription under `parent`; older versions at the top level. */
+function invoiceSubscriptionId(invoice: UnknownRecord | null): string | null {
+  const details = record(record(invoice?.['parent'])?.['subscription_details']);
+  return idOf(details?.['subscription']) ?? idOf(invoice?.['subscription']);
+}
+
 function formatAmount(amount: number, currency: string): string {
   const divisor = ZERO_DECIMAL_CURRENCIES.has(currency) ? 1 : 100;
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency.toUpperCase() }).format(amount / divisor);
@@ -93,8 +116,28 @@ export class StripeBillingProvider implements BillingProvider {
     this.send = config.fetch ?? fetch;
   }
 
-  verifyWebhook(_rawBody: string, _signatureHeader: string | undefined, _now: number): WebhookVerification {
-    return { ok: false, reason: 'invalid-signature' };
+  /** Verifies the `Stripe-Signature` header over the unmodified body before anything is parsed. */
+  verifyWebhook(rawBody: string, signatureHeader: string | undefined, now: number): WebhookVerification {
+    if (!signatureHeader) return { ok: false, reason: 'missing-signature' };
+    const parsed = parseSignatureHeader(signatureHeader);
+    if (!parsed) return { ok: false, reason: 'invalid-signature' };
+
+    const tolerance = this.config.webhookToleranceSeconds ?? DEFAULT_WEBHOOK_TOLERANCE_SECONDS;
+    if (Math.abs(now / 1000 - parsed.timestamp) > tolerance) return { ok: false, reason: 'stale-timestamp' };
+
+    const expected = createHmac('sha256', this.config.webhookSecret).update(`${parsed.timestamp}.${rawBody}`).digest();
+    // More than one v1 appears while the endpoint secret is being rolled.
+    const authentic = parsed.signatures.some((signature) => timingSafeEqual(Buffer.from(signature, 'hex'), expected));
+    if (!authentic) return { ok: false, reason: 'invalid-signature' };
+
+    let payload: unknown;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return { ok: false, reason: 'invalid-payload' };
+    }
+    const event = this.normalizeEvent(payload);
+    return event ? { ok: true, event } : { ok: false, reason: 'invalid-payload' };
   }
 
   /**
@@ -145,6 +188,21 @@ export class StripeBillingProvider implements BillingProvider {
     return this.toSnapshot(record(subscription));
   }
 
+  /** The subscription behind a PaymentIntent, found through its invoice. `null` for payments outside subscriptions. */
+  async subscriptionIdForPayment(paymentIntentId: string): Promise<string | null> {
+    const payments = record(
+      await this.request('GET', '/v1/invoice_payments', {
+        payment: { type: 'payment_intent', payment_intent: paymentIntentId },
+        limit: 1
+      })
+    );
+    const list = payments?.['data'];
+    const invoiceId = idOf(record(Array.isArray(list) ? list[0] : null)?.['invoice']);
+    if (!invoiceId) return null;
+    const invoice = record(await this.request('GET', `/v1/invoices/${encodeURIComponent(invoiceId)}`));
+    return invoiceSubscriptionId(invoice);
+  }
+
   /** List prices as configured in Stripe. Taxes depend on the buyer's address and are shown in Checkout. */
   async previewPrices(_location: { ip?: string; countryCode?: string }): Promise<PriceQuote[]> {
     const plans = (Object.entries(this.config.prices) as [BillingPlanId, string | undefined][]).filter(
@@ -174,6 +232,63 @@ export class StripeBillingProvider implements BillingProvider {
       });
     }
     return quotes;
+  }
+
+  /**
+   * Subscription events only name the subscription; its state is read again from the API when the event is
+   * processed. Refunds and disputes name the payment, which is resolved to the subscription later.
+   */
+  private normalizeEvent(payload: unknown): BillingEvent | null {
+    const envelope = record(payload);
+    const eventId = text(envelope?.['id']);
+    const eventType = text(envelope?.['type']);
+    const occurredAt = seconds(envelope?.['created']);
+    const object = record(record(envelope?.['data'])?.['object']);
+    if (!envelope || !eventId || !eventType || !occurredAt || !object) return null;
+    const base = { eventId, eventType, occurredAt };
+    const other: BillingEvent = { kind: 'other', ...base };
+
+    // A test event must never change live licenses, and the other way round.
+    if (typeof envelope['livemode'] === 'boolean' && envelope['livemode'] !== (this.config.mode === 'live')) return other;
+
+    const sync = (subscriptionId: string | null): BillingEvent =>
+      subscriptionId ? { kind: 'subscription-sync', ...base, subscriptionId } : other;
+    const adjustment = (action: 'refund' | 'chargeback' | 'chargeback_reverse', full: boolean): BillingEvent => ({
+      kind: 'adjustment',
+      ...base,
+      action,
+      full,
+      approved: true,
+      subscriptionId: null,
+      paymentId: idOf(object['payment_intent'])
+    });
+
+    switch (eventType) {
+      case 'checkout.session.completed':
+        return object['mode'] === 'subscription' ? sync(idOf(object['subscription'])) : other;
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.paused':
+      case 'customer.subscription.resumed':
+        return sync(text(object['id']));
+      case 'invoice.paid':
+      case 'invoice.payment_failed':
+        return sync(invoiceSubscriptionId(object));
+      case 'charge.refunded':
+        return adjustment('refund', object['refunded'] === true);
+      case 'charge.dispute.created': {
+        // Inquiries (`warning_…`) are no chargeback yet and leave Pro untouched.
+        const status = text(object['status']) ?? '';
+        return status.startsWith('warning_') ? other : adjustment('chargeback', true);
+      }
+      case 'charge.dispute.closed': {
+        const status = text(object['status']);
+        return status === 'won' || status === 'warning_closed' ? adjustment('chargeback_reverse', true) : other;
+      }
+      default:
+        return other;
+    }
   }
 
   /**

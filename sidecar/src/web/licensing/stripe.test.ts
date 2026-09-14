@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { STRIPE_API_VERSION, StripeApiError, StripeBillingProvider, encodeParams, stripeKeyMode, type StripeConfig } from './stripe';
 
@@ -121,6 +122,112 @@ describe('StripeBillingProvider subscriptions', () => {
 
     expect(await stripe.retrieveSubscription('sub_1')).toBeNull();
     expect(await stripe.retrieveSubscription('sub_1')).toBeNull();
+  });
+});
+
+describe('StripeBillingProvider webhooks', () => {
+  const SECRET = 'whsec_testsecret0123456789';
+  const NOW = Date.parse('2026-09-14T12:00:00.000Z');
+  const TS = NOW / 1000;
+  const sign = (body: string, ts = TS, secret = SECRET) => `t=${ts},v1=${createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex')}`;
+  const event = (type: string, object: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({ id: 'evt_1', object: 'event', type, created: TS - 2, livemode: false, data: { object }, ...extra });
+  const verify = (body: string, overrides: Partial<StripeConfig> = {}) => stripeProvider(overrides).stripe.verifyWebhook(body, sign(body), NOW);
+
+  it('accepts a correctly signed subscription event and asks for a sync', () => {
+    const body = event('customer.subscription.updated', subscriptionObject());
+
+    expect(verify(body)).toEqual({
+      ok: true,
+      event: { kind: 'subscription-sync', eventId: 'evt_1', eventType: 'customer.subscription.updated', occurredAt: '2026-09-14T11:59:58.000Z', subscriptionId: 'sub_1' }
+    });
+  });
+
+  it('rejects missing, forged and replayed signatures and changed bodies', () => {
+    const { stripe } = stripeProvider();
+    const body = event('customer.subscription.created', subscriptionObject());
+
+    expect(stripe.verifyWebhook(body, undefined, NOW)).toEqual({ ok: false, reason: 'missing-signature' });
+    expect(stripe.verifyWebhook(body, 'garbage', NOW)).toEqual({ ok: false, reason: 'invalid-signature' });
+    expect(stripe.verifyWebhook(body, sign(body, TS, 'whsec_other'), NOW)).toEqual({ ok: false, reason: 'invalid-signature' });
+    expect(stripe.verifyWebhook(`${body} `, sign(body), NOW)).toEqual({ ok: false, reason: 'invalid-signature' });
+    expect(stripe.verifyWebhook(body, sign(body, TS - 301), NOW)).toEqual({ ok: false, reason: 'stale-timestamp' });
+    expect(stripe.verifyWebhook(body, sign(body, TS - 300), NOW).ok).toBe(true);
+  });
+
+  it('accepts any of several signatures while the secret is rolled', () => {
+    const { stripe } = stripeProvider();
+    const body = event('customer.subscription.created', subscriptionObject());
+    const current = sign(body).split(',')[1];
+
+    expect(stripe.verifyWebhook(body, `t=${TS},v1=${'0'.repeat(64)},${current},v0=abc`, NOW).ok).toBe(true);
+  });
+
+  it('reports signed events with an unusable payload', () => {
+    const { stripe } = stripeProvider();
+    const broken = '{"id":';
+    const incomplete = JSON.stringify({ id: 'evt_1', type: 'invoice.paid', created: TS });
+
+    expect(stripe.verifyWebhook(broken, sign(broken), NOW)).toEqual({ ok: false, reason: 'invalid-payload' });
+    expect(stripe.verifyWebhook(incomplete, sign(incomplete), NOW)).toEqual({ ok: false, reason: 'invalid-payload' });
+  });
+
+  it('syncs subscriptions after checkout and invoices of every API version', () => {
+    expect(verify(event('checkout.session.completed', { id: 'cs_1', mode: 'subscription', subscription: 'sub_1' }))).toMatchObject({
+      event: { kind: 'subscription-sync', subscriptionId: 'sub_1' }
+    });
+    expect(verify(event('checkout.session.completed', { id: 'cs_2', mode: 'payment', subscription: null }))).toMatchObject({
+      event: { kind: 'other' }
+    });
+    expect(
+      verify(event('invoice.paid', { id: 'in_1', parent: { type: 'subscription_details', subscription_details: { subscription: 'sub_2' } } }))
+    ).toMatchObject({ event: { kind: 'subscription-sync', subscriptionId: 'sub_2' } });
+    expect(verify(event('invoice.payment_failed', { id: 'in_2', subscription: 'sub_3' }))).toMatchObject({
+      event: { kind: 'subscription-sync', subscriptionId: 'sub_3' }
+    });
+    expect(verify(event('invoice.paid', { id: 'in_3', parent: null }))).toMatchObject({ event: { kind: 'other' } });
+  });
+
+  it('normalizes refunds and disputes by payment', () => {
+    expect(verify(event('charge.refunded', { id: 'ch_1', refunded: true, payment_intent: 'pi_1' }))).toMatchObject({
+      event: { kind: 'adjustment', action: 'refund', full: true, approved: true, subscriptionId: null, paymentId: 'pi_1' }
+    });
+    expect(verify(event('charge.refunded', { id: 'ch_2', refunded: false, payment_intent: 'pi_2' }))).toMatchObject({
+      event: { kind: 'adjustment', action: 'refund', full: false }
+    });
+    expect(verify(event('charge.dispute.created', { id: 'dp_1', status: 'needs_response', payment_intent: 'pi_3' }))).toMatchObject({
+      event: { kind: 'adjustment', action: 'chargeback', paymentId: 'pi_3' }
+    });
+    expect(verify(event('charge.dispute.created', { id: 'dp_2', status: 'warning_needs_response', payment_intent: 'pi_4' }))).toMatchObject({
+      event: { kind: 'other' }
+    });
+    expect(verify(event('charge.dispute.closed', { id: 'dp_1', status: 'won', payment_intent: 'pi_3' }))).toMatchObject({
+      event: { kind: 'adjustment', action: 'chargeback_reverse' }
+    });
+    expect(verify(event('charge.dispute.closed', { id: 'dp_3', status: 'lost', payment_intent: 'pi_5' }))).toMatchObject({
+      event: { kind: 'other' }
+    });
+  });
+
+  it('ignores unknown types and events of the other mode', () => {
+    expect(verify(event('payout.paid', { id: 'po_1' }))).toMatchObject({ ok: true, event: { kind: 'other', eventType: 'payout.paid' } });
+    expect(verify(event('customer.subscription.updated', subscriptionObject(), { livemode: true }))).toMatchObject({ event: { kind: 'other' } });
+    expect(verify(event('customer.subscription.updated', subscriptionObject()), { mode: 'live' })).toMatchObject({ event: { kind: 'other' } });
+  });
+
+  it('finds the subscription of a payment through its invoice', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch
+      .mockResolvedValueOnce(respond({ object: 'list', data: [{ id: 'inpay_1', invoice: 'in_1' }] }))
+      .mockResolvedValueOnce(respond({ id: 'in_1', parent: { subscription_details: { subscription: 'sub_1' } } }))
+      .mockResolvedValueOnce(respond({ object: 'list', data: [] }));
+
+    expect(await stripe.subscriptionIdForPayment('pi_1')).toBe('sub_1');
+    expect(decodeURIComponent(String(fetch.mock.calls[0]?.[0]))).toBe(
+      'https://api.stripe.com/v1/invoice_payments?payment[type]=payment_intent&payment[payment_intent]=pi_1&limit=1'
+    );
+    expect(fetch.mock.calls[1]?.[0]).toBe('https://api.stripe.com/v1/invoices/in_1');
+    expect(await stripe.subscriptionIdForPayment('pi_2')).toBeNull();
   });
 });
 

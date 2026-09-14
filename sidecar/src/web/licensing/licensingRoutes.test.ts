@@ -96,7 +96,7 @@ describe('licensing routes', () => {
       subscription: { customerId: 'ctm_1', subscriptionId: 'sub_1', status: 'active', currentPeriodEndsAt: null, scheduledCancelAt: null, canceledAt: null }
     };
 
-    const webhook = await send(port, LICENSING_PATHS.webhook, { body: JSON.stringify(created), headers: { 'paddle-signature': 'valid' } });
+    const webhook = await send(port, LICENSING_PATHS.paddleWebhook, { body: JSON.stringify(created), headers: { 'paddle-signature': 'valid' } });
     expect(webhook.status).toBe(200);
     const code = /FC(-[0-9A-Z]{5}){4}/.exec(mails[0]?.text ?? '')?.[0];
 
@@ -123,10 +123,19 @@ describe('licensing routes', () => {
 
     expect((await send(port, LICENSING_PATHS.activate, json({ code: 'FC-00000-00000-00000-00000', installationId: 'installation-0123456789' }))).status).toBe(400);
     expect((await send(port, LICENSING_PATHS.refresh, json({ licenseId: 'x', installationId: 'installation-0123456789', secret: 'y' }))).status).toBe(401);
-    expect((await send(port, LICENSING_PATHS.webhook, { body: '{}', headers: { 'paddle-signature': 'forged' } })).status).toBe(401);
+    expect((await send(port, LICENSING_PATHS.paddleWebhook, { body: '{}', headers: { 'paddle-signature': 'forged' } })).status).toBe(401);
     expect((await send(port, LICENSING_PATHS.recover, json({ email: 'jemand@example.com' }))).status).toBe(202);
     expect((await send(port, LICENSING_PATHS.checkout, json({ plan: 'lifetime' }))).status).toBe(400);
     expect(JSON.parse((await send(port, LICENSING_PATHS.checkout, json({ plan: 'yearly' }))).body)).toEqual({ url: 'https://pay.example/yearly' });
+  });
+
+  it('accepts webhooks only at the endpoint of the configured provider', async () => {
+    const { port } = await start();
+    const event = JSON.stringify({ kind: 'other', eventId: 'evt_2', eventType: 'test', occurredAt: new Date().toISOString() });
+
+    expect((await send(port, LICENSING_PATHS.stripeWebhook, { body: event, headers: { 'stripe-signature': 'valid' } })).status).toBe(404);
+    expect((await send(port, LICENSING_PATHS.paddleWebhook, { body: event, headers: { 'stripe-signature': 'valid' } })).status).toBe(401);
+    expect((await send(port, LICENSING_PATHS.paddleWebhook, { body: event, headers: { 'paddle-signature': 'valid' } })).status).toBe(200);
   });
 
   it('serves provider prices with a short private cache', async () => {

@@ -3,7 +3,7 @@ import { FEATURES } from '../../../../shared/entitlements';
 import { OFFLINE_GRACE_MS, entitlementSigningPayload, type SignedEntitlement } from '../../../../shared/licensing';
 import { createEntitlementSigner, createEntitlementVerifier, generateSigningKeyPair } from '../../license/signature';
 import type { LogFields } from '../structuredLog';
-import type { BillingEvent, BillingProvider, MailMessage } from './billing';
+import type { BillingEvent, BillingProvider, MailMessage, SubscriptionSnapshot } from './billing';
 import { LicenseService, PAST_DUE_GRACE_MS, licenseAccess } from './licenseService';
 import { MemoryLicenseStore, type LicenseRecord } from './store';
 
@@ -41,6 +41,12 @@ class FakeProvider implements BillingProvider {
   }
 
   previewPrices = vi.fn(async () => []);
+
+  /** Current provider-side state, as read for `subscription-sync` events. */
+  readonly subscriptions = new Map<string, SubscriptionSnapshot>();
+  readonly payments = new Map<string, string>();
+  retrieveSubscription = vi.fn(async (subscriptionId: string) => this.subscriptions.get(subscriptionId) ?? null);
+  subscriptionIdForPayment = vi.fn(async (paymentId: string) => this.payments.get(paymentId) ?? null);
 }
 
 function createService() {
@@ -335,6 +341,61 @@ describe('LicenseService', () => {
     await subscription({ status: 'active' }, 'subscription.updated');
     await subscription({ status: 'active' }, 'subscription.updated');
     expect(mails.map((mail) => mail.subject)).toEqual(['Dein Aktivierungscode für FlagCount Pro']);
+  });
+
+  it('syncs from the provider state, so late or reordered events cannot undo newer changes', async () => {
+    const { webhook, provider, store, mails, advance } = createService();
+    const snapshot: SubscriptionSnapshot = {
+      customerId: 'ctm_1',
+      subscriptionId: 'sub_1',
+      status: 'incomplete',
+      currentPeriodEndsAt: new Date(START + 30 * DAY).toISOString(),
+      scheduledCancelAt: null,
+      canceledAt: null
+    };
+    const sync = (eventType: string) => webhook({ kind: 'subscription-sync', eventType, subscriptionId: 'sub_1' });
+
+    provider.subscriptions.set('sub_1', { ...snapshot, status: 'active' });
+    advance(1000);
+    expect(await sync('invoice.paid')).toEqual({ status: 200 });
+    // The older "created" event arrives last, but the provider already reports the subscription as active.
+    advance(1000);
+    await sync('customer.subscription.created');
+
+    expect(await store.findBySubscription('paddle', 'sub_1')).toMatchObject({ providerStatus: 'active' });
+    expect(mails).toHaveLength(1);
+    expect(provider.retrieveSubscription).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores synced subscriptions of other products and retries when the provider is unavailable', async () => {
+    const { webhook, provider, store } = createService();
+    const sync = () => webhook({ kind: 'subscription-sync', eventId: 'evt_sync', eventType: 'customer.subscription.updated', subscriptionId: 'sub_other' });
+
+    expect(await sync()).toEqual({ status: 200 });
+    expect(await store.findBySubscription('paddle', 'sub_other')).toBeNull();
+
+    provider.retrieveSubscription.mockRejectedValueOnce(new TypeError('provider down'));
+    const retry = () =>
+      webhook({ kind: 'subscription-sync', eventId: 'evt_retry_sync', eventType: 'customer.subscription.updated', subscriptionId: 'sub_other' });
+    expect(await retry()).toEqual({ status: 500 });
+    expect(await retry()).toEqual({ status: 200 });
+  });
+
+  it('applies refunds that only name the payment', async () => {
+    const { subscription, activate, webhook, service, provider } = createService();
+    await subscription();
+    const activation = await activate();
+    if (!activation.ok) throw new Error('activation failed');
+    provider.payments.set('pi_1', 'sub_1');
+    const refund = (paymentId: string) =>
+      webhook({ kind: 'adjustment', eventType: 'charge.refunded', action: 'refund', full: true, approved: true, subscriptionId: null, paymentId });
+
+    await refund('pi_unrelated');
+    const credentials = { licenseId: activation.licenseId, installationId: INSTALL_A, secret: activation.activationSecret };
+    expect((await service.refresh(credentials)).ok).toBe(true);
+
+    await refund('pi_1');
+    expect(await service.refresh(credentials)).toEqual({ ok: false, error: 'license-inactive' });
   });
 
   it('refuses Pro for subscriptions that were never or are no longer paid', async () => {

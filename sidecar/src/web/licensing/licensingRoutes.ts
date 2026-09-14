@@ -14,7 +14,14 @@ export const LICENSING_PATHS = {
   portal: '/api/v1/billing/portal',
   checkout: '/api/v1/billing/checkout',
   prices: '/api/v1/billing/prices',
-  webhook: '/api/v1/billing/webhooks/paddle'
+  stripeWebhook: '/api/v1/billing/webhooks/stripe',
+  paddleWebhook: '/api/v1/billing/webhooks/paddle'
+} as const;
+
+/** Each provider signs its webhooks in its own header. */
+const WEBHOOKS = {
+  stripeWebhook: { provider: 'stripe', signatureHeader: 'stripe-signature' },
+  paddleWebhook: { provider: 'paddle', signatureHeader: 'paddle-signature' }
 } as const;
 
 export type LicensingRoute = keyof typeof LICENSING_PATHS;
@@ -33,7 +40,8 @@ export const DEFAULT_LIMITS: Record<LicensingRoute, Limit> = {
   portal: { limit: 20, windowMs: HOUR },
   checkout: { limit: 30, windowMs: HOUR },
   prices: { limit: 120, windowMs: HOUR },
-  webhook: { limit: 600, windowMs: MINUTE }
+  stripeWebhook: { limit: 600, windowMs: MINUTE },
+  paddleWebhook: { limit: 600, windowMs: MINUTE }
 };
 
 const JSON_BODY_LIMIT = 4096;
@@ -188,9 +196,16 @@ export function createLicensingHandler(options: LicensingHandlerOptions): Licens
         sendJson(response, 200, { prices }, { 'Cache-Control': 'private, max-age=300' });
         return;
       }
-      case 'webhook': {
+      case 'stripeWebhook':
+      case 'paddleWebhook': {
+        const webhook = WEBHOOKS[route];
+        // Only the configured provider's endpoint exists; the other one must not accept anything.
+        if (licenses.providerName !== webhook.provider) {
+          sendJson(response, 404, { error: 'not-found' });
+          return;
+        }
         const rawBody = await readBody(request, WEBHOOK_BODY_LIMIT);
-        const signature = request.headers['paddle-signature'];
+        const signature = request.headers[webhook.signatureHeader];
         const result = await licenses.handleWebhook(rawBody, typeof signature === 'string' ? signature : undefined);
         if (result.status === 200) sendJson(response, 200, { ok: true });
         else sendJson(response, result.status, { error: result.status === 500 ? 'processing-failed' : 'rejected' });

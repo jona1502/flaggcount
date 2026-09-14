@@ -213,7 +213,8 @@ export class PaddleBillingProvider implements BillingProvider {
         action: action === 'refund' || action === 'chargeback' || action === 'chargeback_reverse' ? action : 'other',
         full: data['type'] === 'full',
         approved: data['status'] === 'approved',
-        subscriptionId: text(data['subscription_id'])
+        subscriptionId: text(data['subscription_id']),
+        paymentId: null
       };
     }
 

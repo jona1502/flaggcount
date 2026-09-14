@@ -16,6 +16,14 @@ export type BillingEvent =
       subscription: SubscriptionSnapshot;
     }
   | {
+      /** Something about the subscription changed; its current state has to be read from the provider. */
+      kind: 'subscription-sync';
+      eventId: string;
+      eventType: string;
+      occurredAt: string;
+      subscriptionId: string;
+    }
+  | {
       kind: 'adjustment';
       eventId: string;
       eventType: string;
@@ -25,6 +33,8 @@ export type BillingEvent =
       full: boolean;
       approved: boolean;
       subscriptionId: string | null;
+      /** Provider payment the adjustment belongs to, when the event does not name the subscription. */
+      paymentId?: string | null;
     }
   | { kind: 'other'; eventId: string; eventType: string; occurredAt: string };
 
@@ -55,6 +65,10 @@ export interface BillingProvider {
   customerEmail(customerId: string): Promise<string | null>;
   customerIdsByEmail(email: string): Promise<string[]>;
   previewPrices(location: { ip?: string; countryCode?: string }): Promise<PriceQuote[]>;
+  /** Current state of a subscription for `subscription-sync` events; `null` if it does not sell FlagCount Pro. */
+  retrieveSubscription?(subscriptionId: string): Promise<SubscriptionSnapshot | null>;
+  /** The subscription a payment was made for, to apply refunds and disputes. */
+  subscriptionIdForPayment?(paymentId: string): Promise<string | null>;
 }
 
 export type MailMessage = {

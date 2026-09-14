@@ -9,7 +9,7 @@ import {
 } from '../../../../shared/licensing';
 import type { EntitlementSigner } from '../../license/signature';
 import type { StructuredLogger } from '../structuredLog';
-import type { BillingEvent, BillingPlanId, BillingProvider, MailSender, PriceQuote } from './billing';
+import type { BillingEvent, BillingPlanId, BillingProvider, MailSender, PriceQuote, SubscriptionSnapshot } from './billing';
 import { activationMail, recoveryMail } from './mailTemplates';
 import {
   generateActivationCode,
@@ -145,23 +145,19 @@ export class LicenseService {
 
     try {
       switch (event.kind) {
-        case 'subscription': {
-          const { license, created, applied } = await store.applySubscription(
-            { ...event.subscription, provider: provider.name, occurredAt: event.occurredAt },
-            this.newId,
-            now
-          );
-          logger('info', 'subscription-synced', {
-            eventType: event.eventType,
-            license: licenseReference(license.id),
-            status: license.providerStatus,
-            created,
-            applied
-          });
-          // The first code goes out once the license grants Pro, not while the first payment is still open.
-          if (license.codeHash === null && licenseAccess(license, this.now())) {
-            await this.issueActivationCode(license, 'activation');
+        case 'subscription':
+          await this.applySubscription(event.subscription, event.occurredAt, event.eventType);
+          break;
+        case 'subscription-sync': {
+          if (!provider.retrieveSubscription) {
+            logger('warn', 'webhook-ignored', { eventType: event.eventType, reason: 'sync-unsupported' });
+            break;
           }
+          // Taken before the request: a slower request that read an older state then loses against a newer one.
+          const observedAt = this.timestamp();
+          const snapshot = await provider.retrieveSubscription(event.subscriptionId);
+          if (snapshot) await this.applySubscription(snapshot, observedAt, event.eventType);
+          else logger('info', 'webhook-ignored', { eventType: event.eventType, reason: 'other-product' });
           break;
         }
         case 'adjustment':
@@ -301,11 +297,35 @@ export class LicenseService {
     return this.options.store.ping();
   }
 
+  private async applySubscription(snapshot: SubscriptionSnapshot, occurredAt: string, eventType: string): Promise<void> {
+    const { store, provider, logger } = this.options;
+    const { license, created, applied } = await store.applySubscription(
+      { ...snapshot, provider: provider.name, occurredAt },
+      this.newId,
+      this.timestamp()
+    );
+    logger('info', 'subscription-synced', {
+      eventType,
+      license: licenseReference(license.id),
+      status: license.providerStatus,
+      created,
+      applied
+    });
+    // The first code goes out once the license grants Pro, not while the first payment is still open.
+    if (license.codeHash === null && licenseAccess(license, this.now())) {
+      await this.issueActivationCode(license, 'activation');
+    }
+  }
+
   /** Full refunds and chargebacks end Pro right away; a reversed chargeback restores it. Free is never affected. */
   private async applyAdjustment(event: Extract<BillingEvent, { kind: 'adjustment' }>): Promise<void> {
     const { store, provider, logger } = this.options;
-    if (!event.subscriptionId || !event.approved) return;
-    const license = await store.findBySubscription(provider.name, event.subscriptionId);
+    if (!event.approved) return;
+    const subscriptionId =
+      event.subscriptionId ??
+      (event.paymentId && provider.subscriptionIdForPayment ? await provider.subscriptionIdForPayment(event.paymentId) : null);
+    if (!subscriptionId) return;
+    const license = await store.findBySubscription(provider.name, subscriptionId);
     if (!license) return;
 
     const revoke = event.action === 'chargeback' || (event.action === 'refund' && event.full);
