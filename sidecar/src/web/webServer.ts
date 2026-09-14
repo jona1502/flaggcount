@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { clientAddress } from './clientAddress';
 import type { AppError, AppState } from '../../../shared/appState';
-import { isBoardScope, parseCounterViews } from '../../../shared/overlayBoard';
+import { isBoardScope, parseBoardLayout, parseCounterViews } from '../../../shared/overlayBoard';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { OVERLAY_CSP, renderOverlayPage } from '../overlay/overlayAssets';
@@ -427,16 +427,18 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     }
     const scope = field(body, 'scope');
     const counters = parseCounterViews(field(body, 'counters'));
+    const layout = field(body, 'layout') === undefined ? undefined : parseBoardLayout(field(body, 'layout'));
     const validScope =
       isBoardScope(scope) &&
       counters !== null &&
-      (scope === 'all' || (counters.length <= 1 && counters.every((counter) => counter.counterId === scope)));
+      layout !== null &&
+      (scope === 'all' || scope.startsWith('v-') || (counters.length <= 1 && counters.every((counter) => counter.counterId === scope)));
     if (!validScope) {
       sendJson(response, 400, { error: 'invalid-update' });
       return;
     }
 
-    switch (relay.publish(channelId, { scope, counters })) {
+    switch (relay.publish(channelId, { scope, counters, ...(layout ? { layout } : {}) })) {
       case 'ok':
         sendNoContent(response);
         return;
@@ -513,18 +515,19 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     if (!events) {
       const page = renderBoardPage(current?.counters ?? [], {
         eventsUrl: `/ob/${channelId}/events`,
-        scope: current?.scope ?? 'all'
+        scope: current?.scope ?? 'all',
+        layout: current?.layout
       });
       send(response, 200, 'text/html; charset=utf-8', page, { 'Content-Security-Policy': OVERLAY_CSP });
       return;
     }
-    const unsubscribe = relay.subscribe(channelId, (update) => writeEvent(response, 'board', { status: 'ok', counters: update.counters }));
+    const unsubscribe = relay.subscribe(channelId, (update) => writeEvent(response, 'board', { status: 'ok', counters: update.counters, layout: update.layout }));
     if (!unsubscribe) {
       sendJson(response, 503, { error: 'too-many-viewers' });
       return;
     }
     openEventStream(response);
-    if (current) writeEvent(response, 'board', { status: 'ok', counters: current.counters });
+    if (current) writeEvent(response, 'board', { status: 'ok', counters: current.counters, layout: current.layout });
     const stopHeartbeat = keepAlive(response, heartbeatMs);
     request.on('close', () => {
       stopHeartbeat();

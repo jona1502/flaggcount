@@ -1,4 +1,4 @@
-import type { CounterView } from '../../../shared/overlayBoard';
+import type { BoardLayout, CounterView } from '../../../shared/overlayBoard';
 import type { OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 
@@ -12,6 +12,7 @@ export type RelayUpdate = {
 export type BoardRelayUpdate = {
   scope: string;
   counters: CounterView[];
+  layout?: BoardLayout;
 };
 
 export type PublishResult = 'ok' | 'rate-limited' | 'full';

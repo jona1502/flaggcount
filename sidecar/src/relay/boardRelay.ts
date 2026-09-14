@@ -82,7 +82,11 @@ export function startBoardRelays(options: BoardRelayOptions): BoardRelays {
         },
         body: () => {
           const access = options.source.getBoard(scope);
-          return { scope, counters: access.status === 'ok' ? access.counters : [] };
+          return {
+            scope,
+            counters: access.status === 'ok' ? access.counters : [],
+            layout: access.status === 'ok' ? access.layout : undefined
+          };
         },
         subscribe: (listener) => options.source.subscribeBoard(listener)
       });
