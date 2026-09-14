@@ -11,9 +11,10 @@ use tauri_plugin_store::{Store, StoreExt};
 pub const SETTINGS_FILE: &str = "settings.json";
 /// Copy of the 0.2 settings file, written once before it is migrated.
 pub const SETTINGS_V1_BACKUP_FILE: &str = "settings.v1.backup.json";
+pub const SETTINGS_V2_BACKUP_FILE: &str = "settings.v2.backup.json";
 /// Copy of a settings file that could not be read, written before it is replaced.
 pub const SETTINGS_INVALID_BACKUP_FILE: &str = "settings.invalid.backup.json";
-pub const SETTINGS_SCHEMA_VERSION: u8 = 2;
+pub const SETTINGS_SCHEMA_VERSION: u8 = 3;
 
 pub const DEFAULT_TARGET: u32 = 100;
 pub const MIN_TARGET: u32 = 1;
@@ -33,6 +34,8 @@ pub const MAX_POLL_OPTIONS: usize = 6;
 pub const MAX_OPTION_TRIGGERS: usize = 8;
 pub const MAX_WITHDRAWAL_TRIGGERS: usize = 4;
 pub const MAX_NAME_LENGTH: usize = 60;
+pub const MAX_OVERLAY_VIEWS: usize = 4;
+pub const MAX_OVERLAY_VIEW_GAP: u8 = 64;
 /// Counted in UTF-16 code units, like JavaScript's `length`.
 pub const MAX_TRIGGER_LENGTH: usize = 40;
 const MAX_ID_LENGTH: usize = 64;
@@ -373,12 +376,71 @@ impl CounterDefinition {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayLayout {
+    #[default]
+    Auto,
+    Vertical,
+    Horizontal,
+    Grid,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayAlignment {
+    Start,
+    #[default]
+    Center,
+    End,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayView {
+    pub id: String,
+    pub name: String,
+    pub counter_ids: Vec<String>,
+    pub layout: OverlayLayout,
+    pub gap: u8,
+    pub horizontal_align: OverlayAlignment,
+    pub vertical_align: OverlayAlignment,
+    pub scale: u8,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl OverlayView {
+    pub fn validated(mut self, counters: &HashSet<String>) -> Option<Self> {
+        let timestamps_valid = [&self.created_at, &self.updated_at]
+            .iter()
+            .all(|timestamp| (1..=MAX_TIMESTAMP_LENGTH).contains(&timestamp.len()));
+        let ids_valid = (1..=MAX_COUNTERS).contains(&self.counter_ids.len())
+            && has_unique(self.counter_ids.iter().map(String::as_str))
+            && self.counter_ids.iter().all(|id| is_valid_id(id) && counters.contains(id));
+        if !is_valid_id(&self.id)
+            || self.id == "all"
+            || counters.contains(&self.id)
+            || !timestamps_valid
+            || !ids_valid
+            || self.gap > MAX_OVERLAY_VIEW_GAP
+            || !(MIN_OVERLAY_SIZE..=MAX_OVERLAY_SIZE).contains(&self.scale)
+        {
+            return None;
+        }
+        self.name = validated_name(&self.name)?;
+        Some(self)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StreamProfile {
     pub id: String,
     pub name: String,
     pub counters: Vec<CounterDefinition>,
+    #[serde(default)]
+    pub overlay_views: Vec<OverlayView>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -393,7 +455,16 @@ impl StreamProfile {
         }
         self.name = validated_name(&self.name)?;
         self.counters = validated_list(self.counters, 1, MAX_COUNTERS, CounterDefinition::validated)?;
-        has_unique(self.counters.iter().map(|counter| counter.id.as_str())).then_some(self)
+        let counter_ids: HashSet<String> = self.counters.iter().map(|counter| counter.id.clone()).collect();
+        if counter_ids.len() != self.counters.len() || self.overlay_views.len() > MAX_OVERLAY_VIEWS {
+            return None;
+        }
+        self.overlay_views = self
+            .overlay_views
+            .into_iter()
+            .map(|view| view.validated(&counter_ids))
+            .collect::<Option<Vec<_>>>()?;
+        has_unique(self.overlay_views.iter().map(|view| view.id.as_str())).then_some(self)
     }
 }
 
@@ -451,6 +522,7 @@ impl SettingsV1 {
 pub enum Migration {
     None,
     FromV1,
+    FromV2,
     ReplacedInvalid,
 }
 
@@ -493,6 +565,7 @@ impl Settings {
                 id: DEFAULT_PROFILE_ID.into(),
                 name: "Standard".into(),
                 counters: vec![CounterDefinition::red_flags(settings.target, settings.overlay)],
+                overlay_views: vec![],
                 created_at: now.into(),
                 updated_at: now.into(),
             }],
@@ -536,11 +609,15 @@ impl Settings {
         match read("schemaVersion") {
             None => (Self::migrated(legacy(), now), Migration::FromV1),
             Some(version) => {
-                let current = (version.as_u64() == Some(u64::from(SETTINGS_SCHEMA_VERSION)))
+                let raw_version = version.as_u64();
+                let current = (raw_version == Some(u64::from(SETTINGS_SCHEMA_VERSION)) || raw_version == Some(2))
                     .then(|| Self::from_document(read("username"), read("activeProfileId"), read("profiles")))
                     .flatten();
                 match current {
-                    Some(settings) => (settings, Migration::None),
+                    Some(settings) => (
+                        settings,
+                        if raw_version == Some(2) { Migration::FromV2 } else { Migration::None },
+                    ),
                     None => (Self::migrated(legacy(), now), Migration::ReplacedInvalid),
                 }
             }
@@ -678,6 +755,7 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> Settings {
     let (backup_name, overwrite) = match migration {
         Migration::None => return settings,
         Migration::FromV1 => (SETTINGS_V1_BACKUP_FILE, false),
+        Migration::FromV2 => (SETTINGS_V2_BACKUP_FILE, false),
         Migration::ReplacedInvalid => (SETTINGS_INVALID_BACKUP_FILE, true),
     };
 
@@ -826,7 +904,7 @@ mod tests {
         assert_eq!(
             value,
             json!({
-                "schemaVersion": 2,
+                "schemaVersion": 3,
                 "username": "",
                 "activeProfileId": "default",
                 "profiles": [{
@@ -846,6 +924,7 @@ mod tests {
                         "withdrawalTriggers": [{ "kind": "emoji", "value": WHITE_FLAG, "match": "contains" }],
                         "overlay": serde_json::to_value(OverlaySettings::default()).unwrap()
                     }],
+                    "overlayViews": [],
                     "createdAt": EPOCH_TIMESTAMP,
                     "updatedAt": EPOCH_TIMESTAMP
                 }]
@@ -867,7 +946,7 @@ mod tests {
             assert_eq!(settings.username, "streamer");
             assert_eq!(settings.primary_counter().unwrap().target, Some(30));
         }
-        assert_eq!(resolve(json!({ "schemaVersion": 3 })).1, Migration::ReplacedInvalid);
+        assert_eq!(resolve(json!({ "schemaVersion": 4 })).1, Migration::ReplacedInvalid);
     }
 
     #[test]

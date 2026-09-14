@@ -3,7 +3,7 @@ import { RED_FLAG, WHITE_FLAG } from './voting/redFlag';
 import { DEFAULT_TARGET, isValidTarget } from './voting/target';
 import { parseTrigger, triggerKey, type Trigger } from './voting/triggers';
 
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 /** Absolute upper bounds of the data model; the plan of the user may allow less. */
 export const MAX_PROFILES = 10;
 export const MAX_COUNTERS = 4;
@@ -12,6 +12,11 @@ export const MAX_POLL_OPTIONS = 6;
 export const MAX_OPTION_TRIGGERS = 8;
 export const MAX_WITHDRAWAL_TRIGGERS = 4;
 export const MAX_NAME_LENGTH = 60;
+export const MAX_OVERLAY_VIEWS = 4;
+export const MIN_OVERLAY_VIEW_GAP = 0;
+export const MAX_OVERLAY_VIEW_GAP = 64;
+export const MIN_OVERLAY_VIEW_SCALE = 20;
+export const MAX_OVERLAY_VIEW_SCALE = 100;
 /** Generous upper bound: profile URLs are accepted and normalized when connecting. */
 export const MAX_USERNAME_LENGTH = 100;
 
@@ -40,10 +45,31 @@ export type CounterDefinition = {
   overlay: OverlaySettings;
 };
 
+export const OVERLAY_LAYOUTS = ['auto', 'vertical', 'horizontal', 'grid'] as const;
+export type OverlayLayout = (typeof OVERLAY_LAYOUTS)[number];
+export const OVERLAY_ALIGNMENTS = ['start', 'center', 'end'] as const;
+export type OverlayAlignment = (typeof OVERLAY_ALIGNMENTS)[number];
+
+/** A stable browser-source composition of counters from one profile. */
+export type OverlayView = {
+  id: string;
+  name: string;
+  counterIds: string[];
+  layout: OverlayLayout;
+  gap: number;
+  horizontalAlign: OverlayAlignment;
+  verticalAlign: OverlayAlignment;
+  scale: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type OverlayViewInput = Omit<OverlayView, 'id' | 'createdAt' | 'updatedAt'>;
+
 export type StreamProfile = {
   id: string;
   name: string;
   counters: CounterDefinition[];
+  overlayViews: OverlayView[];
   createdAt: string;
   updatedAt: string;
 };
@@ -59,7 +85,7 @@ export type Settings = {
 };
 
 /** How stored settings were turned into the current schema; anything but `none` must be written back. */
-export type SettingsMigration = 'none' | 'from-v1' | 'replaced-invalid';
+export type SettingsMigration = 'none' | 'from-v1' | 'from-v2' | 'replaced-invalid';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_TIMESTAMP_LENGTH = 40;
@@ -132,6 +158,7 @@ export function migrateSettingsV1(settings: SettingsV1, now: string): Settings {
         id: DEFAULT_PROFILE_ID,
         name: 'Standard',
         counters: [createRedFlagCounter(settings.target, settings.overlay)],
+        overlayViews: [],
         createdAt: now,
         updatedAt: now
       }
@@ -208,15 +235,66 @@ export function parseCounterDefinitions(value: unknown): CounterDefinition[] | n
   return counters && hasUniqueIds(counters) ? counters : null;
 }
 
+export function parseOverlayView(value: unknown, counterIds?: ReadonlySet<string>): OverlayView | null {
+  if (!isRecord(value)) return null;
+  const { id, layout, gap, horizontalAlign, verticalAlign, scale, createdAt, updatedAt } = value;
+  const name = parseName(value['name']);
+  const ids = value['counterIds'];
+  const validIds =
+    Array.isArray(ids) &&
+    ids.length >= 1 &&
+    ids.length <= MAX_COUNTERS &&
+    ids.every((candidate): candidate is string => isId(candidate)) &&
+    new Set(ids).size === ids.length &&
+    (counterIds === undefined || ids.every((candidate) => counterIds.has(candidate)));
+  if (
+    !isId(id) ||
+    id === 'all' ||
+    counterIds?.has(id) === true ||
+    name === null ||
+    !validIds ||
+    !(OVERLAY_LAYOUTS as readonly unknown[]).includes(layout) ||
+    !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(horizontalAlign) ||
+    !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(verticalAlign) ||
+    typeof gap !== 'number' ||
+    !Number.isInteger(gap) ||
+    gap < MIN_OVERLAY_VIEW_GAP ||
+    gap > MAX_OVERLAY_VIEW_GAP ||
+    typeof scale !== 'number' ||
+    !Number.isInteger(scale) ||
+    scale < MIN_OVERLAY_VIEW_SCALE ||
+    scale > MAX_OVERLAY_VIEW_SCALE ||
+    !isTimestamp(createdAt) ||
+    !isTimestamp(updatedAt)
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    counterIds: [...ids],
+    layout: layout as OverlayLayout,
+    gap,
+    horizontalAlign: horizontalAlign as OverlayAlignment,
+    verticalAlign: verticalAlign as OverlayAlignment,
+    scale,
+    createdAt,
+    updatedAt
+  };
+}
+
 export function parseStreamProfile(value: unknown): StreamProfile | null {
   if (!isRecord(value)) return null;
   const { id, createdAt, updatedAt } = value;
   const name = parseName(value['name']);
   const counters = parseCounterDefinitions(value['counters']);
-  if (!isId(id) || name === null || counters === null || !isTimestamp(createdAt) || !isTimestamp(updatedAt)) {
+  const counterIds = new Set(counters?.map((counter) => counter.id) ?? []);
+  const rawViews = value['overlayViews'] ?? [];
+  const overlayViews = parseList(rawViews, 0, MAX_OVERLAY_VIEWS, (view) => parseOverlayView(view, counterIds));
+  if (!isId(id) || name === null || counters === null || overlayViews === null || !hasUniqueIds(overlayViews) || !isTimestamp(createdAt) || !isTimestamp(updatedAt)) {
     return null;
   }
-  return { id, name, counters, createdAt, updatedAt };
+  return { id, name, counters, overlayViews, createdAt, updatedAt };
 }
 
 function parseSettingsV2(record: UnknownRecord): Settings | null {
@@ -242,9 +320,10 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
  */
 export function parseSettings(value: unknown, now: string): { settings: Settings; migration: SettingsMigration } {
   if (isRecord(value) && value['schemaVersion'] !== undefined) {
-    const settings = value['schemaVersion'] === SETTINGS_SCHEMA_VERSION ? parseSettingsV2(value) : null;
+    const version = value['schemaVersion'];
+    const settings = version === SETTINGS_SCHEMA_VERSION || version === 2 ? parseSettingsV2(value) : null;
     if (settings) {
-      return { settings, migration: 'none' };
+      return { settings, migration: version === 2 ? 'from-v2' : 'none' };
     }
     return { settings: migrateSettingsV1(parseSettingsV1(value), now), migration: 'replaced-invalid' };
   }

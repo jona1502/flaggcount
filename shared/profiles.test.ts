@@ -9,6 +9,7 @@ import {
   migrateSettingsV1,
   parseCounterDefinition,
   parseCounterDefinitions,
+  parseOverlayView,
   parseSettings,
   primaryCounter,
   updatePrimaryCounter,
@@ -44,7 +45,7 @@ describe('settings migration', () => {
 
     expect(migration).toBe('from-v1');
     expect(settings).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       username: 'streamer',
       activeProfileId: 'default',
       profiles: [
@@ -69,6 +70,7 @@ describe('settings migration', () => {
               overlay
             }
           ],
+          overlayViews: [],
           createdAt: NOW,
           updatedAt: NOW
         }
@@ -86,13 +88,13 @@ describe('settings migration', () => {
 
   it('replaces damaged documents but keeps readable 0.2 values', () => {
     for (const profiles of [[], 'broken', [{ id: 'x' }], Array(MAX_PROFILES + 1).fill(activeProfile(createDefaultSettings(NOW)))]) {
-      const { settings, migration } = parseSettings({ schemaVersion: 2, username: 'streamer', target: 30, profiles }, NOW);
+      const { settings, migration } = parseSettings({ schemaVersion: 3, username: 'streamer', target: 30, profiles }, NOW);
 
       expect(migration).toBe('replaced-invalid');
       expect(settings.username).toBe('streamer');
       expect(primaryCounter(settings).target).toBe(30);
     }
-    expect(parseSettings({ schemaVersion: 3 }, NOW).migration).toBe('replaced-invalid');
+    expect(parseSettings({ schemaVersion: 4 }, NOW).migration).toBe('replaced-invalid');
     expect(parseSettings(null, NOW)).toEqual({ settings: createDefaultSettings(NOW), migration: 'from-v1' });
   });
 
@@ -107,6 +109,42 @@ describe('settings migration', () => {
     const document = { ...settings, profiles: [...settings.profiles, ...settings.profiles] };
 
     expect(parseSettings(document, NOW).migration).toBe('replaced-invalid');
+  });
+});
+
+describe('overlay views', () => {
+  const view = {
+    id: 'main-scene',
+    name: 'Hauptszene',
+    counterIds: ['red-flags'],
+    layout: 'horizontal',
+    gap: 18,
+    horizontalAlign: 'center',
+    verticalAlign: 'center',
+    scale: 92,
+    createdAt: NOW,
+    updatedAt: NOW
+  };
+
+  it('migrates version 2 profiles with no custom views', () => {
+    const current = createDefaultSettings(NOW);
+    const old = {
+      ...current,
+      schemaVersion: 2,
+      profiles: current.profiles.map(({ overlayViews: _views, ...profile }) => profile)
+    };
+    const migrated = parseSettings(old, LATER);
+    expect(migrated.migration).toBe('from-v2');
+    expect(migrated.settings.schemaVersion).toBe(3);
+    expect(migrated.settings.profiles[0]?.overlayViews).toEqual([]);
+  });
+
+  it('accepts valid views and rejects unknown or duplicate counters', () => {
+    const counters = new Set(['red-flags']);
+    expect(parseOverlayView(view, counters)).toEqual(view);
+    expect(parseOverlayView({ ...view, counterIds: ['missing'] }, counters)).toBeNull();
+    expect(parseOverlayView({ ...view, counterIds: ['red-flags', 'red-flags'] }, counters)).toBeNull();
+    expect(parseOverlayView({ ...view, id: 'all' }, counters)).toBeNull();
   });
 });
 

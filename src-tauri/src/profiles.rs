@@ -88,6 +88,7 @@ pub fn create_profile(
         id: id.clone(),
         name,
         counters: vec![CounterDefinition::red_flags(DEFAULT_TARGET, OverlaySettings::default())],
+        overlay_views: vec![],
         created_at: now.into(),
         updated_at: now.into(),
     });
@@ -231,6 +232,11 @@ pub fn replace_counters(
         .find(|profile| profile.id == profile_id)
         .ok_or_else(invalid)?;
     profile.counters = counters;
+    let ids: std::collections::HashSet<_> = profile.counters.iter().map(|counter| counter.id.as_str()).collect();
+    profile.overlay_views.retain_mut(|view| {
+        view.counter_ids.retain(|id| ids.contains(id.as_str()));
+        !view.counter_ids.is_empty()
+    });
     profile.updated_at = now.into();
     Ok(())
 }
