@@ -233,3 +233,92 @@
   display: grid;
   gap: var(--fc-space-3);
 }
+
+/* The overlay designer, restyled with the app tokens. */
+.fc-app .designer {
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
+  gap: var(--fc-space-5);
+}
+
+.fc-app .designer-controls {
+  gap: var(--fc-space-4);
+}
+
+.fc-app .designer-group,
+.fc-app .designer .overlay-options {
+  display: grid;
+  gap: var(--fc-space-2);
+  min-width: 0;
+  padding: var(--fc-space-2) var(--fc-space-4) var(--fc-space-4);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
+}
+
+.fc-app .designer-group legend,
+.fc-app .designer .overlay-options legend {
+  padding: 0 var(--fc-space-1);
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fc-app .designer label {
+  font-size: var(--fc-text-sm);
+  font-weight: 600;
+}
+
+.fc-app .designer select,
+.fc-app .designer input[type='color'] {
+  height: 2.375rem;
+  border: 1px solid var(--fc-border-strong);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+}
+
+.fc-app .designer input[type='range'],
+.fc-app .designer input[type='checkbox'] {
+  accent-color: var(--fc-accent);
+}
+
+.fc-app .designer input[type='file'] {
+  max-width: 100%;
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .designer .checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-2);
+  font-weight: 500;
+}
+
+.fc-app .designer .hint,
+.fc-app .designer .range-value {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .overlay-preview-frame {
+  position: sticky;
+  top: 6rem;
+}
+
+.fc-app .overlay-preview {
+  border-color: var(--fc-border-strong);
+  border-radius: var(--fc-radius-md);
+}
+
+@media (max-width: 1100px) {
+  .fc-app .designer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fc-app .overlay-preview-frame {
+    position: static;
+  }
+}

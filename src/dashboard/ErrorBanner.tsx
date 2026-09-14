@@ -1,4 +1,5 @@
 import type { AppError } from '../../shared/appState';
+import { IconAlert, IconButton, IconClose } from '../components/ui';
 import { getErrorMessage } from './errorMessages';
 
 type ErrorBannerProps = {
@@ -6,6 +7,7 @@ type ErrorBannerProps = {
   onDismiss: () => void;
 };
 
+/** Global errors such as a lost connection; field errors are shown at their field instead. */
 export function ErrorBanner({ error, onDismiss }: ErrorBannerProps): React.JSX.Element | null {
   if (!error) {
     return null;
@@ -13,10 +15,9 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps): React.JSX.E
 
   return (
     <div className="error-banner" role="alert">
+      <IconAlert className="error-banner-icon" />
       <p>{getErrorMessage(error.code)}</p>
-      <button type="button" className="icon-button" onClick={onDismiss} aria-label="Fehlermeldung schließen">
-        ×
-      </button>
+      <IconButton label="Fehlermeldung schließen" icon={IconClose} size="sm" onClick={onDismiss} />
     </div>
   );
 }

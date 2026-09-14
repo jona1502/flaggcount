@@ -1,3 +1,4 @@
+import { Button, IconDownload } from '../components/ui';
 import type { UpdaterController } from './useUpdater';
 
 type UpdateNoticeProps = {
@@ -11,21 +12,29 @@ export function UpdateNotice({ updater }: UpdateNoticeProps): React.JSX.Element 
     const downloading = updater.status === 'downloading';
     return (
       <section className="update-notice" aria-live="polite">
-        <div>
+        <IconDownload className="update-notice-icon" />
+        <div className="update-notice-body">
           <strong>Update {updater.update?.version} verfügbar</strong>
           {updater.update?.notes && <p>{updater.update.notes}</p>}
           {downloading && (
-            <p>{updater.progress === null ? 'Update wird heruntergeladen …' : `Download: ${updater.progress} %`}</p>
+            <>
+              <p>{updater.progress === null ? 'Update wird heruntergeladen …' : `Download: ${updater.progress} %`}</p>
+              {updater.progress !== null && (
+                <div className="update-notice-bar" aria-hidden="true">
+                  <div style={{ width: `${updater.progress}%` }} />
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="update-actions">
-          <button type="button" className="button primary" disabled={downloading} onClick={() => void updater.installUpdate()}>
+          <Button variant="primary" size="sm" disabled={downloading} onClick={() => void updater.installUpdate()}>
             {downloading ? 'Wird installiert …' : 'Jetzt aktualisieren'}
-          </button>
+          </Button>
           {!downloading && (
-            <button type="button" className="button secondary" onClick={updater.dismiss}>
+            <Button variant="ghost" size="sm" onClick={updater.dismiss}>
               Später
-            </button>
+            </Button>
           )}
         </div>
       </section>
@@ -40,7 +49,7 @@ export function UpdateNotice({ updater }: UpdateNoticeProps): React.JSX.Element 
         : 'Die Updateprüfung ist fehlgeschlagen. Bitte versuche es später erneut.';
 
   return (
-    <p className={`update-message update-${updater.status} ${updater.status === 'error' ? 'field-error' : ''}`} role="status">
+    <p className={`update-message update-${updater.status}`} role="status">
       {message}
     </p>
   );

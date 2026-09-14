@@ -44,7 +44,8 @@ export function Tabs<Id extends string>({ label, idPrefix, items, value, onChang
           role="tab"
           id={`${idPrefix}-tab-${item.id}`}
           aria-selected={item.id === value}
-          aria-controls={`${idPrefix}-panel-${item.id}`}
+          // Only the selected panel is rendered, so only its tab may point to it.
+          aria-controls={item.id === value ? `${idPrefix}-panel-${item.id}` : undefined}
           tabIndex={item.id === value ? 0 : -1}
           className="ui-tab"
           onClick={() => onChange(item.id)}
