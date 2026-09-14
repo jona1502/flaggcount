@@ -1,0 +1,203 @@
+/* Page layouts of the desktop app. */
+.fc-app .page {
+  display: grid;
+  align-content: start;
+  gap: var(--fc-space-5);
+  min-width: 0;
+}
+
+.fc-app .page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fc-space-3) var(--fc-space-6);
+}
+
+.fc-app .page-header-text {
+  display: grid;
+  gap: var(--fc-space-1);
+  min-width: 0;
+  max-width: 48rem;
+}
+
+.fc-app .page-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .page-title {
+  font-size: var(--fc-text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.fc-app .page-title:focus-visible {
+  box-shadow: none;
+}
+
+.fc-app .page-description {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .page-loading {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .card-text {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .detail-list {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: 0;
+}
+
+.fc-app .detail-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--fc-space-1) var(--fc-space-4);
+}
+
+.fc-app .detail-list dt {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .detail-list dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-app a.ui-button {
+  text-decoration: none;
+}
+
+/* Overview */
+.fc-app .setup-list {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .setup-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--fc-space-3);
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
+}
+
+.fc-app .setup-step-marker {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 2px solid var(--fc-border-strong);
+  border-radius: 50%;
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+}
+
+.fc-app .setup-step[data-done='true'] .setup-step-marker {
+  border-color: transparent;
+  background: var(--fc-success-soft);
+  color: var(--fc-success);
+}
+
+.fc-app .setup-step-title {
+  font-weight: 600;
+}
+
+.fc-app .setup-step[data-done='true'] .setup-step-title {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .setup-step-detail {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .summary-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+  padding: var(--fc-space-3) 0;
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.fc-app .summary-item:last-child {
+  border-bottom: 0;
+}
+
+.fc-app .summary-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .summary-detail {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .summary-count {
+  font-size: var(--fc-text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-app .quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-space-2);
+}
+
+@media (max-width: 640px) {
+  .fc-app .setup-step {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .fc-app .setup-step > .ui-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

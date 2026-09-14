@@ -52,11 +52,17 @@ function mockBackend(): void {
 const commands = (): string[] => calls.map((call) => call.cmd);
 const payloadOf = (cmd: string) => calls.find((call) => call.cmd === cmd)?.payload;
 
-async function renderApp() {
+type User = ReturnType<typeof userEvent.setup>;
+
+async function renderApp(): Promise<User> {
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByText('von 10 Stimmen');
+  await screen.findByRole('heading', { level: 1, name: 'Übersicht' });
   return user;
+}
+
+async function openPage(user: User, name: string): Promise<void> {
+  await user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name }));
 }
 
 beforeEach(() => {
@@ -75,13 +81,14 @@ describe('App with the Tauri backend', () => {
     await renderApp();
 
     expect(commands()).toContain('get_state');
-    expect(screen.getByText('Version 0.1.0')).toBeTruthy();
+    expect(await screen.findByText('Version 0.1.0')).toBeTruthy();
     expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('checks for updates on demand', async () => {
+  it('checks for updates on demand in the settings', async () => {
     const user = await renderApp();
 
+    await openPage(user, 'Einstellungen');
     await user.click(screen.getByRole('button', { name: 'Nach Updates suchen' }));
 
     expect(commands()).toContain('plugin:updater|check');
@@ -93,6 +100,8 @@ describe('App with the Tauri backend', () => {
 
     await user.type(screen.getByLabelText('TikTok-Benutzername'), 'streamer');
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
+
+    await openPage(user, 'Live-Steuerung');
     await user.click(screen.getByRole('button', { name: 'Flagge hinzufügen' }));
     await act(() =>
       emit('state-changed', {
@@ -110,6 +119,7 @@ describe('App with the Tauri backend', () => {
     await user.click(screen.getByRole('button', { name: 'Runde zurücksetzen' }));
     await user.click(screen.getByRole('button', { name: 'Ja, zurücksetzen' }));
 
+    await openPage(user, 'Overlays');
     await user.click(screen.getByRole('checkbox', { name: 'Hintergrund anzeigen' }));
     await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
 
@@ -123,7 +133,8 @@ describe('App with the Tauri backend', () => {
   });
 
   it('updates the dashboard as soon as the backend emits a new state', async () => {
-    await renderApp();
+    const user = await renderApp();
+    await openPage(user, 'Live-Steuerung');
 
     await act(() =>
       emit('state-changed', {
@@ -161,10 +172,10 @@ describe('App with the Tauri backend', () => {
 });
 
 describe('FlagCount Pro in the Tauri app', () => {
-  it('activates a license and opens the Pro page from the Pro section', async () => {
+  it('activates a license and opens the Pro page from the license area', async () => {
     const user = await renderApp();
 
-    await user.click(screen.getByRole('tab', { name: 'Pro' }));
+    await openPage(user, 'Lizenz & Konto');
     await user.type(screen.getByLabelText('Aktivierungscode'), ' FC-7K2QM-9XH4D-PZ1RT-W8C3N ');
     await user.click(screen.getByRole('button', { name: 'Aktivieren' }));
     await user.click(screen.getByRole('button', { name: 'Preise & Pro ansehen' }));
@@ -175,10 +186,10 @@ describe('FlagCount Pro in the Tauri app', () => {
 });
 
 describe('Stream profiles in the Tauri app', () => {
-  it('renames the profile from the Profile section', async () => {
+  it('renames the profile from the profile area', async () => {
     const user = await renderApp();
 
-    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    await openPage(user, 'Profile');
     await user.click(screen.getByRole('button', { name: 'Standard umbenennen' }));
     const input = screen.getByLabelText('Neuer Name für Standard');
     await user.clear(input);
@@ -193,7 +204,7 @@ describe('Counters in the Tauri app', () => {
   it('saves the renamed counter of the running profile', async () => {
     const user = await renderApp();
 
-    await user.click(screen.getByRole('tab', { name: 'Profile' }));
+    await openPage(user, 'Zähler & Abstimmungen');
     const name = screen.getByLabelText('Name');
     await user.clear(name);
     await user.type(name, 'Flaggen-Runde');
@@ -207,6 +218,7 @@ describe('Counters in the Tauri app', () => {
 describe('Parallel counters in the Tauri app', () => {
   it('corrects a poll option and resets one counter from the live board', async () => {
     const user = await renderApp();
+    await openPage(user, 'Live-Steuerung');
 
     await act(() =>
       emit('state-changed', {

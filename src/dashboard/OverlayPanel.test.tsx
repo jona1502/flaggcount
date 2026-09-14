@@ -215,6 +215,7 @@ describe('OverlayPanel', () => {
       />
     );
 
+    await user.click(screen.getByRole('button', { name: 'Overlays' }));
     await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
     await user.click(checkbox('Hintergrund anzeigen'));
 

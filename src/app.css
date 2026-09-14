@@ -1,0 +1,4 @@
+/* Styles of the redesigned app, all scoped to `.fc-app`. Loaded by the desktop app and the browser dashboard. */
+@import './components/ui/ui.css';
+@import './app-shell/shell.css';
+@import './pages/pages.css';

@@ -11,7 +11,7 @@ type ConnectionPanelProps = {
   onDisconnect: () => void;
 };
 
-function describeStatus(connection: ConnectionState, sidecarRunning: boolean): { key: string; text: string } {
+export function describeStatus(connection: ConnectionState, sidecarRunning: boolean): { key: string; text: string } {
   if (!sidecarRunning) {
     return { key: 'unavailable', text: 'Verbindungsdienst nicht verfügbar' };
   }
