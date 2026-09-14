@@ -18,6 +18,7 @@ describe('next.config', () => {
     const rules = await nextConfig.headers();
     const admin = rules.find((candidate: { source: string }) => candidate.source === '/admin/:path*');
     expect(admin.headers).toEqual(expect.arrayContaining([{ key: 'Cache-Control', value: 'no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }]));
+    expect(rules.find((candidate: { source: string }) => candidate.source === '/dashboard').headers).toEqual(admin.headers);
     expect(nextConfig.output).toBe('standalone');
   });
 });

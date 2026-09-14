@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { AppError, AppState } from '../../shared/appState';
 import type { CounterDefinition } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
-import { flagcountApi, toAppError, type FlagCountApi } from './flagcount';
+import { toAppError, type FlagCountApi, type Unlisten } from './flagcountApi';
 
 export type FlagCountActions = {
   connect: (username: string) => Promise<void>;
@@ -38,7 +37,8 @@ export type FlagCountController = {
   dismissError: () => void;
 };
 
-export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountController {
+/** Dashboard state and actions on top of an API: Tauri in the desktop app, the web server in the browser. */
+export function useFlagCount(api: FlagCountApi): FlagCountController {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [pending, setPending] = useState(false);
@@ -47,9 +47,9 @@ export function useFlagCount(api: FlagCountApi = flagcountApi): FlagCountControl
     let active = true;
     // An event is always newer than the initial snapshot, so a late snapshot must not overwrite it.
     let receivedEvent = false;
-    const unlisteners: UnlistenFn[] = [];
+    const unlisteners: Unlisten[] = [];
 
-    const register = (subscription: Promise<UnlistenFn>): void => {
+    const register = (subscription: Promise<Unlisten>): void => {
       subscription.then(
         (unlisten) => {
           if (active) {

@@ -1,6 +1,6 @@
 import type { AppError, AppState } from '../../shared/appState';
 import type { OverlaySettings } from '../../shared/settings';
-import { toAppError, type FlagCountApi } from '../api/flagcount';
+import { toAppError, type FlagCountApi } from '../api/flagcountApi';
 import { fetchSession } from './webAuth';
 
 type Listener<T> = (value: T) => void;

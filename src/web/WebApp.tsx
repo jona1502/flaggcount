@@ -7,13 +7,17 @@ import { fetchSession, logout } from './webAuth';
 
 type AuthState = 'checking' | 'signed-out' | 'expired' | 'signed-in';
 
-/** Dashboard of the web version: same UI as the desktop app, behind a login, talking to the web server. */
-export function WebApp(): React.JSX.Element {
-  const [auth, setAuth] = useState<AuthState>('checking');
+/**
+ * Dashboard of the web version: same UI as the desktop app, behind a login, talking to the web server.
+ * `initialAuth` is the session status the server already checked; without it the browser asks first.
+ */
+export function WebApp({ initialAuth }: { initialAuth?: 'signed-in' | 'signed-out' } = {}): React.JSX.Element {
+  const [auth, setAuth] = useState<AuthState>(initialAuth ?? 'checking');
 
   useEffect(() => {
     let active = true;
-    fetchSession().then(
+    const check = initialAuth ? Promise.resolve(initialAuth === 'signed-in') : fetchSession();
+    check.then(
       (signedIn) => {
         if (active) setAuth(signedIn ? 'signed-in' : 'signed-out');
       },
@@ -26,7 +30,7 @@ export function WebApp(): React.JSX.Element {
       active = false;
       stopListening();
     };
-  }, []);
+  }, [initialAuth]);
 
   if (auth === 'checking') {
     return <div className="login-page" aria-busy="true" />;

@@ -6,10 +6,10 @@ export const BACKEND_EXACT = ['/api', '/overlay', '/healthz', '/readyz', '/downl
 export const BACKEND_PREFIXES = ['/api/', '/overlay/', '/o/', '/ob/'];
 
 /**
- * The previous Vite dashboard, still served by the backend until it runs on Next.js. Removed together with
- * the legacy web client. The admin area already belongs to Next.js.
+ * Files of the previous Vite web client, still served by the backend until it is removed. Pages, the dashboard
+ * and the admin area already belong to Next.js.
  */
-export const LEGACY_EXACT = ['/dashboard', '/dashboard/', '/web.html'];
+export const LEGACY_EXACT = ['/web.html'];
 export const LEGACY_PREFIXES = ['/assets/'];
 
 /** Server-Sent Events streams, which must be forwarded without buffering. */

@@ -49,8 +49,8 @@
 		}
 	}
 
-	# Transitional: the previous Vite dashboard until it runs on Next.js.
-	@legacy path /dashboard /dashboard/ /web.html /assets/*
+	# Transitional: files of the previous Vite web client until it is removed.
+	@legacy path /web.html /assets/*
 	handle @legacy {
 		reverse_proxy server:3010 {
 			transport http {

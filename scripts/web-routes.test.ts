@@ -47,6 +47,8 @@ describe('route table', () => {
       '/admin',
       '/admin/login',
       '/admin/auth/callback',
+      '/dashboard',
+      '/dashboard/',
       '/downloads',
       '/overlayx',
       '/api-docs'
@@ -55,8 +57,8 @@ describe('route table', () => {
     }
   });
 
-  it('keeps the legacy dashboard on the backend until it is migrated', () => {
-    for (const path of ['/dashboard', '/dashboard/', '/web.html', '/assets/web-abc.js']) {
+  it('keeps files of the legacy web client on the backend until it is removed', () => {
+    for (const path of ['/web.html', '/assets/web-abc.js']) {
       expect(routeTarget(path), path).toBe('backend');
     }
   });

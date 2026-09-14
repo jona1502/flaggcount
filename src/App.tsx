@@ -12,7 +12,7 @@ type AppProps = {
 };
 
 export function App({ updateClient = updaterClient, autoCheckUpdates }: AppProps = {}): React.JSX.Element {
-  const flagCount = useFlagCount();
+  const flagCount = useFlagCount(flagcountApi);
   const updater = useUpdater({ client: updateClient, autoCheck: autoCheckUpdates });
   const [version, setVersion] = useState<string | null>(null);
 

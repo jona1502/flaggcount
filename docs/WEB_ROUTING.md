@@ -59,9 +59,17 @@ Umgesetzt in `deploy/Caddyfile` (Produktion) und `scripts/dev-proxy.mjs` (lokal)
 Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile und Tabelle übereinstimmen.
 
 - Zum Backend: `/api`, `/api/*`, `/overlay`, `/overlay/*`, `/o/*`, `/ob/*`, `/healthz`, `/readyz`, `/download`.
-- Übergangsweise ebenfalls zum Backend, bis das Dashboard auf Next.js läuft: `/dashboard`, `/web.html`,
-  `/assets/*` (Vite-Bundle).
-- Alles andere geht an Next.js (`/`, `/pro`, `/admin`, `/admin/*`, `/_next/*`, `/health` …).
+- Übergangsweise ebenfalls zum Backend, bis der alte Vite-Webclient entfernt ist: `/web.html`, `/assets/*`.
+- Alles andere geht an Next.js (`/`, `/pro`, `/dashboard`, `/admin`, `/admin/*`, `/_next/*`, `/health` …).
+
+## Browser-Dashboard
+
+- `/dashboard` rendert Next.js; die Seite prüft die Dashboard-Session serverseitig beim Backend (`/api/session`
+  mit dem Cookie des Browsers) und startet direkt mit Anmeldung oder Dashboard.
+- Das Dashboard selbst ist Client-Code aus `src/` und teilt alle fachlichen Komponenten mit der Desktop-App; der
+  Zustandsstrom (`EventSource` auf `/api/events`) öffnet sich nur im Browser. Die Browser-Variante enthält keinen
+  Tauri-Code (`src/api/flagcountApi.ts` statt `src/api/flagcount.ts`).
+- Login, Logout, Befehle und Sitzungsablauf laufen wie bisher über die Backend-API unter derselben Origin.
 
 ## Admin-Authentifizierung
 

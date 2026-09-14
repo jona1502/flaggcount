@@ -48,8 +48,9 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: SECURITY_HEADERS },
-      // Admin pages show personal support data: never cache or index them.
-      { source: '/admin/:path*', headers: ADMIN_HEADERS }
+      // Admin pages show personal support data, the dashboard controls a live stream: never cache or index them.
+      { source: '/admin/:path*', headers: ADMIN_HEADERS },
+      { source: '/dashboard', headers: ADMIN_HEADERS }
     ];
   }
 };
