@@ -48,6 +48,7 @@ function createFakeApi() {
     resetVotes: vi.fn(async () => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
+    setCounterOverlaySettings: vi.fn(async (_counterId: string, _overlay: OverlaySettings) => undefined),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
     clearHistory: vi.fn(async () => undefined),
     exportHistoryCsv: vi.fn(async () => 'history.csv'),

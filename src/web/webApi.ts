@@ -151,6 +151,8 @@ export const webApi: FlagCountApi = {
   resetVotes: () => post('/api/reset'),
   setTarget: (target: number) => post('/api/target', { target }),
   setOverlaySettings: (overlay: OverlaySettings) => post('/api/overlay', { overlay }),
+  // The web server designs the first counter only; overlays per counter are designed in the desktop app.
+  setCounterOverlaySettings: () => Promise.reject(DESKTOP_ONLY),
   importOverlayAsset: () => Promise.reject(DESKTOP_ONLY),
   clearHistory: () => Promise.reject(DESKTOP_ONLY),
   exportHistoryCsv: () => Promise.reject(DESKTOP_ONLY),

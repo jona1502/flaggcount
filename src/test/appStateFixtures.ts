@@ -3,7 +3,7 @@ import type { AppState } from '../../shared/appState';
 import { FEATURES, type Feature } from '../../shared/entitlements';
 import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
 import { migrateSettingsV1, type CounterDefinition, type Settings, type StreamProfile } from '../../shared/profiles';
-import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
+import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot } from '../../shared/voting';
 import type { FlagCountActions } from '../api/useFlagCount';
 
@@ -118,7 +118,8 @@ export function createActions() {
     removeManualVote: vi.fn(async (_counterId?: string, _optionId?: string) => undefined),
     resetVotes: vi.fn(async (_counterId?: string) => undefined),
     setTarget: vi.fn(async (_target: number) => undefined),
-    setOverlaySettings: vi.fn(async () => undefined),
+    setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
+    setCounterOverlaySettings: vi.fn(async (_counterId: string, _overlay: OverlaySettings) => undefined),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
     clearHistory: vi.fn(async () => undefined),
     exportHistoryCsv: vi.fn(async () => 'history.csv'),

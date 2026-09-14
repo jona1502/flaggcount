@@ -121,14 +121,17 @@ describe('App with the Tauri backend', () => {
 
     await openPage(user, 'Overlays');
     await user.click(screen.getByRole('checkbox', { name: 'Hintergrund anzeigen' }));
-    await user.click(screen.getByRole('button', { name: 'URL kopieren' }));
+    await user.click(screen.getByRole('button', { name: 'Lokale URL kopieren' }));
 
     expect(payloadOf('connect')).toEqual({ username: 'streamer' });
     expect(commands()).toContain('add_manual_vote');
     expect(commands()).toContain('remove_manual_vote');
     expect(payloadOf('set_target')).toEqual({ target: 25 });
     expect(commands()).toContain('reset_votes');
-    expect(payloadOf('set_overlay_settings')).toEqual({ overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } });
+    expect(payloadOf('set_counter_overlay_settings')).toEqual({
+      counterId: 'red-flags',
+      overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true }
+    });
     expect(payloadOf('plugin:clipboard-manager|write_text')).toMatchObject({ text: OVERLAY_URL });
   });
 

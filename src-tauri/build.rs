@@ -14,6 +14,7 @@ fn main() {
             "reset_votes",
             "set_target",
             "set_overlay_settings",
+            "set_counter_overlay_settings",
             "create_profile",
             "duplicate_profile",
             "rename_profile",

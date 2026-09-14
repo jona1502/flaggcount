@@ -17,6 +17,7 @@
     "allow-reset-votes",
     "allow-set-target",
     "allow-set-overlay-settings",
+    "allow-set-counter-overlay-settings",
     "allow-import-overlay-asset",
     "allow-clear-history",
     "allow-export-history-csv",

@@ -40,6 +40,7 @@ describe('flagcountApi', () => {
     await flagcountApi.resetVotes();
     await flagcountApi.setTarget(25);
     await flagcountApi.setOverlaySettings({ ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true });
+    await flagcountApi.setCounterOverlaySettings('teams', { ...DEFAULT_OVERLAY_SETTINGS, position: 'top' });
 
     expect(vi.mocked(invoke).mock.calls).toEqual([
       ['get_state'],
@@ -49,7 +50,8 @@ describe('flagcountApi', () => {
       ['remove_manual_vote'],
       ['reset_votes'],
       ['set_target', { target: 25 }],
-      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }]
+      ['set_overlay_settings', { overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: false, showProgress: true } }],
+      ['set_counter_overlay_settings', { counterId: 'teams', overlay: { ...DEFAULT_OVERLAY_SETTINGS, position: 'top' } }]
     ]);
   });
 

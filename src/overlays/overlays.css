@@ -1,0 +1,235 @@
+/* Overlay gallery, editor and setup guide. */
+.fc-app .overlay-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  gap: var(--fc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .overlay-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--fc-space-3);
+  min-width: 0;
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+  transition: border-color var(--fc-duration-fast) var(--fc-ease);
+}
+
+.fc-app .overlay-card.is-selected {
+  border-color: color-mix(in srgb, var(--fc-accent) 60%, var(--fc-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fc-accent) 40%, transparent);
+}
+
+.fc-app .overlay-card[data-status='pro-required'] .overlay-swatch,
+.fc-app .overlay-card[data-status='paused'] .overlay-swatch {
+  opacity: 0.55;
+}
+
+/* A transparent-looking checkerboard with a tiny overlay on top. */
+.fc-app .overlay-swatch {
+  display: grid;
+  aspect-ratio: 16 / 7;
+  padding: var(--fc-space-3);
+  place-items: center;
+  border-radius: var(--fc-radius-md);
+  background:
+    conic-gradient(#1f1f27 25%, #17171d 0 50%, #1f1f27 0 75%, #17171d 0) 0 0 / 16px 16px;
+}
+
+.fc-app .overlay-swatch-panel {
+  display: grid;
+  gap: 0.35rem;
+  width: 70%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--swatch-panel, #0c0c10) 85%, transparent);
+  color: var(--swatch-text, #fff);
+}
+
+.fc-app .overlay-swatch-count {
+  font-size: var(--fc-text-lg);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.fc-app .overlay-swatch-bar {
+  height: 0.35rem;
+  border-radius: var(--fc-radius-pill);
+  background: linear-gradient(90deg, var(--swatch-accent, var(--fc-accent)) 62%, rgb(255 255 255 / 0.2) 0);
+}
+
+.fc-app .overlay-swatch-board {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
+  width: 78%;
+}
+
+.fc-app .overlay-swatch-board span {
+  height: 1.35rem;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 -0.25rem 0 var(--fc-accent);
+}
+
+.fc-app .overlay-card-body {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.fc-app .overlay-card-title {
+  overflow: hidden;
+  font-size: var(--fc-text-md);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fc-app .overlay-card-type {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .overlay-card-badges,
+.fc-app .overlay-card-actions,
+.fc-app .overlay-editor-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .overlay-card-badges {
+  margin-top: var(--fc-space-1);
+}
+
+/* Editor */
+.fc-app .overlay-editor {
+  display: grid;
+  gap: var(--fc-space-4);
+  min-width: 0;
+  padding: var(--fc-space-5);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+}
+
+.fc-app .overlay-editor-header {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+  margin: calc(-1 * var(--fc-space-5)) calc(-1 * var(--fc-space-5)) 0;
+  padding: var(--fc-space-4) var(--fc-space-5);
+  border-bottom: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg) var(--fc-radius-lg) 0 0;
+  background: color-mix(in srgb, var(--fc-surface) 94%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.fc-app .overlay-editor-eyebrow {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fc-app .overlay-editor-title {
+  font-size: var(--fc-text-xl);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .overlay-editor-title:focus-visible {
+  box-shadow: none;
+}
+
+.fc-app .overlay-editor-type {
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .overlay-editor-urls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--fc-space-4);
+}
+
+.fc-app .overlay-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--fc-space-2);
+  min-width: 0;
+}
+
+.fc-app .overlay-url .ui-field {
+  flex: 1 1 14rem;
+}
+
+.fc-app .overlay-url > .ui-button {
+  margin-top: 1.55rem;
+}
+
+.fc-app .overlay-url.is-unavailable {
+  display: grid;
+  gap: var(--fc-space-1);
+  align-content: start;
+}
+
+.fc-app .overlay-url-missing {
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--fc-border-strong);
+  border-radius: var(--fc-radius-md);
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .overlay-board-preview {
+  display: grid;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .overlays-page .designer {
+  margin-top: 0;
+}
+
+/* Setup guide */
+.fc-app .setup-guide {
+  display: grid;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .guide-steps {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: 0;
+  padding-left: 1.4rem;
+  color: var(--fc-text-muted);
+}
+
+.fc-app .guide-steps li::marker {
+  color: var(--fc-accent-text);
+  font-weight: 700;
+}
+
+.fc-app .guide-steps strong {
+  color: var(--fc-text);
+}
+
+.fc-app .ui-tab-panel {
+  display: grid;
+  gap: var(--fc-space-3);
+}

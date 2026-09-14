@@ -283,3 +283,30 @@ fn targets_manual_votes_and_resets_only_with_valid_ids() {
         assert_eq!(error_code(invoke(&app, cmd, args)), "sidecar-unavailable", "{cmd}");
     }
 }
+
+#[test]
+fn designs_the_overlay_of_one_counter_by_id() {
+    let app = create_app();
+    let overlay = json!({ "position": "top", "accentColor": "#00ff88" });
+
+    assert_eq!(
+        invoke(&app, "set_counter_overlay_settings", json!({ "counterId": "red-flags", "overlay": overlay })),
+        Ok(Value::Null)
+    );
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    let counter = primary_counter(&state["settings"]);
+    assert_eq!(counter["overlay"]["position"], json!("top"));
+    assert_eq!(counter["overlay"]["accentColor"], json!("#00ff88"));
+    assert_eq!(counter["overlay"]["size"], json!(92));
+
+    for (args, code) in [
+        (json!({ "counterId": "unknown", "overlay": {} }), "invalid-counters"),
+        (json!({ "counterId": "../red-flags", "overlay": {} }), "invalid-counters"),
+        (json!({ "counterId": "red-flags", "overlay": { "size": 0 } }), "invalid-overlay-settings"),
+        (json!({ "counterId": "red-flags", "overlay": { "theme": "neon" } }), "pro-required"),
+        (json!({ "counterId": "red-flags", "overlay": { "font": "inter" } }), "pro-required"),
+    ] {
+        assert_eq!(error_code(invoke(&app, "set_counter_overlay_settings", args.clone())), code, "{args}");
+    }
+    assert_eq!(app.saved.lock().unwrap().len(), 1);
+}

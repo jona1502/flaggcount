@@ -564,6 +564,25 @@ impl Settings {
         self.update_profile_counter(&profile_id, now, change);
     }
 
+    /// Changes one counter of a profile by id; returns `false` and changes nothing if either id is unknown.
+    pub fn update_counter(
+        &mut self,
+        profile_id: &str,
+        counter_id: &str,
+        now: &str,
+        change: impl FnOnce(&mut CounterDefinition),
+    ) -> bool {
+        let Some(profile) = self.profiles.iter_mut().find(|profile| profile.id == profile_id) else {
+            return false;
+        };
+        let Some(counter) = profile.counters.iter_mut().find(|counter| counter.id == counter_id) else {
+            return false;
+        };
+        change(counter);
+        profile.updated_at = now.into();
+        true
+    }
+
     /// Changes the first counter of a profile; an unknown id changes the first profile.
     pub fn update_profile_counter(
         &mut self,
@@ -709,6 +728,26 @@ mod tests {
     use serde_json::{json, Map};
 
     const NOW: &str = "2026-09-13T21:30:00.123Z";
+
+    #[test]
+    fn updates_one_counter_by_id_and_leaves_the_others_alone() {
+        let mut settings = Settings::migrated(SettingsV1::default(), NOW);
+        let mut second = CounterDefinition::red_flags(5, OverlaySettings::default());
+        second.id = "second".into();
+        settings.profiles[0].counters.push(second);
+        let profile_id = settings.profiles[0].id.clone();
+        let later = "2026-09-14T08:00:00.000Z";
+
+        assert!(settings.update_counter(&profile_id, "second", later, |counter| counter.overlay.size = 40));
+        assert_eq!(settings.profiles[0].counters[1].overlay.size, 40);
+        assert_eq!(settings.profiles[0].counters[0].overlay, OverlaySettings::default());
+        assert_eq!(settings.profiles[0].updated_at, later);
+
+        let before = settings.clone();
+        assert!(!settings.update_counter(&profile_id, "missing", NOW, |counter| counter.overlay.size = 50));
+        assert!(!settings.update_counter("missing", "second", NOW, |counter| counter.overlay.size = 50));
+        assert_eq!(settings, before);
+    }
 
     fn resolve(stored: Value) -> (Settings, Migration) {
         let map: Map<String, Value> = stored.as_object().cloned().unwrap_or_default();

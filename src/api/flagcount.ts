@@ -27,6 +27,8 @@ export const flagcountApi: FlagCountApi = {
     counterId === undefined ? invoke('reset_votes') : invoke('reset_votes', { counterId }),
   setTarget: (target: number): Promise<void> => invoke('set_target', { target }),
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
+  setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings): Promise<void> =>
+    invoke('set_counter_overlay_settings', { counterId, overlay }),
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]): Promise<string> => invoke<string>('import_overlay_asset', { kind, bytes }),
   clearHistory: (): Promise<void> => invoke('clear_history'),
   exportHistoryCsv: (csv: string): Promise<string> => invoke<string>('export_history_csv', { csv }),

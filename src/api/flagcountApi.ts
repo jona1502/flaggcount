@@ -20,6 +20,8 @@ export type FlagCountApi = {
   resetVotes: (counterId?: string) => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  /** Changes the overlay design of one counter of the running profile. */
+  setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings) => Promise<void>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;

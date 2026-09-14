@@ -13,6 +13,7 @@ export type FlagCountActions = {
   resetVotes: (counterId?: string) => Promise<void>;
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
+  setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings) => Promise<void>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;
@@ -115,6 +116,7 @@ export function useFlagCount(api: FlagCountApi): FlagCountController {
       resetVotes: (counterId) => run(() => api.resetVotes(counterId)),
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
+      setCounterOverlaySettings: (counterId, overlay) => run(() => api.setCounterOverlaySettings(counterId, overlay)),
       importOverlayAsset: (kind, bytes) => api.importOverlayAsset(kind, bytes),
       clearHistory: () => run(() => api.clearHistory()),
       exportHistoryCsv: (csv) => api.exportHistoryCsv(csv),

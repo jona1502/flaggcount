@@ -142,6 +142,19 @@ pub fn set_target<R: Runtime>(
     send_counters(&sidecar, &settings)
 }
 
+/// Premium templates and branding stay Pro, whichever counter they are for.
+fn require_overlay_features(license: &LicenseState, overlay: &OverlaySettings) -> Result<(), AppError> {
+    if overlay.theme != settings::OverlayTheme::Standard && !has_feature(license, PREMIUM_TEMPLATES) {
+        return Err(profiles::pro_required("Premium overlay templates require FlagCount Pro"));
+    }
+    if (overlay.font != settings::OverlayFont::System || overlay.logo_asset.is_some() || overlay.background_asset.is_some())
+        && !has_feature(license, CUSTOM_BRANDING)
+    {
+        return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_overlay_settings<R: Runtime>(
     app: AppHandle<R>,
@@ -152,16 +165,39 @@ pub fn set_overlay_settings<R: Runtime>(
     let overlay = validate_overlay(overlay)?;
     let now = settings::now_timestamp();
     let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
-        if overlay.theme != settings::OverlayTheme::Standard && !has_feature(license, PREMIUM_TEMPLATES) {
-            return Err(profiles::pro_required("Premium overlay templates require FlagCount Pro"));
-        }
-        if (overlay.font != settings::OverlayFont::System || overlay.logo_asset.is_some() || overlay.background_asset.is_some())
-            && !has_feature(license, CUSTOM_BRANDING)
-        {
-            return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
-        }
+        require_overlay_features(license, &overlay)?;
         update_running_counter(settings, license, &now, |counter| counter.overlay = overlay);
         Ok(())
+    })?;
+    saver.save(&settings);
+    send_counters(&sidecar, &settings)
+}
+
+/// Changes the overlay of one counter of the running profile, so every counter keeps its own design.
+#[tauri::command]
+pub fn set_counter_overlay_settings<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    counter_id: String,
+    overlay: OverlaySettings,
+) -> Result<(), AppError> {
+    let unknown = || AppError::new("invalid-counters", "Unknown counter");
+    if !settings::is_valid_id(&counter_id) {
+        return Err(unknown());
+    }
+    let overlay = validate_overlay(overlay)?;
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        require_overlay_features(license, &overlay)?;
+        let profile_id = effective_profile(settings, license)
+            .map(|profile| profile.id.clone())
+            .unwrap_or_default();
+        if settings.update_counter(&profile_id, &counter_id, &now, |counter| counter.overlay = overlay) {
+            Ok(())
+        } else {
+            Err(unknown())
+        }
     })?;
     saver.save(&settings);
     send_counters(&sidecar, &settings)
