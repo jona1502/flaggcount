@@ -279,6 +279,31 @@ describe('StripeBillingProvider checkout', () => {
   });
 });
 
+describe('StripeBillingProvider customer portal', () => {
+  it('opens a portal session that returns to the Pro page', async () => {
+    const { stripe, fetch } = stripeProvider({ portalConfigurationId: 'bpc_1Portal01234567' });
+    fetch.mockResolvedValueOnce(respond({ id: 'bps_1', url: 'https://billing.stripe.com/p/session/test_1' }));
+
+    expect(await stripe.createPortalSession('cus_1', 'sub_1')).toEqual({ url: 'https://billing.stripe.com/p/session/test_1' });
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect(url).toBe('https://api.stripe.com/v1/billing_portal/sessions');
+    expect(Object.fromEntries(new URLSearchParams(String(init?.body)))).toEqual({
+      customer: 'cus_1',
+      return_url: 'https://flagcount.example/pro',
+      configuration: 'bpc_1Portal01234567'
+    });
+  });
+
+  it('uses the default portal configuration and refuses insecure URLs', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch.mockResolvedValueOnce(respond({ url: 'http://billing.example' }));
+
+    await expect(stripe.createPortalSession('cus_1', 'sub_1')).rejects.toThrow('no portal URL');
+    expect(new URLSearchParams(String(fetch.mock.calls[0]?.[1]?.body)).has('configuration')).toBe(false);
+  });
+});
+
 describe('StripeBillingProvider API', () => {
   it('reads customer addresses but not those of deleted customers', async () => {
     const { stripe, fetch } = stripeProvider();

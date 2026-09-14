@@ -166,8 +166,18 @@ export class StripeBillingProvider implements BillingProvider {
     return { url };
   }
 
-  createPortalSession(_customerId: string, _subscriptionId: string): Promise<{ url: string }> {
-    return Promise.reject(new Error('The Stripe customer portal is not available yet'));
+  /** A short-lived customer portal session for invoices, payment methods and cancelling; never stored. */
+  async createPortalSession(customerId: string, _subscriptionId: string): Promise<{ url: string }> {
+    const session = record(
+      await this.request('POST', '/v1/billing_portal/sessions', {
+        customer: customerId,
+        return_url: `${this.config.publicBaseUrl}/pro`,
+        configuration: this.config.portalConfigurationId
+      })
+    );
+    const url = text(session?.['url']);
+    if (!url?.startsWith('https://')) throw new Error('Stripe returned no portal URL');
+    return { url };
   }
 
   customerIdsByEmail(_email: string): Promise<string[]> {

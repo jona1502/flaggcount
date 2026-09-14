@@ -11,8 +11,10 @@ use tauri_plugin_store::StoreExt;
 pub const LICENSE_FILE: &str = "license.json";
 /// Credential Manager entries are named after the app, one per installation.
 pub const SECRET_SERVICE: &str = "com.jona1502.flagcount";
-/// The only host besides Paddle that the app opens in the browser.
+/// The FlagCount website; besides it the app only opens the payment provider's checkout and customer portal.
 pub const FLAGCOUNT_HOST: &str = "overlay.muhrindustries.com";
+/// Stripe Checkout and the Stripe customer portal. Exact hosts, no wildcard for other Stripe pages.
+pub const STRIPE_HOSTS: [&str; 2] = ["checkout.stripe.com", "billing.stripe.com"];
 /// Pricing, terms and checkout of FlagCount Pro.
 pub const PRO_PAGE_URL: &str = "https://overlay.muhrindustries.com/pro";
 pub const MAX_ACTIVATION_CODE_LENGTH: usize = 64;
@@ -114,7 +116,8 @@ pub fn new_installation_id() -> String {
     format!("inst-{:016x}{:016x}", part(1), part(2))
 }
 
-/// Only HTTPS pages of FlagCount and Paddle (checkout and customer portal) may be opened.
+/// Only HTTPS pages of FlagCount, Stripe (checkout and customer portal) and, until the migration is
+/// finished, Paddle may be opened.
 pub fn is_allowed_external_url(url: &str) -> bool {
     let Some(rest) = url.strip_prefix("https://") else {
         return false;
@@ -124,7 +127,10 @@ pub fn is_allowed_external_url(url: &str) -> bool {
         return false;
     }
     let host = authority.to_ascii_lowercase();
-    host == FLAGCOUNT_HOST || host == "paddle.com" || host.ends_with(".paddle.com")
+    host == FLAGCOUNT_HOST
+        || STRIPE_HOSTS.contains(&host.as_str())
+        || host == "paddle.com"
+        || host.ends_with(".paddle.com")
 }
 
 /// Trims the entered code; the license service normalizes and checks it.
@@ -287,9 +293,12 @@ mod tests {
     }
 
     #[test]
-    fn opens_only_flagcount_and_paddle_pages() {
+    fn opens_only_flagcount_and_payment_provider_pages() {
         for allowed in [
             PRO_PAGE_URL,
+            "https://billing.stripe.com/p/session/test_YWNjdF8x",
+            "https://checkout.stripe.com/c/pay/cs_test_a1b2",
+            "https://BILLING.stripe.com/p/session/live_1",
             "https://customer-portal.paddle.com/cpl_01",
             "https://sandbox-customer-portal.paddle.com/cpl_01?x=1",
         ] {
@@ -297,6 +306,12 @@ mod tests {
         }
         for denied in [
             "http://overlay.muhrindustries.com/pro",
+            "http://billing.stripe.com/p/session/test_1",
+            "https://dashboard.stripe.com/test/customers",
+            "https://stripe.com",
+            "https://billing.stripe.com.evil.example",
+            "https://evil.example/billing.stripe.com",
+            "https://user@billing.stripe.com/p/session/test_1",
             "https://evil.example/paddle.com",
             "https://paddle.com.evil.example",
             "https://user@customer-portal.paddle.com",

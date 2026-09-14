@@ -188,13 +188,13 @@ describe('LicenseManager', () => {
   });
 
   it('opens the customer portal through Tauri', async () => {
-    const { manager, ofType } = createManager([{ status: 200, body: { url: 'https://customer-portal.paddle.com/cpl_01' } }, { status: 200, body: { url: 'javascript:alert(1)' } }]);
+    const { manager, ofType } = createManager([{ status: 200, body: { url: 'https://billing.stripe.com/p/session/test_1' } }, { status: 200, body: { url: 'javascript:alert(1)' } }]);
     await manager.configure({ installationId: INSTALLATION, credentials: stored, entitlement: entitlement() });
 
     await manager.openCustomerPortal();
     await manager.openCustomerPortal();
 
-    expect(ofType('openUrl')).toEqual([{ type: 'openUrl', url: 'https://customer-portal.paddle.com/cpl_01' }]);
+    expect(ofType('openUrl')).toEqual([{ type: 'openUrl', url: 'https://billing.stripe.com/p/session/test_1' }]);
     expect(manager.getState().lastError).toBe('unavailable');
     manager.stop();
   });
