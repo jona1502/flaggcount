@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const FEATURES = [
   ['Abstimmungen', 'Rote und weiße Flaggen', '2–6 Optionen, eigene Emojis und Begriffe'],
@@ -10,28 +10,74 @@ const FEATURES = [
 ] as const;
 
 type FormStatus = { kind: 'success' | 'error'; message: string } | null;
-type Price = { plan: 'monthly' | 'yearly'; total: string; currencyCode: string; interval: string };
+type Plan = 'monthly' | 'yearly';
+type Price = { plan: Plan | 'founding'; total: string; currencyCode: string; interval: string };
+
+/** Current prices from the payment provider; the fallback prices stay visible without them. */
+function usePrices(): Price[] {
+  const [prices, setPrices] = useState<Price[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/v1/billing/prices')
+      .then((response) => (response.ok ? (response.json() as Promise<{ prices?: Price[] }>) : null))
+      .then((body) => {
+        if (active && Array.isArray(body?.prices)) setPrices(body.prices);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return prices;
+}
+
+function checkoutError(status: number): string {
+  switch (status) {
+    case 429:
+      return 'Zu viele Versuche. Bitte warte kurz und versuche es dann erneut.';
+    case 503:
+      return 'Der Kauf von FlagCount Pro ist gerade nicht möglich. Bitte versuche es später erneut.';
+    default:
+      return 'Der Checkout konnte nicht geöffnet werden. Bitte versuche es später erneut.';
+  }
+}
 
 export function ProPreview(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [consent, setConsent] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<FormStatus>(null);
-  const prices: Price[] = [];
-  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
+  const prices = usePrices();
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
 
-  const checkout = async (plan: 'monthly' | 'yearly'): Promise<void> => {
+  useEffect(() => {
+    if (window.location.pathname.replace(/\/+$/, '') === '/pro') {
+      document.getElementById('pro')?.scrollIntoView?.();
+    }
+  }, []);
+
+  const checkout = async (plan: Plan): Promise<void> => {
     setCheckoutPlan(plan);
+    setCheckoutStatus(null);
     try {
       const response = await fetch('/api/v1/billing/checkout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan })
       });
-      const data = (await response.json()) as { url?: string };
-      if (!response.ok || !data.url?.startsWith('https://')) throw new Error('unavailable');
-      window.open(data.url, '_blank', 'noopener,noreferrer');
+      const data = (await response.json().catch(() => ({}))) as { url?: string };
+      if (!response.ok || !data.url?.startsWith('https://')) {
+        setCheckoutStatus(checkoutError(response.status));
+        setCheckoutPlan(null);
+        return;
+      }
+      // Same tab: a window opened after an await is often blocked, and Checkout returns to /pro afterwards.
+      window.location.assign(data.url);
     } catch {
-      setStatus({ kind: 'error', message: 'Checkout ist momentan nicht verfügbar. Bitte versuche es später erneut.' });
-    } finally {
+      setCheckoutStatus('Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.');
       setCheckoutPlan(null);
     }
   };
@@ -85,11 +131,20 @@ export function ProPreview(): React.JSX.Element {
         <div className="planned-price" aria-label="FlagCount Pro Preise">
           <strong>{prices.find((price) => price.plan === 'monthly')?.total ?? '6,99 €'} / Monat</strong>
           <span>oder {prices.find((price) => price.plan === 'yearly')?.total ?? '59,00 €'} / Jahr</span>
-          <small>Endgültiger Preis inkl. Steuer wird vom Zahlungsanbieter berechnet.</small>
+          <small>Endgültiger Preis inkl. Steuer wird im Checkout von Stripe berechnet.</small>
           <div className="pro-checkout-actions">
-            <button className="button primary" type="button" onClick={() => void checkout('monthly')} disabled={checkoutPlan !== null}>Monatlich starten</button>
-            <button className="button" type="button" onClick={() => void checkout('yearly')} disabled={checkoutPlan !== null}>Jährlich starten</button>
+            <button className="button primary" type="button" onClick={() => void checkout('monthly')} disabled={checkoutPlan !== null}>
+              {checkoutPlan === 'monthly' ? 'Checkout wird geöffnet …' : 'Monatlich starten'}
+            </button>
+            <button className="button" type="button" onClick={() => void checkout('yearly')} disabled={checkoutPlan !== null}>
+              {checkoutPlan === 'yearly' ? 'Checkout wird geöffnet …' : 'Jährlich starten'}
+            </button>
           </div>
+          {checkoutStatus && (
+            <p className="waitlist-status error" role="alert">
+              {checkoutStatus}
+            </p>
+          )}
         </div>
       </div>
 

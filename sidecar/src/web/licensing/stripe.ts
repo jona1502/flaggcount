@@ -97,8 +97,30 @@ export class StripeBillingProvider implements BillingProvider {
     return { ok: false, reason: 'invalid-signature' };
   }
 
-  createCheckout(_plan: BillingPlanId): Promise<{ url: string }> {
-    return Promise.reject(new Error('Stripe checkout is not available yet'));
+  /**
+   * A hosted Checkout Session for a subscription. Returning to the success page does not unlock anything:
+   * licenses are only created from verified webhooks.
+   */
+  async createCheckout(plan: BillingPlanId): Promise<{ url: string }> {
+    const priceId = this.config.prices[plan];
+    if (!priceId) throw new Error(`The plan ${plan} is not on sale`);
+    const metadata = { product: 'flagcount-pro', plan };
+    const session = record(
+      await this.request('POST', '/v1/checkout/sessions', {
+        mode: 'subscription',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${this.config.publicBaseUrl}/pro/erfolgreich?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${this.config.publicBaseUrl}/pro`,
+        allow_promotion_codes: true,
+        metadata,
+        subscription_data: { metadata },
+        // With Managed Payments Stripe is the seller and handles tax itself; otherwise Stripe Tax calculates it.
+        ...(this.config.managedPayments ? { managed_payments: { enabled: true } } : { automatic_tax: { enabled: true } })
+      })
+    );
+    const url = text(session?.['url']);
+    if (!url?.startsWith('https://')) throw new Error('Stripe returned no checkout URL');
+    return { url };
   }
 
   createPortalSession(_customerId: string, _subscriptionId: string): Promise<{ url: string }> {

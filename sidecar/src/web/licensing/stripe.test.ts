@@ -124,6 +124,54 @@ describe('StripeBillingProvider subscriptions', () => {
   });
 });
 
+describe('StripeBillingProvider checkout', () => {
+  const body = (fetch: ReturnType<typeof stripeProvider>['fetch'], call = 0) =>
+    Object.fromEntries(new URLSearchParams(String(fetch.mock.calls[call]?.[1]?.body)));
+
+  it('creates a subscription Checkout Session with Stripe Tax', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch.mockResolvedValueOnce(respond({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' }));
+
+    expect(await stripe.createCheckout('yearly')).toEqual({ url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect(url).toBe('https://api.stripe.com/v1/checkout/sessions');
+    expect(init?.method).toBe('POST');
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/x-www-form-urlencoded' });
+    expect(body(fetch)).toEqual({
+      mode: 'subscription',
+      'line_items[0][price]': 'price_yearly',
+      'line_items[0][quantity]': '1',
+      success_url: 'https://flagcount.example/pro/erfolgreich?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://flagcount.example/pro',
+      allow_promotion_codes: 'true',
+      'metadata[product]': 'flagcount-pro',
+      'metadata[plan]': 'yearly',
+      'subscription_data[metadata][product]': 'flagcount-pro',
+      'subscription_data[metadata][plan]': 'yearly',
+      'automatic_tax[enabled]': 'true'
+    });
+  });
+
+  it('lets Stripe handle tax with Managed Payments', async () => {
+    const { stripe, fetch } = stripeProvider({ managedPayments: true });
+    fetch.mockResolvedValueOnce(respond({ url: 'https://checkout.stripe.com/c/pay/cs_test_2' }));
+
+    await stripe.createCheckout('monthly');
+
+    expect(body(fetch)).toMatchObject({ 'managed_payments[enabled]': 'true', 'line_items[0][price]': 'price_monthly' });
+    expect(body(fetch)).not.toHaveProperty('automatic_tax[enabled]');
+  });
+
+  it('refuses plans that are not on sale and sessions without a secure URL', async () => {
+    const { stripe, fetch } = stripeProvider();
+    fetch.mockResolvedValueOnce(respond({ url: 'http://checkout.example' }));
+
+    await expect(stripe.createCheckout('founding')).rejects.toThrow('not on sale');
+    await expect(stripe.createCheckout('monthly')).rejects.toThrow('no checkout URL');
+  });
+});
+
 describe('StripeBillingProvider API', () => {
   it('reads customer addresses but not those of deleted customers', async () => {
     const { stripe, fetch } = stripeProvider();

@@ -97,8 +97,8 @@ const BOARD_RELAY_PATH = '/api/relay/board/';
 const ENTITLEMENT_HEADER = 'x-flagcount-entitlement';
 /** Shown by an online overlay until its app publishes for the first time. */
 const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
-/** Client-side routes of the web app: the landing page and the dashboard. */
-const APP_ROUTES = new Set(['/', '/dashboard', '/dashboard/']);
+/** Client-side routes of the web app: the landing page with the Pro offer, the checkout return page and the dashboard. */
+const APP_ROUTES = new Set(['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']);
 
 const DASHBOARD_HEADERS = {
   'Content-Security-Policy':

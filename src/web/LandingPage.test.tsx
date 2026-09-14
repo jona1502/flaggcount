@@ -60,6 +60,45 @@ describe('LandingPage', () => {
     expect(screen.queryByRole('button', { name: /kaufen/i })).toBeNull();
   });
 
+  it('shows the prices reported by the payment provider', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (path: string) =>
+        path === '/api/v1/billing/prices'
+          ? {
+              ok: true,
+              json: async () => ({
+                prices: [
+                  { plan: 'monthly', total: '7,49 €', currencyCode: 'EUR', interval: 'month' },
+                  { plan: 'yearly', total: '64,00 €', currencyCode: 'EUR', interval: 'year' }
+                ]
+              })
+            }
+          : { ok: false }
+      )
+    );
+
+    render(<LandingPage />);
+
+    expect(await screen.findByText('7,49 € / Monat')).toBeTruthy();
+    expect(screen.getByText('oder 64,00 € / Jahr')).toBeTruthy();
+  });
+
+  it('explains why the checkout could not be opened', async () => {
+    const fetcher = vi.fn(async (path: string, _init?: RequestInit) =>
+      path === '/api/v1/billing/checkout' ? { ok: false, status: 503, json: async () => ({ error: 'billing-unavailable' }) } : { ok: false }
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const user = userEvent.setup();
+    render(<LandingPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Jährlich starten' }));
+
+    expect(fetcher).toHaveBeenCalledWith('/api/v1/billing/checkout', expect.objectContaining({ body: JSON.stringify({ plan: 'yearly' }) }));
+    expect((await screen.findByRole('alert')).textContent).toContain('gerade nicht möglich');
+    expect(screen.getByRole('button', { name: 'Jährlich starten' }).hasAttribute('disabled')).toBe(false);
+  });
+
   it('subscribes to the waitlist only after explicit consent and supports unsubscribing', async () => {
     const fetcher = vi.fn(async (path: string) =>
       path === '/api/release' ? { ok: false } : { ok: true, status: 204 }
@@ -71,7 +110,7 @@ describe('LandingPage', () => {
     await user.type(screen.getByLabelText('E-Mail-Adresse'), 'Person@Example.com');
     await user.click(screen.getByRole('button', { name: 'Vormerken' }));
     expect(screen.getByRole('alert').textContent).toContain('Einwilligung');
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).not.toHaveBeenCalledWith('/api/v1/waitlist', expect.anything());
 
     await user.click(screen.getByRole('checkbox', { name: /Neuigkeiten und den Start/ }));
     await user.click(screen.getByRole('button', { name: 'Vormerken' }));

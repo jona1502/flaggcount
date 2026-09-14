@@ -186,10 +186,10 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/reset', post({}))).status).toBe(401);
   });
 
-  it('serves the landing page and the dashboard route from the app shell', async () => {
+  it('serves the landing page, the Pro pages and the dashboard route from the app shell', async () => {
     const { server } = await start();
 
-    for (const path of ['/', '/dashboard', '/dashboard/']) {
+    for (const path of ['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']) {
       const page = await send(server.port, path);
       expect(page.status).toBe(200);
       expect(page.body).toContain('<title>FlagCount</title>');
