@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { ConnectionState } from '../../shared/appState';
+import { Button, Card, Field, IconLink, Input, StatusDot, type Tone } from '../components/ui';
 
 type ConnectionPanelProps = {
   connection: ConnectionState;
@@ -32,6 +33,13 @@ export function describeStatus(connection: ConnectionState, sidecarRunning: bool
       return { key: 'disconnected', text: 'Nicht verbunden' };
   }
 }
+
+const STATUS_TONES: Record<string, Tone> = {
+  connected: 'success',
+  connecting: 'warning',
+  reconnecting: 'warning',
+  unavailable: 'danger'
+};
 
 export function ConnectionPanel({
   connection,
@@ -67,13 +75,14 @@ export function ConnectionPanel({
   if (connection.status === 'connected' || connection.status === 'reconnecting') buttonLabel = 'Trennen';
 
   return (
-    <section className="panel connection-panel" aria-labelledby="connection-heading">
-      <h2 id="connection-heading">Livestream</h2>
-      <form onSubmit={submit} noValidate>
-        <label htmlFor="username">TikTok-Benutzername</label>
-        <div className="input-row">
-          <input
-            id="username"
+    <Card
+      className="connection-card"
+      title="TikTok LIVE"
+      description={active ? undefined : 'Verbinde dich, sobald dein LIVE läuft. Manuelle Stimmen funktionieren auch ohne Verbindung.'}
+    >
+      <form className="connection-form" onSubmit={submit} noValidate>
+        <Field id="username" label="TikTok-Benutzername" error={validation}>
+          <Input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             placeholder="@benutzername"
@@ -81,29 +90,18 @@ export function ConnectionPanel({
             spellCheck={false}
             maxLength={100}
             disabled={active}
-            aria-invalid={validation ? true : undefined}
-            aria-describedby={validation ? 'username-error' : undefined}
           />
-          <button
-            type="submit"
-            className={active ? 'button secondary' : 'button primary'}
-            disabled={!sidecarRunning || pending}
-          >
-            {buttonLabel}
-          </button>
-        </div>
-        {validation && (
-          <p id="username-error" className="field-error">
-            {validation}
-          </p>
-        )}
+        </Field>
+        <Button type="submit" variant={active ? 'secondary' : 'primary'} icon={active ? undefined : IconLink} disabled={!sidecarRunning || pending}>
+          {buttonLabel}
+        </Button>
       </form>
       {status.key !== 'disconnected' && (
-        <p className="status" data-status={status.key} role="status">
-          <span className="status-dot" aria-hidden="true" />
+        <p className="connection-status" data-status={status.key} role="status">
+          <StatusDot tone={STATUS_TONES[status.key] ?? 'neutral'} pulse={status.key === 'connecting' || status.key === 'reconnecting'} />
           {status.text}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

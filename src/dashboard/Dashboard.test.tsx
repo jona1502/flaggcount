@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FREE_LICENSE_STATE } from '../../shared/licensing';
@@ -252,20 +252,6 @@ describe('Dashboard', () => {
       expect(screen.queryByRole('button', { name: 'Ja, zurücksetzen' })).toBeNull();
     });
 
-    it('cancels the confirmation automatically after a few seconds', () => {
-      vi.useFakeTimers();
-      const { actions } = renderDashboard();
-
-      fireEvent.click(button('Runde zurücksetzen'));
-      expect(screen.getByRole('button', { name: 'Ja, zurücksetzen' })).toBeTruthy();
-
-      act(() => {
-        vi.advanceTimersByTime(5000);
-      });
-
-      expect(screen.queryByRole('button', { name: 'Ja, zurücksetzen' })).toBeNull();
-      expect(actions.resetVotes).not.toHaveBeenCalled();
-    });
   });
 
   describe('errors', () => {

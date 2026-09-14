@@ -1,0 +1,272 @@
+/* Live controls and the TikTok connection. */
+.fc-app .connection-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--fc-space-2) var(--fc-space-3);
+}
+
+.fc-app .connection-form .ui-field {
+  flex: 1 1 14rem;
+}
+
+.fc-app .connection-form > .ui-button {
+  margin-top: 1.55rem;
+}
+
+.fc-app .connection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-2);
+  font-weight: 600;
+}
+
+.fc-app .connection-status[data-status='unavailable'] {
+  color: var(--fc-danger);
+}
+
+.fc-app .live-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .live-toolbar[data-desktop='true'] {
+  grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 1fr);
+}
+
+.fc-app .live-profile-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--fc-space-2) var(--fc-space-3);
+}
+
+.fc-app .live-profile-form .ui-field {
+  flex: 1 1 10rem;
+}
+
+.fc-app .live-profile-name {
+  display: grid;
+}
+
+.fc-app .live-profile-name strong {
+  font-size: var(--fc-text-lg);
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-profile-name span {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  align-items: start;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .live-grid[data-count='1'] {
+  grid-template-columns: minmax(0, 46rem);
+}
+
+.fc-app .live-card {
+  display: grid;
+  align-content: start;
+  gap: var(--fc-space-4);
+  min-width: 0;
+  padding: var(--fc-space-5);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+  box-shadow: var(--fc-shadow-sm);
+}
+
+.fc-app .live-card[data-reached='true'] {
+  border-color: color-mix(in srgb, var(--fc-success) 45%, var(--fc-border));
+}
+
+.fc-app .live-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-card-heading {
+  min-width: 0;
+}
+
+.fc-app .live-card-title {
+  font-size: var(--fc-text-xl);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-card-type {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fc-app .live-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-total strong {
+  font-size: var(--fc-text-display);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-total span {
+  color: var(--fc-text-muted);
+}
+
+.fc-app .live-progress {
+  overflow: hidden;
+  height: 0.65rem;
+  border-radius: var(--fc-radius-pill);
+  background: var(--fc-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--fc-border);
+}
+
+.fc-app .live-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--fc-accent), #ff5a67);
+  transition: width var(--fc-duration) var(--fc-ease);
+}
+
+.fc-app .live-progress[data-reached='true'] .live-progress-fill {
+  background: var(--fc-success);
+}
+
+.fc-app .live-single-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--fc-space-3);
+}
+
+.fc-app .live-single-actions .ui-button {
+  min-height: 3.5rem;
+}
+
+.fc-app .live-chat-hint {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-options {
+  display: grid;
+  gap: var(--fc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .live-option {
+  display: grid;
+  gap: var(--fc-space-2);
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
+}
+
+.fc-app .live-option[data-leading='true'] {
+  border-color: color-mix(in srgb, var(--option-color) 55%, var(--fc-border));
+}
+
+.fc-app .live-option-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-option-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-option-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.fc-app .live-option-bar {
+  overflow: hidden;
+  height: 0.5rem;
+  border-radius: var(--fc-radius-pill);
+  background: var(--fc-surface-raised);
+}
+
+.fc-app .live-option-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--option-color);
+  transition: width var(--fc-duration) var(--fc-ease);
+}
+
+.fc-app .live-option-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-option-actions .live-chat-hint {
+  flex: 1 1 8rem;
+}
+
+.fc-app .live-option-actions .ui-button {
+  min-width: 4.25rem;
+}
+
+.fc-app .live-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+  padding-top: var(--fc-space-4);
+  border-top: 1px solid var(--fc-border);
+}
+
+.fc-app .live-target-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-target-form .ui-field {
+  width: 9rem;
+}
+
+.fc-app .live-target-form > .ui-button {
+  margin-top: 1.55rem;
+}
+
+@media (max-width: 900px) {
+  .fc-app .live-toolbar[data-desktop='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
