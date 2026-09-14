@@ -6,6 +6,30 @@ FlagCount soll Twitch neben TikTok als gleichwertige Quelle für Chat-Stimmen un
 
 Die erste Version unterstützt genau **eine aktive Chatquelle gleichzeitig**. Ein paralleler TikTok- und Twitch-Betrieb ist ausdrücklich nicht Teil dieses Vorhabens. Diese Grenze hält Zustände, Rundengültigkeit, Fehlerbehandlung und Bedienung eindeutig; die interne Architektur darf eine spätere Mehrfachverbindung aber nicht verhindern.
 
+## Bestätigte Produktentscheidung: kein Twitch-Benutzernamenfeld
+
+Twitch wird **nicht wie TikTok nur über einen eingegebenen Benutzernamen** verbunden. Sowohl EventSub als auch der alternative Twitch-IRC-Zugang verlangen ein User Access Token. Ein Benutzername allein reicht daher nicht, um den Chat offiziell und zuverlässig zu lesen.
+
+Die Oberfläche bildet diesen Unterschied bewusst ab:
+
+```text
+TikTok                         Twitch
+Benutzername: @name           [Mit Twitch anmelden]
+[Verbinden]                    Angemeldet als: Kanalname
+                               [Eigenen Kanal verbinden]
+```
+
+Der Twitch-Ablauf ist:
+
+1. Der Nutzer wählt Twitch und klickt `Mit Twitch anmelden`.
+2. FlagCount startet den Device Code Grant und zeigt Code sowie Twitch-Bestätigungsadresse.
+3. Der Nutzer genehmigt ausschließlich `user:read:chat`.
+4. FlagCount ermittelt Login, Anzeigename und stabile User-ID des angemeldeten Kontos automatisch.
+5. `Eigenen Kanal verbinden` startet die LIVE-Verbindung; eine spätere Verbindung kann mit dem sicher gespeicherten Token ohne erneute Anmeldung erfolgen.
+6. `Twitch-Konto trennen` widerruft beziehungsweise entfernt die lokale Autorisierung und löscht die gespeicherten Tokens.
+
+Es gibt in der ersten Version kein Twitch-Feld für fremde Kanalnamen. Damit vermeiden wir eine scheinbar einfache Bedienung, die ohne zusätzliche Broadcaster-Autorisierung nicht zuverlässig funktionieren würde.
+
 ## Analyse des aktuellen Stands
 
 Die Voting- und Overlay-Kerne sind bereits weitgehend plattformneutral:
@@ -40,6 +64,7 @@ Twitch wird über die offizielle Twitch-API umgesetzt:
 - `session_welcome`, Keepalive-Timeout, `session_reconnect`, Socketverlust, Resubscribe und Subscription-Revocation werden explizit behandelt. Beim Twitch-Reconnect-URL-Wechsel bleibt die alte Verbindung bis zum Welcome der neuen Verbindung offen.
 - Access- und Refresh-Token werden nie geloggt, nie an React gesendet und auf Desktop im vorhandenen Windows-Credential-Manager-Konzept abgelegt. Der Twitch Client ID ist Konfiguration, kein Geheimnis.
 - Drittanbieterhinweis und Datenschutzerklärung werden um Twitch ergänzt; Twitch-Marken oder eine Partnerschaft werden nicht suggeriert.
+- Die Autorisierung des Twitch-Kontos und die Verbindung zum LIVE-Chat sind getrennte Zustände: Ein angemeldetes Konto kann offline oder nicht mit dem Chat verbunden sein.
 
 Referenzen (Stand 15. September 2026):
 
@@ -85,6 +110,12 @@ type LiveChannel = {
   displayName: string | null;
 };
 
+type TwitchAuthState =
+  | { status: 'signed-out' }
+  | { status: 'authorizing'; userCode: string; verificationUri: string; expiresAt: string }
+  | { status: 'signed-in'; channelId: string; login: string; displayName: string }
+  | { status: 'expired' };
+
 type ConnectionState = {
   status: 'disconnected' | 'authenticating' | 'connecting' | 'connected' | 'reconnecting';
   channel: LiveChannel | null;
@@ -109,6 +140,7 @@ Jeder nummerierte Punkt ist genau **ein eigenständig baubarer und getesteter Co
 ### 1. Plattformneutrales Live-Domainmodell einführen
 
 - `LivePlatform`, `LiveChannel`, plattformbezogenen `ConnectionState` und normalisierte `ChatMessage` in `shared/` definieren.
+- Twitch-Authentifizierung getrennt vom allgemeinen Verbindungszustand modellieren; TikTok benötigt weiterhin keinen Auth-Zustand.
 - Das bestehende `username`-Modell kompatibel migrieren, ohne vorhandene TikTok-Einstellungen zu verlieren.
 - Plattformneutrale Fehlercodes für Authentifizierung, fehlende Berechtigung, widerrufene Tokens und nicht konfigurierten Anbieter ergänzen.
 - Parser-, Migrations- und Serialisierungstests in TypeScript und Rust ergänzen.
@@ -179,6 +211,9 @@ feat(live): connect twitch channels through shared lifecycle
 
 - Im Connection Panel eine verständliche TikTok-/Twitch-Auswahl ergänzen.
 - Für TikTok das heutige Benutzernamenfeld erhalten; für Twitch `Mit Twitch anmelden`, den Device Code und den angemeldeten eigenen Kanal zeigen.
+- Für Twitch niemals ein scheinbar ausreichendes Benutzernamenfeld anzeigen. Login und Kanalidentität stammen ausschließlich aus der validierten Twitch-Autorisierung.
+- Twitch-Anmeldung und LIVE-Verbindung als zwei klare Schritte darstellen: `Mit Twitch anmelden` und danach `Eigenen Kanal verbinden`.
+- `Twitch-Konto trennen` getrennt von `LIVE-Verbindung trennen` anbieten und vor dem Löschen gespeicherter Tokens bestätigen lassen.
 - Statusleiste, Setup-Checkliste, Fehlerbanner und Toasts plattformspezifisch, aber konsistent formulieren.
 - Während einer aktiven Verbindung Plattform und Ziel sperren; Wechsel erst nach Trennen erlauben.
 - Tastaturbedienung, Fokusführung, Screenreader-Live-Regionen und responsive Darstellung testen.
@@ -234,6 +269,8 @@ test(twitch): verify cross-platform live workflows
 
 - Der Nutzer kann zwischen TikTok und Twitch wählen und jeweils genau eine Quelle verbinden.
 - Eine Twitch-Anmeldung fordert ausschließlich `user:read:chat` an und verbindet den eigenen Kanal.
+- TikTok bleibt per Benutzername nutzbar; Twitch besitzt kein Kanalnamen-Eingabefeld und übernimmt den eigenen Kanal aus dem validierten Token.
+- Nach der ersten Twitch-Freigabe kann FlagCount den eigenen Kanal erneut verbinden, ohne bei jedem App-Start eine neue Anmeldung zu verlangen.
 - Rote Flaggen, Rücknahmen, freie Trigger und Poll-Optionen verhalten sich auf beiden Plattformen gleich.
 - Eine Twitch-Zuschauer-ID zählt pro Runde und Zähler höchstens einmal; erneut zugestellte EventSub-Nachrichten verändern das Ergebnis nicht.
 - Nach Twitch-Reconnect werden neue Nachrichten wieder gezählt, ohne alte Nachrichten doppelt anzuwenden.
