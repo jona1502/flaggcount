@@ -1,0 +1,123 @@
+/* License and account. */
+.fc-app .license-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  align-items: start;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .license-limits-card {
+  grid-column: 1 / -1;
+}
+
+.fc-app .license-title {
+  font-size: var(--fc-text-lg);
+  font-weight: 650;
+}
+
+.fc-app .license-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--fc-space-2) var(--fc-space-3);
+}
+
+.fc-app .license-form .ui-field {
+  flex: 1 1 16rem;
+}
+
+.fc-app .license-form > .ui-button {
+  margin-top: 1.55rem;
+}
+
+.fc-app .license-activation {
+  display: grid;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .license-installations {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: var(--fc-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .license-installations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .license-support {
+  display: grid;
+  justify-items: start;
+  gap: var(--fc-space-1);
+}
+
+.fc-app .feature-matrix {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .feature-matrix li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+  padding: var(--fc-space-3) 0;
+  border-bottom: 1px solid var(--fc-border);
+}
+
+.fc-app .feature-matrix li:last-child {
+  border-bottom: 0;
+}
+
+.fc-app .feature-matrix-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.fc-app .feature-matrix-text span {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .limits-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .limits-table th,
+.fc-app .limits-table td {
+  padding: 0.55rem var(--fc-space-3);
+  border-bottom: 1px solid var(--fc-border);
+  text-align: left;
+}
+
+.fc-app .limits-table thead th {
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fc-app .limits-table tbody th {
+  font-weight: 500;
+}
+
+.fc-app .limits-table td {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.fc-app .limits-table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
