@@ -5,7 +5,9 @@
  *
  * Without a key, every entitlement is rejected and the app stays on Free.
  */
-export const LICENSE_PUBLIC_KEYS: Readonly<Record<string, string>> = Object.freeze({});
+export const LICENSE_PUBLIC_KEYS: Readonly<Record<string, string>> = Object.freeze({
+  '2026-09': 'Q8E57yaOBewaJV3u8Ut_H1f1i05-cf6cTK5VGkqGG7M',
+});
 
 /**
  * Sandbox testing only: extra keys as JSON in `FLAGCOUNT_LICENSE_PUBLIC_KEYS`. Local keys can at most
