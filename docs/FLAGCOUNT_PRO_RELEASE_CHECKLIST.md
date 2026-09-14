@@ -5,7 +5,7 @@
 - [ ] `npm run typecheck`
 - [ ] `npm test -- --run`, zusätzlich mit `TEST_DATABASE_URL` gegen eine Wegwerf-Datenbank
 - [ ] `npm run test:rust`
-- [ ] `npm run build` und `npm run build:web` (erzeugt `web.html` und `admin.html`)
+- [ ] `npm run build` und `npm run build:web` (Desktop-App und Next.js-Webanwendung)
 - [ ] Migrations- und Backup-Wiederherstellungstest
 
 ## Stripe Test Mode (siehe `FLAGCOUNT_PRO_STRIPE.md`)

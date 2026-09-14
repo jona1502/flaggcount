@@ -1,5 +1,11 @@
 # FlagCount Next.js-Migrationsplan
 
+## Umsetzungsstand (14. September 2026)
+
+Die Phasen 0 bis 8 sind umgesetzt. Die öffentliche Website, das Admin-Dashboard und das Browser-Dashboard laufen unter Next.js; der alte Vite-Webclient und die statische Website-Auslieferung des Backends sind entfernt. Die Desktop-App verwendet weiterhin Vite.
+
+Phase 9 bleibt bewusst zurückgestellt: Das Verschieben von `src/`, `sidecar/` und `shared/` bringt aktuell keinen funktionalen Vorteil und würde nur Importpfade sowie Build-Konfigurationen verändern.
+
 ## Ziel
 
 Die öffentliche FlagCount-Website, das künftige Admin-Dashboard und das Browser-Dashboard werden auf Next.js mit App Router umgestellt. Die Tauri-Desktop-App bleibt eine React-/Vite-Anwendung. Der bestehende Node.js-Server bleibt für Stripe, Lizenzen, PostgreSQL, TikTok-Verbindung, öffentliche Overlays und Server-Sent Events verantwortlich.
@@ -410,16 +416,16 @@ Zusätzlich müssen ein echter Stripe-Testkauf, Kündigung zum Periodenende, feh
 
 ## Rollback
 
-Die Umstellung wird routeweise ausgeliefert. Der Reverse Proxy ermöglicht, einzelne Routen bei Problemen wieder an die alte Vite-Webanwendung zu schicken.
+Während der Migration wurde routeweise ausgeliefert. Seit Abschluss von Phase 8 existiert die alte Vite-Webanwendung nicht mehr; ein Rollback erfolgt deshalb auf den vorherigen gemeinsam getesteten Container-Stand.
 
 Regeln:
 
-- alte Webauslieferung erst in Phase 8 entfernen;
+- Web- und Backend-Container immer mit demselben getesteten Release-Tag ausliefern;
 - Datenbankmigrationen ausschließlich vorwärtskompatibel gestalten;
 - Next.js darf keine alleinige Billing- oder Lizenzwahrheit speichern;
 - Backend-APIs während der Migration kompatibel halten;
 - jeder Migrationsschritt erhält einen eigenständigen Commit;
-- bei Problemen wird die betroffene Route zurückgeroutet, nicht die Lizenzdatenbank zurückgesetzt.
+- bei Problemen werden Web- und Backend-Container gemeinsam auf den vorherigen Release-Tag zurückgesetzt, nicht die Lizenzdatenbank.
 
 ## Hauptrisiken und Gegenmaßnahmen
 

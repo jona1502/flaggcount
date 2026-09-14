@@ -1,8 +1,6 @@
-import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { clientAddress } from './clientAddress';
-import { extname, resolve, sep } from 'node:path';
 import type { AppError, AppState } from '../../../shared/appState';
 import { isBoardScope, parseCounterViews } from '../../../shared/overlayBoard';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
@@ -47,8 +45,6 @@ export type WebBackend = OverlaySource & {
 export type WebServerOptions = {
   backend: WebBackend;
   password: string;
-  /** Directory with the built landing page and dashboard; `null` serves only the overlay and the API. */
-  webRoot: string | null;
   /** Newest desktop release for the landing page's download button. */
   latestRelease?: () => Promise<ReleaseInfo | null>;
   /** Where `/download` points while no release is known. */
@@ -88,32 +84,12 @@ const DEFAULT_MAX_FAILED_LOGINS = 10;
 const DEFAULT_LOCKOUT_MS = 15 * 60_000;
 const MAX_TRACKED_CLIENTS = 10_000;
 const DEFAULT_MAX_WAITLIST_REQUESTS_PER_MINUTE = 10;
-const APP_ENTRY = '/web.html';
 const RELAY_OVERLAY_PATH = /^\/o\/([^/]+)(\/events)?$/;
 const BOARD_OVERLAY_PATH = /^\/ob\/([^/]+)(\/events)?$/;
 const BOARD_RELAY_PATH = '/api/relay/board/';
 const ENTITLEMENT_HEADER = 'x-flagcount-entitlement';
 /** Shown by an online overlay until its app publishes for the first time. */
 const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
-/** Client-side routes of the web app: the landing page with the Pro offer, the checkout return page and the dashboard. */
-const APP_ROUTES = new Set(['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']);
-const DASHBOARD_HEADERS = {
-  'Content-Security-Policy':
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-  'Referrer-Policy': 'no-referrer',
-  'X-Frame-Options': 'DENY'
-};
-
-const CONTENT_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2'
-};
 
 // Kept in a small module so the Next.js web container can use it without bundling this server.
 export { clientAddress, isTrustedProxyAddress } from './clientAddress';
@@ -275,7 +251,6 @@ class FixedWindowLimiter {
 export async function startWebServer(options: WebServerOptions): Promise<WebServer> {
   const { backend, password } = options;
   const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS;
-  const webRoot = options.webRoot === null ? null : resolve(options.webRoot);
   const now = options.now ?? Date.now;
   const sessionMaxAgeMs = options.sessionMaxAgeMs ?? SESSION_MAX_AGE_MS;
   const overlay = createOverlayHandler(backend, heartbeatMs);
@@ -630,38 +605,6 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     }
   };
 
-  const serveStatic = async (root: string, pathname: string, request: IncomingMessage, response: ServerResponse) => {
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      methodNotAllowed(response, 'GET, HEAD');
-      return;
-    }
-
-    let relativePath: string;
-    try {
-      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : pathname);
-    } catch {
-      sendJson(response, 404, { error: 'not-found' });
-      return;
-    }
-    const file = resolve(root, `.${relativePath}`);
-    const info = file.startsWith(root + sep) ? await stat(file).catch(() => null) : null;
-    if (!info?.isFile()) {
-      sendJson(response, 404, { error: 'not-found' });
-      return;
-    }
-
-    const extension = extname(file);
-    const headers: Record<string, string> =
-      extension === '.html'
-        ? DASHBOARD_HEADERS
-        : relativePath.startsWith('/assets/')
-          ? // Hashed file names never change. "private" keeps Cloudflare from caching them for others.
-            { 'Cache-Control': 'private, max-age=31536000, immutable' }
-          : {};
-    const body = request.method === 'HEAD' ? '' : await readFile(file);
-    send(response, 200, CONTENT_TYPES[extension] ?? 'application/octet-stream', body, headers);
-  };
-
   const redirectToDownload = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       methodNotAllowed(response, 'GET, HEAD');
@@ -719,9 +662,6 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
 
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       await handleApi(pathname, request, response);
-    } else if (webRoot) {
-      // The app bundle contains no data; the dashboard shows the login screen until the API accepts a session.
-      await serveStatic(webRoot, pathname, request, response);
     } else {
       sendJson(response, 404, { error: 'not-found' });
     }

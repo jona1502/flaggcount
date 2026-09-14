@@ -1,26 +1,25 @@
 # FlagCount Web – Routing-Matrix und API-Verträge
 
-Bestandsaufnahme vor der Next.js-Migration (`NEXTJS_PLAN.md`, Phase 0). Die Spalte **Ziel** legt fest, welcher
-Dienst eine Route nach der Migration beantwortet. Alle Routen liegen unter derselben öffentlichen Origin; ein
-Reverse Proxy verteilt sie anhand des Pfads.
+Routing-Matrix nach der Next.js-Migration (`NEXTJS_PLAN.md`). Alle Routen liegen unter derselben öffentlichen
+Origin; ein Reverse Proxy verteilt sie anhand des Pfads.
 
 Abweichend von der Skizze im Plan heißen die Overlay-Routen `/overlay/*`, `/o/*` und `/ob/*` (nicht `/board/*`).
 
 ## Seiten
 
-| Pfad | Heute | Ziel | Hinweise |
-| --- | --- | --- | --- |
-| `/` | Backend liefert `web.html` (Vite, Landingpage) | Next.js | statisch |
-| `/pro` | Backend liefert `web.html`, Client scrollt zu `#pro` | Next.js | eigene Pro-Seite; Checkout über Backend |
-| `/pro/erfolgreich` | Backend liefert `web.html` | Next.js | Rückkehr von Stripe Checkout, schaltet nichts frei |
-| `/herunterladen` | – | Next.js | neue Downloadseite mit Versionshinweis |
-| `/lizenz-wiederherstellen` | – | Next.js | neutrale Antwort, ruft `/api/v1/licenses/recover` |
-| `/abo-verwalten` | – | Next.js | Einstieg ins Stripe-Kundenportal |
-| `/impressum`, `/datenschutz`, `/agb` | – | Next.js | statisch, Texte vor Launch rechtlich prüfen |
-| `/dashboard` | Backend liefert `web.html` (Login + Dashboard) | Next.js | Client-Komponente, Session beim Backend |
-| `/admin`, `/admin/*` | Backend liefert `admin.html` (Vite), nur wenn konfiguriert | Next.js | eigener Login, siehe unten |
-| `/admin/auth/login`, `/admin/auth/callback` | Backend (GitHub OAuth) | Next.js | wandert in Phase 5 zu Next.js |
-| `/sitemap.xml`, `/robots.txt` | – | Next.js | |
+| Pfad | Dienst | Hinweise |
+| --- | --- | --- |
+| `/` | Next.js | statisch |
+| `/pro` | Next.js | eigene Pro-Seite; Checkout über Backend |
+| `/pro/erfolgreich` | Next.js | Rückkehr von Stripe Checkout, schaltet nichts frei |
+| `/herunterladen` | Next.js | Downloadseite mit Versionshinweis |
+| `/lizenz-wiederherstellen` | Next.js | neutrale Antwort, ruft `/api/v1/licenses/recover` |
+| `/abo-verwalten` | Next.js | Einstieg ins Stripe-Kundenportal |
+| `/impressum`, `/datenschutz`, `/agb` | Next.js | statisch, Texte vor Launch rechtlich prüfen |
+| `/dashboard` | Next.js | Client-Komponente, Session beim Backend |
+| `/admin`, `/admin/*` | Next.js | eigener Admin-Login |
+| `/admin/auth/login`, `/admin/auth/callback` | Next.js | GitHub OAuth |
+| `/sitemap.xml`, `/robots.txt` | Next.js | Suchmaschinensteuerung |
 
 ## Backend-Routen
 
@@ -59,7 +58,6 @@ Umgesetzt in `deploy/Caddyfile` (Produktion) und `scripts/dev-proxy.mjs` (lokal)
 Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile und Tabelle übereinstimmen.
 
 - Zum Backend: `/api`, `/api/*`, `/overlay`, `/overlay/*`, `/o/*`, `/ob/*`, `/healthz`, `/readyz`, `/download`.
-- Übergangsweise ebenfalls zum Backend, bis der alte Vite-Webclient entfernt ist: `/web.html`, `/assets/*`.
 - Alles andere geht an Next.js (`/`, `/pro`, `/dashboard`, `/admin`, `/admin/*`, `/_next/*`, `/health` …).
 
 ## Browser-Dashboard

@@ -40,7 +40,6 @@ async function main(): Promise<void> {
   const host = process.env['HOST'] ?? '0.0.0.0';
   const port = Number(process.env['PORT'] ?? 3000);
   const dataDir = process.env['DATA_DIR'] ?? 'data';
-  const webRoot = process.env['WEB_ROOT'] ?? 'dist-web';
   const signApiKey = process.env['TIKTOK_SIGN_API_KEY'] || undefined;
   const releaseRepo = process.env['RELEASE_REPO'] || 'jona1502/flaggcount';
 
@@ -93,7 +92,6 @@ async function main(): Promise<void> {
   const server = await startWebServer({
     backend: controller,
     password,
-    webRoot,
     latestRelease: createLatestRelease({ repo: releaseRepo }),
     releasesUrl: `https://github.com/${releaseRepo}/releases/latest`,
     relay: new RelayChannels(),

@@ -1,7 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { migrateSettingsV1, primaryCounter, type Settings } from '../../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from '../../../shared/settings';
@@ -34,14 +31,8 @@ async function start(overrides: Partial<WebServerOptions> = {}) {
   );
   await controller.start();
 
-  const webRoot = mkdtempSync(join(tmpdir(), 'flagcount-web-'));
-  mkdirSync(join(webRoot, 'assets'));
-  writeFileSync(join(webRoot, 'web.html'), '<!doctype html><title>FlagCount</title>');
-  writeFileSync(join(webRoot, 'assets', 'app.js'), 'console.log(1)');
-
-  const server = await startWebServer({ backend: controller, password: PASSWORD, webRoot, ...overrides });
+  const server = await startWebServer({ backend: controller, password: PASSWORD, ...overrides });
   cleanups.push(
-    () => rmSync(webRoot, { recursive: true, force: true }),
     () => controller.shutdown(),
     () => server.close()
   );
@@ -197,12 +188,11 @@ describe('startWebServer', () => {
     expect(overlay.body).toContain('FlagCount Overlay');
   });
 
-  it('serves the dashboard shell without a session, but not the API', async () => {
+  it('protects the dashboard API without serving the Next.js page itself', async () => {
     const { server } = await start();
 
     const page = await send(server.port, '/');
-    expect(page.status).toBe(200);
-    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(page.status).toBe(404);
     expect(JSON.parse((await send(server.port, '/api/session')).body)).toEqual({ authenticated: false });
 
     for (const path of ['/api/state', '/api/events']) {
@@ -213,13 +203,12 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/api/reset', post({}))).status).toBe(401);
   });
 
-  it('serves the landing page, the Pro pages and the dashboard route from the app shell', async () => {
+  it('leaves all website routes to the Next.js service', async () => {
     const { server } = await start();
 
     for (const path of ['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']) {
       const page = await send(server.port, path);
-      expect(page.status).toBe(200);
-      expect(page.body).toContain('<title>FlagCount</title>');
+      expect(page.status).toBe(404);
     }
   });
 
@@ -339,11 +328,11 @@ describe('startWebServer', () => {
     await stream.waitFor('"totalCount":7');
   });
 
-  it('serves assets, but no files outside the web root', async () => {
+  it('does not serve website files from the backend', async () => {
     const { server } = await start();
 
-    const asset = await send(server.port, '/assets/app.js');
-    expect(asset.headers['cache-control']).toContain('private');
+    expect((await send(server.port, '/web.html')).status).toBe(404);
+    expect((await send(server.port, '/assets/app.js')).status).toBe(404);
     expect((await send(server.port, '/%2e%2e/package.json')).status).toBe(404);
   });
 

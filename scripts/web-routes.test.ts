@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 // @ts-expect-error Plain JavaScript scripts without type declarations.
 import { createDevProxy } from './dev-proxy.mjs';
 // @ts-expect-error Plain JavaScript scripts without type declarations.
-import { BACKEND_EXACT, BACKEND_PREFIXES, EVENT_STREAM, LEGACY_EXACT, LEGACY_PREFIXES, bodyLimit, routeTarget } from './web-routes.mjs';
+import { BACKEND_EXACT, BACKEND_PREFIXES, EVENT_STREAM, bodyLimit, routeTarget } from './web-routes.mjs';
 
 const servers: Server[] = [];
 
@@ -57,10 +57,8 @@ describe('route table', () => {
     }
   });
 
-  it('keeps files of the legacy web client on the backend until it is removed', () => {
-    for (const path of ['/web.html', '/assets/web-abc.js']) {
-      expect(routeTarget(path), path).toBe('backend');
-    }
+  it('routes former Vite web-client paths to Next.js', () => {
+    for (const path of ['/web.html', '/assets/web-abc.js']) expect(routeTarget(path), path).toBe('web');
   });
 
   it('recognizes event streams and body limits', () => {
@@ -78,7 +76,6 @@ describe('route table', () => {
     const caddyPaths = (exact: string[], prefixes: string[]) => new Set([...exact, ...prefixes.map((prefix) => `${prefix}*`)]);
 
     expect(matcher('backend')).toEqual(caddyPaths(BACKEND_EXACT, BACKEND_PREFIXES));
-    expect(matcher('legacy')).toEqual(caddyPaths(LEGACY_EXACT, LEGACY_PREFIXES));
     expect(caddyfile).toContain(`@events path_regexp ${EVENT_STREAM.source.replaceAll('\\/', '/')}`);
     expect(caddyfile).toContain('flush_interval -1');
   });

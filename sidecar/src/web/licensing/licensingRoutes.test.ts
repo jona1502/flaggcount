@@ -52,7 +52,6 @@ async function start(overrides: Partial<LicensingHandlerOptions> = {}, withServi
   const server = await startWebServer({
     backend: controller,
     password: 'correct-horse-battery',
-    webRoot: null,
     licensing: createLicensingHandler({
       service: withService ? service : null,
       logger: (_level, _event, fields) => void logs.push(fields ?? {}),

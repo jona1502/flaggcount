@@ -5,13 +5,6 @@
 export const BACKEND_EXACT = ['/api', '/overlay', '/healthz', '/readyz', '/download'];
 export const BACKEND_PREFIXES = ['/api/', '/overlay/', '/o/', '/ob/'];
 
-/**
- * Files of the previous Vite web client, still served by the backend until it is removed. Pages, the dashboard
- * and the admin area already belong to Next.js.
- */
-export const LEGACY_EXACT = ['/web.html'];
-export const LEGACY_PREFIXES = ['/assets/'];
-
 /** Server-Sent Events streams, which must be forwarded without buffering. */
 export const EVENT_STREAM = /^\/(api\/events|overlay(\/.+)?\/events|o\/[^/]+\/events|ob\/[^/]+\/events)$/;
 
@@ -22,7 +15,6 @@ const matches = (pathname, exact, prefixes) => exact.includes(pathname) || prefi
 /** `backend` or `web` for a request path. */
 export function routeTarget(pathname) {
   if (matches(pathname, BACKEND_EXACT, BACKEND_PREFIXES)) return 'backend';
-  if (matches(pathname, LEGACY_EXACT, LEGACY_PREFIXES)) return 'backend';
   return 'web';
 }
 
