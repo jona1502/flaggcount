@@ -2,8 +2,9 @@ import type { LicenseState } from './licensing';
 import type { Settings } from './profiles';
 import type { CounterSnapshot, VoteSnapshot } from './voting';
 import type { RoundRecord } from './history';
+import type { LiveChannel, LivePlatform, TwitchAuthState } from './live';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+export type ConnectionStatus = 'disconnected' | 'authenticating' | 'connecting' | 'connected' | 'reconnecting';
 
 export type ReconnectInfo = {
   attempt: number;
@@ -13,7 +14,10 @@ export type ReconnectInfo = {
 
 export type ConnectionState = {
   status: ConnectionStatus;
+  /** Compatibility alias for the current TikTok UI; removed after the platform UI migration. */
   username: string | null;
+  platform?: LivePlatform;
+  channel?: LiveChannel | null;
   /** Only present while an automatic reconnect is scheduled. */
   reconnect?: ReconnectInfo;
 };
@@ -26,6 +30,10 @@ export type AppErrorCode =
   | 'network'
   | 'stream-ended'
   | 'reconnect-failed'
+  | 'authentication-required'
+  | 'permission-required'
+  | 'authorization-revoked'
+  | 'provider-not-configured'
   | 'invalid-target'
   | 'invalid-overlay-settings'
   | 'invalid-code'
@@ -46,6 +54,7 @@ export type AppError = {
 export type AppState = {
   sidecarRunning: boolean;
   connection: ConnectionState;
+  twitchAuth?: TwitchAuthState;
   /** The first counter of the active profile in the single-count format of 0.2. */
   votes: VoteSnapshot;
   /** Aggregated counts of every counter of the active profile. */

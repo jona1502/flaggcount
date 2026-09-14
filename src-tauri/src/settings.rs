@@ -12,9 +12,10 @@ pub const SETTINGS_FILE: &str = "settings.json";
 /// Copy of the 0.2 settings file, written once before it is migrated.
 pub const SETTINGS_V1_BACKUP_FILE: &str = "settings.v1.backup.json";
 pub const SETTINGS_V2_BACKUP_FILE: &str = "settings.v2.backup.json";
+pub const SETTINGS_V3_BACKUP_FILE: &str = "settings.v3.backup.json";
 /// Copy of a settings file that could not be read, written before it is replaced.
 pub const SETTINGS_INVALID_BACKUP_FILE: &str = "settings.invalid.backup.json";
-pub const SETTINGS_SCHEMA_VERSION: u8 = 3;
+pub const SETTINGS_SCHEMA_VERSION: u8 = 4;
 
 pub const DEFAULT_TARGET: u32 = 100;
 pub const MIN_TARGET: u32 = 1;
@@ -48,6 +49,21 @@ pub const RED_FLAG: &str = "\u{1F6A9}";
 pub const WHITE_FLAG: &str = "\u{1F3F3}\u{FE0F}";
 /// Timestamp of settings that were never saved, e.g. in tests.
 pub const EPOCH_TIMESTAMP: &str = "1970-01-01T00:00:00.000Z";
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LivePlatform {
+    #[default]
+    Tiktok,
+    Twitch,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedLiveSource {
+    pub platform: LivePlatform,
+    pub channel_input: String,
+}
 
 /// Keys of the 0.2 settings; removed once a backup of them exists. `username` is still in use.
 const LEGACY_KEYS: [&str; 2] = ["target", "overlay"];
@@ -523,6 +539,7 @@ pub enum Migration {
     None,
     FromV1,
     FromV2,
+    FromV3,
     ReplacedInvalid,
 }
 
@@ -533,6 +550,7 @@ pub struct Settings {
     pub schema_version: u8,
     /// Last TikTok username the user connected to; empty if none.
     pub username: String,
+    pub live_source: SavedLiveSource,
     pub active_profile_id: String,
     /// Never empty.
     pub profiles: Vec<StreamProfile>,
@@ -557,9 +575,11 @@ pub fn normalize_username(username: &str) -> Option<String> {
 impl Settings {
     /// Moves the settings of FlagCount 0.2 into one profile with a single red flag counter.
     pub fn migrated(settings: SettingsV1, now: &str) -> Self {
+        let username = settings.username;
         Self {
             schema_version: SETTINGS_SCHEMA_VERSION,
-            username: settings.username,
+            live_source: SavedLiveSource { platform: LivePlatform::Tiktok, channel_input: username.clone() },
+            username,
             active_profile_id: DEFAULT_PROFILE_ID.into(),
             profiles: vec![StreamProfile {
                 id: DEFAULT_PROFILE_ID.into(),
@@ -575,6 +595,7 @@ impl Settings {
     /// Reads a current settings document; `None` if it is incomplete or invalid.
     pub fn from_document(
         username: Option<Value>,
+        live_source: Option<Value>,
         active_profile_id: Option<Value>,
         profiles: Option<Value>,
     ) -> Option<Self> {
@@ -590,13 +611,23 @@ impl Settings {
             .unwrap_or(&profiles[0].id)
             .to_string();
 
+        let username = username
+            .as_ref()
+            .and_then(Value::as_str)
+            .and_then(normalize_username)
+            .unwrap_or_default();
+        let live_source = live_source
+            .filter(Value::is_object)
+            .and_then(|value| serde_json::from_value::<SavedLiveSource>(value).ok())
+            .map(|mut source| {
+                source.channel_input = source.channel_input.trim().to_string();
+                source
+            })
+            .unwrap_or_else(|| SavedLiveSource { platform: LivePlatform::Tiktok, channel_input: username.clone() });
         Some(Self {
             schema_version: SETTINGS_SCHEMA_VERSION,
-            username: username
-                .as_ref()
-                .and_then(Value::as_str)
-                .and_then(normalize_username)
-                .unwrap_or_default(),
+            username,
+            live_source,
             active_profile_id,
             profiles,
         })
@@ -610,13 +641,19 @@ impl Settings {
             None => (Self::migrated(legacy(), now), Migration::FromV1),
             Some(version) => {
                 let raw_version = version.as_u64();
-                let current = (raw_version == Some(u64::from(SETTINGS_SCHEMA_VERSION)) || raw_version == Some(2))
-                    .then(|| Self::from_document(read("username"), read("activeProfileId"), read("profiles")))
+                let current = matches!(raw_version, Some(2 | 3 | 4))
+                    .then(|| Self::from_document(read("username"), read("liveSource"), read("activeProfileId"), read("profiles")))
                     .flatten();
                 match current {
                     Some(settings) => (
                         settings,
-                        if raw_version == Some(2) { Migration::FromV2 } else { Migration::None },
+                        if raw_version == Some(2) {
+                            Migration::FromV2
+                        } else if raw_version == Some(3) {
+                            Migration::FromV3
+                        } else {
+                            Migration::None
+                        },
                     ),
                     None => (Self::migrated(legacy(), now), Migration::ReplacedInvalid),
                 }
@@ -734,6 +771,7 @@ fn backup_settings_file<R: Runtime>(app: &AppHandle<R>, name: &str, overwrite: b
 fn write_settings<R: Runtime>(store: &Store<R>, settings: &Settings) -> tauri_plugin_store::Result<()> {
     store.set("schemaVersion", settings.schema_version);
     store.set("username", settings.username.clone());
+    store.set("liveSource", serde_json::to_value(&settings.live_source).unwrap_or_default());
     store.set("activeProfileId", settings.active_profile_id.clone());
     store.set(
         "profiles",
@@ -756,6 +794,7 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> Settings {
         Migration::None => return settings,
         Migration::FromV1 => (SETTINGS_V1_BACKUP_FILE, false),
         Migration::FromV2 => (SETTINGS_V2_BACKUP_FILE, false),
+        Migration::FromV3 => (SETTINGS_V3_BACKUP_FILE, false),
         Migration::ReplacedInvalid => (SETTINGS_INVALID_BACKUP_FILE, true),
     };
 
@@ -904,8 +943,9 @@ mod tests {
         assert_eq!(
             value,
             json!({
-                "schemaVersion": 3,
+                "schemaVersion": 4,
                 "username": "",
+                "liveSource": { "platform": "tiktok", "channelInput": "" },
                 "activeProfileId": "default",
                 "profiles": [{
                     "id": "default",

@@ -94,9 +94,35 @@ pub enum SidecarCommand {
 pub enum ConnectionStatus {
     #[default]
     Disconnected,
+    Authenticating,
     Connecting,
     Connected,
     Reconnecting,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LivePlatform {
+    Tiktok,
+    Twitch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveChannel {
+    pub platform: LivePlatform,
+    pub channel_id: Option<String>,
+    pub login: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum TwitchAuthState {
+    SignedOut,
+    Authorizing { user_code: String, verification_uri: String, expires_at: String },
+    SignedIn { channel_id: String, login: String, display_name: String },
+    Expired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,6 +137,10 @@ pub struct ReconnectInfo {
 pub struct ConnectionState {
     pub status: ConnectionStatus,
     pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub platform: Option<LivePlatform>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<LiveChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reconnect: Option<ReconnectInfo>,
 }
@@ -185,6 +215,8 @@ impl AppError {
 pub struct AppState {
     pub sidecar_running: bool,
     pub connection: ConnectionState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub twitch_auth: Option<TwitchAuthState>,
     /// The first counter in the single-count format of 0.2.
     pub votes: VoteSnapshot,
     pub counters: Vec<CounterSnapshot>,
@@ -980,6 +1012,7 @@ mod tests {
                 status: ConnectionStatus::Connected,
                 username: Some("streamer".into()),
                 reconnect: None,
+                ..ConnectionState::default()
             }
         );
         assert_eq!(state.votes.count, 3);

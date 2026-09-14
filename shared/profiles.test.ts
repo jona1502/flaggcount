@@ -45,8 +45,9 @@ describe('settings migration', () => {
 
     expect(migration).toBe('from-v1');
     expect(settings).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       username: 'streamer',
+      liveSource: { platform: 'tiktok', channelInput: 'streamer' },
       activeProfileId: 'default',
       profiles: [
         {
@@ -135,8 +136,16 @@ describe('overlay views', () => {
     };
     const migrated = parseSettings(old, LATER);
     expect(migrated.migration).toBe('from-v2');
-    expect(migrated.settings.schemaVersion).toBe(3);
+    expect(migrated.settings.schemaVersion).toBe(4);
     expect(migrated.settings.profiles[0]?.overlayViews).toEqual([]);
+  });
+
+  it('migrates version 3 source settings without losing the TikTok channel', () => {
+    const current = createDefaultSettings(NOW);
+    const { liveSource: _source, ...old } = { ...current, schemaVersion: 3 };
+    const migrated = parseSettings(old, LATER);
+    expect(migrated.migration).toBe('from-v3');
+    expect(migrated.settings.liveSource).toEqual({ platform: 'tiktok', channelInput: '' });
   });
 
   it('accepts valid views and rejects unknown or duplicate counters', () => {

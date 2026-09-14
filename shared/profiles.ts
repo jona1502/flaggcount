@@ -2,8 +2,9 @@ import { DEFAULT_OVERLAY_SETTINGS, isHexColor, parseOverlaySettings, type Overla
 import { RED_FLAG, WHITE_FLAG } from './voting/redFlag';
 import { DEFAULT_TARGET, isValidTarget } from './voting/target';
 import { parseTrigger, triggerKey, type Trigger } from './voting/triggers';
+import { parseSavedLiveSource, type SavedLiveSource } from './live';
 
-export const SETTINGS_SCHEMA_VERSION = 3;
+export const SETTINGS_SCHEMA_VERSION = 4;
 /** Absolute upper bounds of the data model; the plan of the user may allow less. */
 export const MAX_PROFILES = 10;
 export const MAX_COUNTERS = 4;
@@ -79,13 +80,14 @@ export type Settings = {
   schemaVersion: typeof SETTINGS_SCHEMA_VERSION;
   /** Last TikTok username the user connected to; empty if none. */
   username: string;
+  liveSource: SavedLiveSource;
   activeProfileId: string;
   /** Never empty. */
   profiles: StreamProfile[];
 };
 
 /** How stored settings were turned into the current schema; anything but `none` must be written back. */
-export type SettingsMigration = 'none' | 'from-v1' | 'from-v2' | 'replaced-invalid';
+export type SettingsMigration = 'none' | 'from-v1' | 'from-v2' | 'from-v3' | 'replaced-invalid';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_TIMESTAMP_LENGTH = 40;
@@ -152,6 +154,7 @@ export function migrateSettingsV1(settings: SettingsV1, now: string): Settings {
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: settings.username,
+    liveSource: { platform: 'tiktok', channelInput: settings.username },
     activeProfileId: DEFAULT_PROFILE_ID,
     profiles: [
       {
@@ -306,6 +309,7 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     username: parseUsername(record['username']),
+    liveSource: parseSavedLiveSource(record['liveSource'], parseUsername(record['username'])),
     activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
       ? (activeProfileId as string)
       : (profiles[0] as StreamProfile).id,
@@ -321,9 +325,9 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
 export function parseSettings(value: unknown, now: string): { settings: Settings; migration: SettingsMigration } {
   if (isRecord(value) && value['schemaVersion'] !== undefined) {
     const version = value['schemaVersion'];
-    const settings = version === SETTINGS_SCHEMA_VERSION || version === 2 ? parseSettingsV2(value) : null;
+    const settings = version === SETTINGS_SCHEMA_VERSION || version === 3 || version === 2 ? parseSettingsV2(value) : null;
     if (settings) {
-      return { settings, migration: version === 2 ? 'from-v2' : 'none' };
+      return { settings, migration: version === 2 ? 'from-v2' : version === 3 ? 'from-v3' : 'none' };
     }
     return { settings: migrateSettingsV1(parseSettingsV1(value), now), migration: 'replaced-invalid' };
   }

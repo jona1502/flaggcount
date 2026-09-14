@@ -10,6 +10,10 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   'stream-ended': 'Der Livestream wurde beendet.',
   'reconnect-failed':
     'Die Verbindung zum Livestream konnte nicht wiederhergestellt werden. Bitte verbinde dich erneut.',
+  'authentication-required': 'Bitte melde dich zuerst beim ausgewählten Streamingdienst an.',
+  'permission-required': 'Die benötigte Chat-Berechtigung fehlt. Bitte verbinde dein Konto erneut.',
+  'authorization-revoked': 'Die Anmeldung wurde widerrufen oder ist abgelaufen. Bitte melde dich erneut an.',
+  'provider-not-configured': 'Dieser Streamingdienst ist in dieser Installation noch nicht eingerichtet.',
   'invalid-target': 'Das Stimmenziel muss eine ganze Zahl zwischen 1 und 100.000 sein.',
   'invalid-overlay-settings': 'Die Overlay-Einstellungen sind ungültig. Bitte prüfe Farben, Größe und Deckkraft.',
   'invalid-code': 'Dieser Aktivierungscode ist ungültig. Bitte prüfe ihn in deiner Kauf-E-Mail.',
