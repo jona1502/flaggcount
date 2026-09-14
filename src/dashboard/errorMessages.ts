@@ -16,6 +16,7 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   'invalid-installation': 'Dieser Computer konnte der Lizenz nicht zugeordnet werden. Bitte starte FlagCount neu.',
   'invalid-profile': 'Dieses Profil konnte nicht geändert werden. Profilnamen brauchen 1 bis 60 Zeichen, und ein Profil muss bleiben.',
   'invalid-counters': 'Die Zähler konnten nicht gespeichert werden. Bitte prüfe Namen, Optionen und Auslöser.',
+  'invalid-overlay-view': 'Die Overlay-Ansicht konnte nicht gespeichert werden. Bitte prüfe Elemente, Reihenfolge und Layout.',
   'pro-required': 'Diese Funktion gehört zu FlagCount Pro. Unter „Pro“ erfährst du mehr – deine Einstellungen bleiben erhalten.',
   'sidecar-unavailable': 'Der Verbindungsdienst läuft nicht. Bitte starte FlagCount neu.',
   unknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.'

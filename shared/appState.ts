@@ -32,6 +32,7 @@ export type AppErrorCode =
   | 'invalid-installation'
   | 'invalid-profile'
   | 'invalid-counters'
+  | 'invalid-overlay-view'
   | 'pro-required'
   | 'sidecar-unavailable'
   | 'unknown';

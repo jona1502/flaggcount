@@ -1,5 +1,5 @@
 import type { AppError, AppState } from '../../shared/appState';
-import type { CounterDefinition } from '../../shared/profiles';
+import type { CounterDefinition, OverlayViewInput } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 
 /** Stops a subscription. */
@@ -22,6 +22,10 @@ export type FlagCountApi = {
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
   /** Changes the overlay design of one counter of the running profile. */
   setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings) => Promise<void>;
+  createOverlayView: (input: OverlayViewInput) => Promise<string>;
+  updateOverlayView: (viewId: string, input: OverlayViewInput) => Promise<void>;
+  deleteOverlayView: (viewId: string) => Promise<void>;
+  duplicateOverlayView: (viewId: string) => Promise<string>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;

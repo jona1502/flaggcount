@@ -2,6 +2,7 @@ pub mod branding;
 pub mod commands;
 pub mod entitlements;
 pub mod license;
+pub mod overlay_views;
 pub mod profiles;
 pub mod settings;
 pub mod sidecar;
@@ -27,6 +28,10 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::set_target,
             commands::set_overlay_settings,
             commands::set_counter_overlay_settings,
+            commands::create_overlay_view,
+            commands::update_overlay_view,
+            commands::delete_overlay_view,
+            commands::duplicate_overlay_view,
             commands::import_overlay_asset,
             commands::clear_history,
             commands::export_history_csv,

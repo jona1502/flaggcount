@@ -53,7 +53,7 @@ export function createSettings(counters?: CounterDefinition[], extraProfiles: St
 }
 
 export function createProfile(id: string, name: string, counters: CounterDefinition[]): StreamProfile {
-  return { id, name, counters, createdAt: NOW, updatedAt: NOW };
+  return { id, name, counters, overlayViews: [], createdAt: NOW, updatedAt: NOW };
 }
 
 /** A two-option poll as a Pro user would create it. */
@@ -143,6 +143,10 @@ export function createActions() {
     setTarget: vi.fn(async (_target: number) => undefined),
     setOverlaySettings: vi.fn(async (_overlay: OverlaySettings) => undefined),
     setCounterOverlaySettings: vi.fn(async (_counterId: string, _overlay: OverlaySettings) => undefined),
+    createOverlayView: vi.fn(async () => 'v-test'),
+    updateOverlayView: vi.fn(async () => undefined),
+    deleteOverlayView: vi.fn(async () => undefined),
+    duplicateOverlayView: vi.fn(async () => 'v-copy'),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
     clearHistory: vi.fn(async () => undefined),
     exportHistoryCsv: vi.fn(async () => 'history.csv'),

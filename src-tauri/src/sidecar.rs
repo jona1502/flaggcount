@@ -14,10 +14,10 @@ use crate::license::{
 };
 use crate::entitlements::profile_limit;
 use crate::profiles::effective_profile;
-use crate::settings::{CounterDefinition, CounterMode, Settings, DEFAULT_TARGET};
+use crate::settings::{CounterDefinition, CounterMode, OverlayView, Settings, DEFAULT_TARGET};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -62,7 +62,13 @@ pub enum SidecarCommand {
         counter_id: Option<String>,
     },
     /// The counters of the active profile; running rounds of counters that keep their id continue.
-    ConfigureCounters { counters: Vec<CounterDefinition> },
+    #[serde(rename_all = "camelCase")]
+    ConfigureCounters {
+        counters: Vec<CounterDefinition>,
+        overlay_views: Vec<OverlayView>,
+        profile_id: String,
+        profile_name: String,
+    },
     /// The stored license, sent after every start. The secret only travels over the private stdin pipe.
     #[serde(rename_all = "camelCase")]
     ConfigureLicense {
@@ -349,6 +355,9 @@ pub fn startup_commands(
 pub fn configure_counters(settings: &Settings, license: &LicenseState) -> Option<SidecarCommand> {
     effective_profile(settings, license).map(|profile| SidecarCommand::ConfigureCounters {
         counters: profile.counters.clone(),
+        overlay_views: profile.overlay_views.clone(),
+        profile_id: profile.id.clone(),
+        profile_name: profile.name.clone(),
     })
 }
 
@@ -794,9 +803,15 @@ mod tests {
             (
                 SidecarCommand::ConfigureCounters {
                     counters: vec![CounterDefinition::red_flags(25, OverlaySettings::default())],
+                    overlay_views: vec![],
+                    profile_id: "default".into(),
+                    profile_name: "Standard".into(),
                 },
                 json!({
                     "type": "configureCounters",
+                    "overlayViews": [],
+                    "profileId": "default",
+                    "profileName": "Standard",
                     "counters": [{
                         "id": "red-flags",
                         "name": "Rote Flaggen",
@@ -1141,6 +1156,9 @@ mod tests {
             [
                 SidecarCommand::ConfigureCounters {
                     counters: vec![CounterDefinition::red_flags(25, overlay)],
+                    overlay_views: vec![],
+                    profile_id: "default".into(),
+                    profile_name: "Standard".into(),
                 },
                 SidecarCommand::ConfigureLicense {
                     installation_id: "inst-0123456789abcdef".into(),
@@ -1173,7 +1191,7 @@ mod tests {
 
         assert!(matches!(
             counters_after_license_change(&settings, &free, &pro),
-            Some(SidecarCommand::ConfigureCounters { counters }) if counters[0].target == Some(7)
+            Some(SidecarCommand::ConfigureCounters { counters, .. }) if counters[0].target == Some(7)
         ));
         assert_eq!(counters_after_license_change(&settings, &pro, &free), None);
         assert_eq!(counters_after_license_change(&settings, &pro, &pro), None);

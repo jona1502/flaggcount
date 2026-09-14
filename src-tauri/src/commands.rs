@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::license::{self, LicenseState};
+use crate::overlay_views::{self, OverlayViewInput};
 use crate::entitlements::{has_feature, CSV_EXPORT, CUSTOM_BRANDING, PREMIUM_TEMPLATES};
 use crate::profiles::{self, effective_profile};
 use crate::settings::{self, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
@@ -201,6 +202,73 @@ pub fn set_counter_overlay_settings<R: Runtime>(
     })?;
     saver.save(&settings);
     send_counters(&sidecar, &settings)
+}
+
+fn sync_overlay_views(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
+    send_counters(sidecar, settings)
+}
+
+#[tauri::command]
+pub fn create_overlay_view<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    input: OverlayViewInput,
+) -> Result<String, AppError> {
+    let now = settings::now_timestamp();
+    let (id, settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::create(settings, license, input, overlay_views::new_view_id(), &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn update_overlay_view<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    view_id: String,
+    input: OverlayViewInput,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::update(settings, license, &view_id, input, &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)
+}
+
+#[tauri::command]
+pub fn delete_overlay_view<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    view_id: String,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::delete(settings, license, &view_id, &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)
+}
+
+#[tauri::command]
+pub fn duplicate_overlay_view<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    view_id: String,
+) -> Result<String, AppError> {
+    let now = settings::now_timestamp();
+    let (id, settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::duplicate(settings, license, &view_id, overlay_views::new_view_id(), &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)?;
+    Ok(id)
 }
 
 #[tauri::command]

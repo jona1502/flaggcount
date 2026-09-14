@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { AppError, AppState } from '../../shared/appState';
-import type { CounterDefinition } from '../../shared/profiles';
+import type { CounterDefinition, OverlayViewInput } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 import type { FlagCountApi } from './flagcountApi';
 
@@ -29,6 +29,10 @@ export const flagcountApi: FlagCountApi = {
   setOverlaySettings: (overlay: OverlaySettings): Promise<void> => invoke('set_overlay_settings', { overlay }),
   setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings): Promise<void> =>
     invoke('set_counter_overlay_settings', { counterId, overlay }),
+  createOverlayView: (input: OverlayViewInput): Promise<string> => invoke('create_overlay_view', { input }),
+  updateOverlayView: (viewId: string, input: OverlayViewInput): Promise<void> => invoke('update_overlay_view', { viewId, input }),
+  deleteOverlayView: (viewId: string): Promise<void> => invoke('delete_overlay_view', { viewId }),
+  duplicateOverlayView: (viewId: string): Promise<string> => invoke('duplicate_overlay_view', { viewId }),
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]): Promise<string> => invoke<string>('import_overlay_asset', { kind, bytes }),
   clearHistory: (): Promise<void> => invoke('clear_history'),
   exportHistoryCsv: (csv: string): Promise<string> => invoke<string>('export_history_csv', { csv }),

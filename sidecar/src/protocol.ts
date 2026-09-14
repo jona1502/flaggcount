@@ -1,6 +1,6 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
 import type { LicenseState, SignedEntitlement } from '../../shared/licensing';
-import { parseCounterDefinitions, type CounterDefinition } from '../../shared/profiles';
+import { parseCounterDefinitions, parseOverlayView, type CounterDefinition, type OverlayView } from '../../shared/profiles';
 import { parseOverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 import type { LicenseCredentials } from './license/licenseManager';
@@ -11,7 +11,7 @@ export type ConnectionErrorCode = AppErrorCode;
 export type ConnectionError = AppError;
 
 /** Bumped whenever commands or events change incompatibly; the sidecar reports it on `ready`. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /**
  * Stable, library-independent representation of a TikTok chat comment.
@@ -42,7 +42,7 @@ export type SidecarCommand =
   /** Without a counter id, every counter starts a new round. */
   | { type: 'reset'; counterId?: string }
   /** The counters of the active profile; running rounds of counters that keep their id continue. */
-  | { type: 'configureCounters'; counters: CounterDefinition[]; profileId?: string; profileName?: string }
+  | { type: 'configureCounters'; counters: CounterDefinition[]; overlayViews?: OverlayView[]; profileId?: string; profileName?: string }
   /** The stored license, sent once after every start. The secret only travels over this private pipe. */
   | { type: 'configureLicense'; installationId: string; credentials: LicenseCredentials | null; entitlement: unknown }
   | { type: 'activateLicense'; code: string; replaceInstallationId?: string }
@@ -125,9 +125,20 @@ export function parseCommand(line: string): SidecarCommand | null {
     case 'configureCounters': {
       const counters = parseCounterDefinitions(record['counters']);
       if (!counters) return null;
+      const counterIds = new Set(counters.map((counter) => counter.id));
+      const rawViews = record['overlayViews'] ?? [];
+      if (!Array.isArray(rawViews) || rawViews.length > 4) return null;
+      const overlayViews = rawViews.map((view) => parseOverlayView(view, counterIds));
+      if (overlayViews.some((view) => view === null)) return null;
       const profileId = typeof record['profileId'] === 'string' && ID_PATTERN.test(record['profileId']) ? record['profileId'] : undefined;
       const profileName = typeof record['profileName'] === 'string' && record['profileName'].trim() ? record['profileName'].slice(0, 60) : undefined;
-      return { type: 'configureCounters', counters, ...(profileId ? { profileId } : {}), ...(profileName ? { profileName } : {}) };
+      return {
+        type: 'configureCounters',
+        counters,
+        ...(record['overlayViews'] !== undefined ? { overlayViews: overlayViews as OverlayView[] } : {}),
+        ...(profileId ? { profileId } : {}),
+        ...(profileName ? { profileName } : {})
+      };
     }
     case 'addManualVote':
     case 'removeManualVote': {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
-import type { CounterDefinition } from '../../shared/profiles';
+import type { CounterDefinition, OverlayViewInput } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 import { toAppError, type FlagCountApi, type Unlisten } from './flagcountApi';
 
@@ -14,6 +14,10 @@ export type FlagCountActions = {
   setTarget: (target: number) => Promise<void>;
   setOverlaySettings: (overlay: OverlaySettings) => Promise<void>;
   setCounterOverlaySettings: (counterId: string, overlay: OverlaySettings) => Promise<void>;
+  createOverlayView: (input: OverlayViewInput) => Promise<string | null>;
+  updateOverlayView: (viewId: string, input: OverlayViewInput) => Promise<void>;
+  deleteOverlayView: (viewId: string) => Promise<void>;
+  duplicateOverlayView: (viewId: string) => Promise<string | null>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;
@@ -117,6 +121,18 @@ export function useFlagCount(api: FlagCountApi): FlagCountController {
       setTarget: (target) => run(() => api.setTarget(target)),
       setOverlaySettings: (overlay) => run(() => api.setOverlaySettings(overlay)),
       setCounterOverlaySettings: (counterId, overlay) => run(() => api.setCounterOverlaySettings(counterId, overlay)),
+      createOverlayView: async (input) => {
+        let id: string | null = null;
+        await run(async () => { id = await api.createOverlayView(input); });
+        return id;
+      },
+      updateOverlayView: (viewId, input) => run(() => api.updateOverlayView(viewId, input)),
+      deleteOverlayView: (viewId) => run(() => api.deleteOverlayView(viewId)),
+      duplicateOverlayView: async (viewId) => {
+        let id: string | null = null;
+        await run(async () => { id = await api.duplicateOverlayView(viewId); });
+        return id;
+      },
       importOverlayAsset: (kind, bytes) => api.importOverlayAsset(kind, bytes),
       clearHistory: () => run(() => api.clearHistory()),
       exportHistoryCsv: (csv) => api.exportHistoryCsv(csv),
