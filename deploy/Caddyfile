@@ -1,0 +1,71 @@
+# Reverse proxy in front of the FlagCount containers. Only this container publishes a port; the web
+# (Next.js) and server (backend) containers stay in the private compose network. The routes mirror
+# scripts/web-routes.mjs and docs/WEB_ROUTING.md.
+{
+	admin off
+	auto_https off
+	servers {
+		# The host's nginx connects through the Docker network; keep the client address it forwards.
+		trusted_proxies static private_ranges
+	}
+}
+
+:8080 {
+	# Server-Sent Events: forward every chunk immediately and never time out an open stream.
+	@events path_regexp ^/(api/events|overlay(/.+)?/events|o/[^/]+/events|ob/[^/]+/events)$
+	handle @events {
+		reverse_proxy server:3010 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+			}
+		}
+	}
+
+	# Stripe and Paddle webhooks carry signed raw bodies of up to 1 MB.
+	@webhooks path /api/v1/billing/webhooks/*
+	handle @webhooks {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy server:3010 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
+	}
+
+	@backend path /api /api/* /overlay /overlay/* /o/* /ob/* /healthz /readyz /download
+	handle @backend {
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy server:3010 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
+	}
+
+	# Transitional: the previous Vite dashboard and admin area until they run on Next.js.
+	@legacy path /dashboard /dashboard/ /admin /admin/ /admin/* /admin.html /web.html /assets/*
+	handle @legacy {
+		reverse_proxy server:3010 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 60s
+			}
+		}
+	}
+}

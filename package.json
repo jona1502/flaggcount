@@ -14,6 +14,7 @@
     "build:sidecar": "node scripts/build-sidecar.mjs",
     "build:web": "vite build --config vite.web.config.ts",
     "dev:next": "npm run dev -w @flagcount/web",
+    "dev:proxy": "node scripts/dev-proxy.mjs",
     "build:next": "npm run build -w @flagcount/web && node scripts/check-client-bundle.mjs apps/web/.next/static",
     "lint": "npm run lint -w @flagcount/web",
     "build:server": "esbuild sidecar/src/web/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/server.cjs --log-level=warning",

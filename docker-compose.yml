@@ -1,17 +1,55 @@
+# FlagCount in production: Caddy routes by path to the Next.js website and the backend (see docs/WEB_ROUTING.md).
+# Only the proxy publishes a port. The server keeps its secrets in .env; the web container reads the optional
+# .env.web, which must not contain backend secrets.
 services:
-  web:
-    image: ghcr.io/jona1502/flaggcount:${IMAGE_TAG:-latest}
+  proxy:
+    image: caddy:2.11-alpine
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3016:3000"
+      - "127.0.0.1:3016:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      server:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  web:
+    image: ghcr.io/jona1502/flaggcount-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - path: .env.web
+        required: false
+    environment:
+      NODE_ENV: production
+      BACKEND_INTERNAL_URL: http://server:3010
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  server:
+    image: ghcr.io/jona1502/flaggcount:${IMAGE_TAG:-latest}
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3010"
     volumes:
       - flaggcount_data:/app/data
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/healthz"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3010/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3

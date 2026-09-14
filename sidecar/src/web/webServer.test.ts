@@ -10,7 +10,7 @@ import { channelIdForKey } from '../relay/relayChannel';
 import { RelayChannels, type BoardRelayUpdate } from './relayChannels';
 import { isCorrectPassword } from './session';
 import { WebController } from './webController';
-import { startWebServer, type WebServerOptions } from './webServer';
+import { clientAddress, isTrustedProxyAddress, startWebServer, type WebServerOptions } from './webServer';
 
 const PASSWORD = 'correct-horse-battery';
 const cleanups: (() => Promise<unknown> | void)[] = [];
@@ -151,6 +151,33 @@ async function signIn(port: number): Promise<string> {
   expect(response.status).toBe(204);
   return response.headers['set-cookie']?.[0]?.split(';')[0] ?? '';
 }
+
+describe('clientAddress', () => {
+  const request = (remoteAddress: string, headers: Record<string, string> = {}) =>
+    ({ headers, socket: { remoteAddress } }) as unknown as import('node:http').IncomingMessage;
+
+  it('believes forwarded headers only from proxies in private networks', () => {
+    expect(clientAddress(request('203.0.113.9', { 'x-forwarded-for': '198.51.100.1', 'cf-connecting-ip': '198.51.100.2' }))).toBe('203.0.113.9');
+    expect(clientAddress(request('::ffff:172.18.0.3', { 'x-forwarded-for': '198.51.100.1' }))).toBe('198.51.100.1');
+    expect(clientAddress(request('127.0.0.1', { 'cf-connecting-ip': '198.51.100.2', 'x-forwarded-for': '198.51.100.1' }))).toBe('198.51.100.2');
+  });
+
+  it('takes the rightmost address in X-Forwarded-For that is not a proxy', () => {
+    // A client can prepend any value; nginx appends the real address, Caddy the address of nginx.
+    expect(clientAddress(request('172.18.0.3', { 'x-forwarded-for': '1.2.3.4, 198.51.100.7, 172.18.0.1' }))).toBe('198.51.100.7');
+    expect(clientAddress(request('10.0.0.2', { 'x-forwarded-for': 'garbage, 192.168.1.20' }))).toBe('192.168.1.20');
+    expect(clientAddress(request('10.0.0.2', { 'cf-connecting-ip': 'not-an-ip' }))).toBe('10.0.0.2');
+  });
+
+  it('recognizes trusted proxy addresses', () => {
+    for (const address of ['127.0.0.1', '::1', '10.1.2.3', '172.16.0.1', '172.31.255.255', '192.168.0.1', 'fd12:3456::1', '::ffff:10.0.0.1']) {
+      expect(isTrustedProxyAddress(address), address).toBe(true);
+    }
+    for (const address of ['172.32.0.1', '8.8.8.8', '2001:db8::1', 'localhost', '']) {
+      expect(isTrustedProxyAddress(address), address).toBe(false);
+    }
+  });
+});
 
 describe('isCorrectPassword', () => {
   it('accepts only the exact password', () => {

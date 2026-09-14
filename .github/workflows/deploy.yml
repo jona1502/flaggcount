@@ -2,6 +2,7 @@ name: Deploy App (GHCR)
 
 # Vorlage: hetzner/github-actions-templates/deploy-ghcr.yml
 # Server: /home/jona/apps/flaggcount, Host-Port 3016, Domain overlay.muhrindustries.com
+# Container: proxy (Caddy) -> web (Next.js) und server (Backend), siehe docs/WEB_ROUTING.md
 
 on:
   push:
@@ -9,10 +10,11 @@ on:
       - main
 
 env:
-  IMAGE: ghcr.io/jona1502/flaggcount
+  SERVER_IMAGE: ghcr.io/jona1502/flaggcount
+  WEB_IMAGE: ghcr.io/jona1502/flaggcount-web
 
 jobs:
-  # Gate: ein roter Typecheck/Test stoppt den Deploy, bevor irgendetwas
+  # Gate: ein roter Lint/Typecheck/Test stoppt den Deploy, bevor irgendetwas
   # gebaut oder auf den Server gebracht wird.
   verify:
     uses: ./.github/workflows/ci.yml
@@ -40,16 +42,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push image
+      - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
           tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.SERVER_IMAGE }}:latest
+            ${{ env.SERVER_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          tags: |
+            ${{ env.WEB_IMAGE }}:latest
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
 
   deploy:
     needs: build-and-push
@@ -59,8 +73,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Ueberschrieben wird ausschliesslich docker-compose.yml -
-      # .env und das Daten-Volume bleiben unangetastet.
+      # Ueberschrieben werden ausschliesslich docker-compose.yml und Caddyfile -
+      # .env, .env.web und das Daten-Volume bleiben unangetastet.
       - name: Copy Docker Compose configuration to server
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -69,6 +83,18 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: docker-compose.yml
+          target: /home/${{ secrets.SERVER_USER }}/apps/flaggcount
+          overwrite: true
+
+      - name: Copy proxy configuration to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: deploy/Caddyfile
+          strip_components: 1
           target: /home/${{ secrets.SERVER_USER }}/apps/flaggcount
           overwrite: true
 
@@ -94,16 +120,15 @@ jobs:
             docker compose config --quiet
             docker compose pull
 
-            # --wait bricht ab, wenn der neue Container nicht healthy wird.
-            if ! docker compose up -d --wait --wait-timeout 180; then
+            # --wait bricht ab, wenn ein neuer Container nicht healthy wird.
+            if ! docker compose up -d --remove-orphans --wait --wait-timeout 180; then
               docker compose ps
-              docker compose logs --no-color --tail=200 web
-              cid="$(docker compose ps -q web)"
-              docker inspect --format='health={{json .State.Health}}' "$cid" || true
+              docker compose logs --no-color --tail=200 proxy web server
               exit 1
             fi
 
             docker image prune -f
 
-            # /healthz braucht keine Anmeldung und prueft nur, ob der Server antwortet.
-            curl -fsS -o /dev/null -w 'origin: %{http_code}\n' http://127.0.0.1:3016/healthz
+            # Beide Dienste ueber den Proxy pruefen: /healthz beantwortet das Backend, /health die Website.
+            curl -fsS -o /dev/null -w 'backend: %{http_code}\n' http://127.0.0.1:3016/healthz
+            curl -fsS -o /dev/null -w 'web: %{http_code}\n' http://127.0.0.1:3016/health

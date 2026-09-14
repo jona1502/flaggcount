@@ -54,12 +54,49 @@ Nicht Teil des Webs: Der lokale Server der Desktop-App (`sidecar/src/server/loca
 
 ## Proxy-Regeln
 
-- Präfixe zum Backend: `/api/`, `/overlay`, `/o/`, `/ob/`, `/healthz`, `/readyz`, `/download` (exakt).
-- Alles andere geht an Next.js.
-- SSE-Routen (`/api/events`, `/overlay/events`, `/o/*/events`, `/ob/*/events`, `/overlay/*/events`) ohne
-  Response-Buffering und ohne Leerlauf-Timeout weiterleiten.
-- Body-Limits: Webhooks 1 MB, übrige API-Routen wenige KB (das Backend prüft zusätzlich).
-- `X-Forwarded-For` nur vom eigenen Proxy übernehmen.
+Umgesetzt in `deploy/Caddyfile` (Produktion) und `scripts/dev-proxy.mjs` (lokal); beide nutzen dieselbe
+Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile und Tabelle übereinstimmen.
+
+- Zum Backend: `/api`, `/api/*`, `/overlay`, `/overlay/*`, `/o/*`, `/ob/*`, `/healthz`, `/readyz`, `/download`.
+- Übergangsweise ebenfalls zum Backend, bis Dashboard und Admin-Bereich auf Next.js laufen: `/dashboard`,
+  `/admin`, `/admin/*`, `/admin.html`, `/web.html`, `/assets/*` (Vite-Bundle).
+- Alles andere geht an Next.js (`/`, `/pro`, `/_next/*`, `/health` …).
+- SSE-Routen (`/api/events`, `/overlay/events`, `/overlay/*/events`, `/o/*/events`, `/ob/*/events`) werden sofort
+  weitergereicht (`flush_interval -1`) und haben keine Antwort-Timeouts.
+- Body-Limits: Webhooks 1 MB, übrige Backend-Routen 64 KB; das Backend prüft zusätzlich strenger.
+- Timeouts: Verbindungsaufbau 5 s, Antwort-Header vom Backend 30 s, von Next.js 60 s.
+- Das Backend glaubt `CF-Connecting-IP` und `X-Forwarded-For` nur, wenn die Verbindung aus Loopback oder einem
+  privaten Netz kommt (Caddy, nginx). Aus `X-Forwarded-For` gilt die rechte Adresse, die kein Proxy ist.
+
+## Sicherheitsheader
+
+- **Website (Next.js)**: CSP mit `default-src 'self'`, `frame-ancestors 'none'`, `connect-src 'self'`; Skripte
+  `'self' 'unsafe-inline'`, weil vorgerenderte Seiten keine Nonce tragen. Dazu `X-Frame-Options: DENY`,
+  `nosniff`, `Referrer-Policy` und `Permissions-Policy` (`apps/web/next.config.mjs`).
+- **Overlays (Backend)**: eigene CSP (`OVERLAY_CSP`), damit OBS und TikTok LIVE Studio sie einbetten können.
+- **Admin-Bereich**: eigene, strengere Header; bis zur Migration setzt sie das Backend.
+- **API**: `Cache-Control: no-store`, `nosniff`.
+
+## Betrieb
+
+```text
+Host-nginx (TLS) -> 127.0.0.1:3016 -> proxy (Caddy :8080)
+                                        |-> web    (Next.js :3000)
+                                        `-> server (Backend :3010, PostgreSQL, Daten-Volume)
+```
+
+- `docker-compose.yml` startet `proxy`, `web` und `server`; nur `proxy` veröffentlicht einen Port.
+- Secrets getrennt: `server` liest `.env`, `web` liest `.env.web` (optional, keine Backend-Secrets).
+- Healthchecks: `server` über `/healthz`, `web` über `/health`, `proxy` startet erst, wenn beide gesund sind.
+- Fällt `web` aus, antworten Overlays, Relay, SSE und Lizenz-API weiter, weil der Proxy sie direkt ans Backend gibt.
+
+## Lokale Entwicklung
+
+```text
+npm run dev:next                          # Next.js auf http://127.0.0.1:3001
+npm run build:server && PORT=3010 npm run start:web   # Backend auf 3010
+npm run dev:proxy                         # alles unter http://localhost:3000
+```
 
 ## API-Verträge, die während der Migration stabil bleiben
 
