@@ -25,10 +25,14 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
 
 ## Admin-Bereich
 
-- Erreichbar unter `/admin`, nur wenn `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET` und
-  `ADMIN_GITHUB_USER_IDS` gesetzt sind. Anmeldung über GitHub, Zugriff nur für die eingetragenen numerischen
-  GitHub-Konto-IDs. Kein gemeinsames Admin-Passwort, keine Wiederverwendung des Dashboard-Passworts.
-- Sitzungen liegen im Speicher des Servers: 30 Minuten Leerlauf, höchstens 8 Stunden; ein Neustart meldet ab.
+- Erreichbar unter `/admin`, ausgeliefert vom Web-Container (Next.js). Er braucht in `.env.web`
+  `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET`, `ADMIN_GITHUB_USER_IDS`, `PUBLIC_BASE_URL` und
+  `ADMIN_ASSERTION_SECRET`; der Server braucht in `.env` `ADMIN_GITHUB_USER_IDS` und dasselbe
+  `ADMIN_ASSERTION_SECRET`. Anmeldung über GitHub, Zugriff nur für die eingetragenen numerischen GitHub-Konto-IDs.
+  Kein gemeinsames Admin-Passwort, keine Wiederverwendung des Dashboard-Passworts.
+- Sitzungen liegen im Speicher des Web-Containers: 30 Minuten Leerlauf, höchstens 8 Stunden; ein Neustart meldet ab.
+- Der Web-Container signiert jede Anfrage an die Admin-API des Servers mit einem kurzlebigen Nachweis. Wer den
+  Server direkt erreicht, erhält ohne diesen Nachweis keine Admin-Rechte.
 - Jede Änderung braucht ein CSRF-Token und landet im Audit-Protokoll (`admin_audit_log`) mit GitHub-Konto,
   Aktion und Zeitpunkt, ohne Codes, Hinweistexte oder Kundendaten.
 - Admins dürfen: Installationen deaktivieren, Aktivierungscodes erneuern (anzeigen oder per E-Mail senden),
@@ -37,8 +41,9 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
   ändern. Das passiert im Stripe-Dashboard; der Webhook übernimmt den neuen Stand.
 - Interne Hinweise enthalten keine Namen, E-Mail-Adressen oder Zahlungsdaten; Tickets verweisen auf die
   Lizenzreferenz `FC-…`.
-- Zugriff entziehen: GitHub-ID aus `ADMIN_GITHUB_USER_IDS` entfernen und den Server neu starten (beendet alle
-  Sitzungen). Bei Verdacht zusätzlich das Client Secret der OAuth App rotieren.
+- Zugriff entziehen: GitHub-ID in `.env.web` und `.env` aus `ADMIN_GITHUB_USER_IDS` entfernen und beide Container
+  neu starten (beendet alle Sitzungen). Bei Verdacht zusätzlich das Client Secret der OAuth App und
+  `ADMIN_ASSERTION_SECRET` in beiden Dateien rotieren.
 
 ## Manuelle Lizenzen
 

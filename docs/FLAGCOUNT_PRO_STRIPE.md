@@ -116,10 +116,13 @@ Zahlungen scheitern), `4000 0025 0000 3155` (3D Secure). Einzelne Ereignisse las
    - Homepage URL: `https://<domain>`
    - Authorization callback URL: `https://<domain>/admin/auth/callback`
    - Für lokale Tests eine eigene App mit `http://localhost:3000/admin/auth/callback`.
-2. Client ID und ein neues Client Secret als `ADMIN_GITHUB_CLIENT_ID` und `ADMIN_GITHUB_CLIENT_SECRET` setzen.
+2. Client ID und ein neues Client Secret als `ADMIN_GITHUB_CLIENT_ID` und `ADMIN_GITHUB_CLIENT_SECRET` in
+   `.env.web` des Web-Containers setzen, dazu `PUBLIC_BASE_URL`.
 3. Die eigene numerische GitHub-ID (`https://api.github.com/users/<name>` → `id`) in `ADMIN_GITHUB_USER_IDS`
-   eintragen; mehrere IDs mit Komma trennen.
-4. Server neu starten und `/admin` öffnen. Der Admin-Bereich braucht den laufenden Lizenzdienst.
+   eintragen, in `.env.web` und in `.env` des Servers; mehrere IDs mit Komma trennen.
+4. Ein gemeinsames Geheimnis erzeugen (`openssl rand -hex 32`) und als `ADMIN_ASSERTION_SECRET` in beide Dateien
+   eintragen.
+5. Beide Container neu starten und `/admin` öffnen. Die Lizenzverwaltung braucht den laufenden Lizenzdienst.
 
 ## 8. Umstellung abschließen und Live Mode
 

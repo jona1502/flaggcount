@@ -14,6 +14,10 @@ describe('next.config', () => {
     expect(WEBSITE_CSP).not.toContain('unsafe-eval');
     expect(headers['X-Frame-Options']).toBe('DENY');
     expect(nextConfig.poweredByHeader).toBe(false);
+
+    const rules = await nextConfig.headers();
+    const admin = rules.find((candidate: { source: string }) => candidate.source === '/admin/:path*');
+    expect(admin.headers).toEqual(expect.arrayContaining([{ key: 'Cache-Control', value: 'no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }]));
     expect(nextConfig.output).toBe('standalone');
   });
 });

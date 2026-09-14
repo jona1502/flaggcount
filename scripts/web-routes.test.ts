@@ -34,14 +34,29 @@ describe('route table', () => {
     }
   });
 
-  it('sends the website to Next.js', () => {
-    for (const path of ['/', '/pro', '/pro/erfolgreich', '/herunterladen', '/datenschutz', '/health', '/sitemap.xml', '/_next/static/chunk.js', '/downloads', '/overlayx', '/api-docs']) {
+  it('sends the website and the admin area to Next.js', () => {
+    for (const path of [
+      '/',
+      '/pro',
+      '/pro/erfolgreich',
+      '/herunterladen',
+      '/datenschutz',
+      '/health',
+      '/sitemap.xml',
+      '/_next/static/chunk.js',
+      '/admin',
+      '/admin/login',
+      '/admin/auth/callback',
+      '/downloads',
+      '/overlayx',
+      '/api-docs'
+    ]) {
       expect(routeTarget(path), path).toBe('web');
     }
   });
 
-  it('keeps the legacy dashboard and admin area on the backend until they are migrated', () => {
-    for (const path of ['/dashboard', '/admin', '/admin/auth/callback', '/admin.html', '/assets/web-abc.js']) {
+  it('keeps the legacy dashboard on the backend until it is migrated', () => {
+    for (const path of ['/dashboard', '/dashboard/', '/web.html', '/assets/web-abc.js']) {
       expect(routeTarget(path), path).toBe('backend');
     }
   });

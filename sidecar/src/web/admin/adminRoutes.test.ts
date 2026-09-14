@@ -7,10 +7,13 @@ import type { BillingProvider } from '../licensing/billing';
 import { LicenseService } from '../licensing/licenseService';
 import { MemoryLicenseStore } from '../licensing/store';
 import type { LogFields } from '../structuredLog';
+import { ADMIN_ASSERTION_HEADER, AdminAssertionVerifier, signAdminAssertion } from './adminAssertion';
 import { ADMIN_IDLE_TIMEOUT_MS, AdminSessions, type AdminConfig } from './adminAuth';
 import { ADMIN_PATHS, CSRF_HEADER, createAdminHandler, type AdminHandlerOptions } from './adminRoutes';
 
 const KEYS = generateSigningKeyPair();
+const ASSERTION_SECRET = 'a'.repeat(40);
+const ALLOWED_SUBJECTS = new Set(['github:4242']);
 const servers: Server[] = [];
 
 afterEach(async () => {
@@ -58,9 +61,12 @@ async function start(overrides: Partial<AdminHandlerOptions> = {}) {
     throw new TypeError('github down');
   });
   const handler = createAdminHandler({
-    config: CONFIG,
-    sessions,
-    oauth: { authorizeUrl: (state, challenge) => `https://github.com/login/oauth/authorize?state=${state}&code_challenge=${challenge}`, identify },
+    login: {
+      config: CONFIG,
+      sessions,
+      oauth: { authorizeUrl: (state, challenge) => `https://github.com/login/oauth/authorize?state=${state}&code_challenge=${challenge}`, identify }
+    },
+    assertions: new AdminAssertionVerifier({ secret: ASSERTION_SECRET, allowedSubjects: () => ALLOWED_SUBJECTS, now: clock }),
     admin: () => admin,
     logger,
     clientAddress: () => '203.0.113.5',
@@ -237,5 +243,59 @@ describe('admin routes', () => {
 
     expect(limited.status).toBe(429);
     expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+  });
+});
+
+describe('admin API with assertions from the web container', () => {
+  const NOW = Date.parse('2026-09-14T10:00:00.000Z');
+  const assertion = (method: string, path: string, overrides: Partial<Parameters<typeof signAdminAssertion>[0]> = {}) => ({
+    [ADMIN_ASSERTION_HEADER]: signAdminAssertion({ subject: 'github:4242', login: 'jona', method, path, secret: ASSERTION_SECRET, now: NOW, ...overrides })
+  });
+
+  it('accepts signed requests without cookie or CSRF token', async () => {
+    const { port } = await start();
+
+    const whoami = await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami) });
+    expect(whoami.status).toBe(200);
+    expect(JSON.parse(whoami.body)).toEqual({ subject: 'github:4242' });
+
+    const created = await send(port, ADMIN_PATHS.licenses, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...assertion('POST', ADMIN_PATHS.licenses) },
+      body: { reason: 'testing', validUntil: null, note: null }
+    });
+    expect(created.status).toBe(201);
+    const { license } = JSON.parse(created.body) as { license: { reference: string; audit: { adminSubject: string }[] } };
+    expect(license.audit[0]?.adminSubject).toBe('github:4242');
+
+    // The query string is not part of the signed path.
+    const search = await send(port, `${ADMIN_PATHS.licenses}?q=${license.reference}`, { headers: assertion('GET', ADMIN_PATHS.licenses) });
+    expect(search.status).toBe(200);
+  });
+
+  it('rejects missing, forged, replayed and misdirected assertions without falling back to cookies', async () => {
+    const { port, logs } = await start();
+    const { cookie } = await signIn(port);
+    const replayed = assertion('GET', ADMIN_PATHS.whoami, { nonce: 'once' });
+
+    expect((await send(port, ADMIN_PATHS.whoami)).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: { cookie, ...assertion('GET', ADMIN_PATHS.whoami, { secret: 'b'.repeat(40) }) } })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: replayed })).status).toBe(200);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: replayed })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.licenses) })).status).toBe(401);
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami, { subject: 'github:7' }) })).status).toBe(401);
+    expect(logs.filter((entry) => entry.event === 'admin-assertion-rejected').map((entry) => entry.fields?.['reason'])).toEqual([
+      'bad-signature',
+      'replayed',
+      'wrong-request',
+      'not-allowed'
+    ]);
+  });
+
+  it('serves only the API when the legacy login is not configured', async () => {
+    const { port } = await start({ login: undefined });
+
+    expect((await send(port, ADMIN_PATHS.login)).body).toBe('not admin');
+    expect((await send(port, ADMIN_PATHS.whoami, { headers: assertion('GET', ADMIN_PATHS.whoami) })).status).toBe(200);
   });
 });

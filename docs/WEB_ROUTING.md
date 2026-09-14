@@ -59,9 +59,22 @@ Umgesetzt in `deploy/Caddyfile` (Produktion) und `scripts/dev-proxy.mjs` (lokal)
 Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile und Tabelle übereinstimmen.
 
 - Zum Backend: `/api`, `/api/*`, `/overlay`, `/overlay/*`, `/o/*`, `/ob/*`, `/healthz`, `/readyz`, `/download`.
-- Übergangsweise ebenfalls zum Backend, bis Dashboard und Admin-Bereich auf Next.js laufen: `/dashboard`,
-  `/admin`, `/admin/*`, `/admin.html`, `/web.html`, `/assets/*` (Vite-Bundle).
-- Alles andere geht an Next.js (`/`, `/pro`, `/_next/*`, `/health` …).
+- Übergangsweise ebenfalls zum Backend, bis das Dashboard auf Next.js läuft: `/dashboard`, `/web.html`,
+  `/assets/*` (Vite-Bundle).
+- Alles andere geht an Next.js (`/`, `/pro`, `/admin`, `/admin/*`, `/_next/*`, `/health` …).
+
+## Admin-Authentifizierung
+
+- Next.js meldet Administratoren an: `/admin/login`, `/admin/auth/login` (Weiterleitung zu GitHub mit `state` und
+  PKCE), `/admin/auth/callback`, `/admin/auth/logout` (POST mit CSRF-Token und Origin-Prüfung). Zugriff nur für
+  die numerischen GitHub-Konto-IDs in `ADMIN_GITHUB_USER_IDS`; Sitzungen liegen serverseitig im Web-Container
+  (30 Minuten Leerlauf, höchstens 8 Stunden) in einem `__Host-`-Cookie mit `HttpOnly`, `Secure`,
+  `SameSite=Strict`. Das Dashboard-Passwort verleiht keine Admin-Rechte.
+- Jede Anfrage von Next.js an `/api/admin/*` trägt einen Nachweis im Header `X-FlagCount-Admin-Assertion`: HMAC mit
+  `ADMIN_ASSERTION_SECRET`, gebunden an Methode und Pfad, 60 Sekunden gültig, nur einmal verwendbar. Das Backend
+  prüft Signatur, Ablauf, Wiederverwendung und die eigene Allowlist; ohne Nachweis antwortet es mit 401.
+- Das Backend kann übergangsweise noch seinen eigenen GitHub-Login mit Cookie-Session bedienen, bis das
+  Next.js-Admin-Dashboard die Lizenzverwaltung übernimmt.
 - SSE-Routen (`/api/events`, `/overlay/events`, `/overlay/*/events`, `/o/*/events`, `/ob/*/events`) werden sofort
   weitergereicht (`flush_interval -1`) und haben keine Antwort-Timeouts.
 - Body-Limits: Webhooks 1 MB, übrige Backend-Routen 64 KB; das Backend prüft zusätzlich strenger.
@@ -75,7 +88,8 @@ Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile un
   `'self' 'unsafe-inline'`, weil vorgerenderte Seiten keine Nonce tragen. Dazu `X-Frame-Options: DENY`,
   `nosniff`, `Referrer-Policy` und `Permissions-Policy` (`apps/web/next.config.mjs`).
 - **Overlays (Backend)**: eigene CSP (`OVERLAY_CSP`), damit OBS und TikTok LIVE Studio sie einbetten können.
-- **Admin-Bereich**: eigene, strengere Header; bis zur Migration setzt sie das Backend.
+- **Admin-Bereich (Next.js)**: zusätzlich `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow` und
+  `Referrer-Policy: no-referrer`; die Seiten des Login-Ablaufs haben eine eigene CSP ohne Skripte.
 - **API**: `Cache-Control: no-store`, `nosniff`.
 
 ## Betrieb

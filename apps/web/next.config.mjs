@@ -31,6 +31,12 @@ export const SECURITY_HEADERS = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' }
 ];
 
+export const ADMIN_HEADERS = [
+  { key: 'Cache-Control', value: 'no-store' },
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+  { key: 'Referrer-Policy', value: 'no-referrer' }
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Self-hosted Node server in its own container; see apps/web/Dockerfile.
@@ -40,7 +46,11 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {
-    return [{ source: '/:path*', headers: SECURITY_HEADERS }];
+    return [
+      { source: '/:path*', headers: SECURITY_HEADERS },
+      // Admin pages show personal support data: never cache or index them.
+      { source: '/admin/:path*', headers: ADMIN_HEADERS }
+    ];
   }
 };
 

@@ -49,8 +49,8 @@
 		}
 	}
 
-	# Transitional: the previous Vite dashboard and admin area until they run on Next.js.
-	@legacy path /dashboard /dashboard/ /admin /admin/ /admin/* /admin.html /web.html /assets/*
+	# Transitional: the previous Vite dashboard until it runs on Next.js.
+	@legacy path /dashboard /dashboard/ /web.html /assets/*
 	handle @legacy {
 		reverse_proxy server:3010 {
 			transport http {
