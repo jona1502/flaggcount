@@ -48,7 +48,7 @@ jobs:
             # Backend- und Web-Image tragen denselben git-SHA.
             if ! docker compose up -d --remove-orphans --wait --wait-timeout 180; then
               docker compose ps
-              docker compose logs --no-color --tail=200 web server
+              docker compose logs --no-color --tail=200 web server db
               exit 1
             fi
 

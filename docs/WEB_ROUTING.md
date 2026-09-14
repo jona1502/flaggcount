@@ -103,10 +103,10 @@ Umgesetzt in `deploy/nginx-flagcount-locations.conf` (Produktion) und `scripts/d
 ```text
 Host-nginx (TLS)
   |-> 127.0.0.1:3017 -> web    (Next.js :3000)
-  `-> 127.0.0.1:3018 -> server (Backend :3010, PostgreSQL, Daten-Volume)
+  `-> 127.0.0.1:3018 -> server (Backend :3010) -> db (PostgreSQL :5432, privates Volume)
 ```
 
-- `docker-compose.yml` startet `web` und `server`; beide Ports sind ausschließlich an `127.0.0.1` gebunden.
+- `docker-compose.yml` startet `web`, `server` und `db`; nur Web und Backend binden Ports an `127.0.0.1`.
 - Secrets getrennt: `server` liest `.env`, `web` liest `.env.web` (optional, keine Backend-Secrets).
 - Healthchecks: `server` über `/healthz`, `web` über `/health`.
 - Fällt `web` aus, antworten Overlays, Relay, SSE und Lizenz-API weiter, weil nginx sie direkt ans Backend gibt.

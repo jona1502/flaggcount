@@ -2,6 +2,22 @@
 # Both ports bind to loopback only. The server keeps its secrets in .env; the web container reads the optional
 # .env.web, which must not contain backend secrets.
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flagcount
+      POSTGRES_USER: flagcount
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    volumes:
+      - flagcount_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flagcount -d flagcount"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   web:
     image: ghcr.io/jona1502/flaggcount-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -36,6 +52,10 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: "3010"
+      DATABASE_URL: postgresql://flagcount:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/flagcount
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - flaggcount_data:/app/data
     healthcheck:
@@ -47,3 +67,4 @@ services:
 
 volumes:
   flaggcount_data:
+  flagcount_postgres:
