@@ -11,6 +11,7 @@ import { PostgresLicenseStore } from './postgresStore';
 import { StripeBillingProvider, stripeKeyMode, type StripeConfig } from './stripe';
 
 export type BillingSettings =
+  | { provider: 'none' }
   | { provider: 'paddle'; paddle: Omit<PaddleConfig, 'fetch'> }
   | { provider: 'stripe'; stripe: Omit<StripeConfig, 'fetch'> };
 
@@ -121,8 +122,8 @@ export function readLicensingConfig(env: Record<string, string | undefined>): Li
   const usesStripe = STRIPE_VARIABLES.some((name) => value(name) !== '');
   const usesPaddle = PADDLE_VARIABLES.some((name) => value(name) !== '');
   if (usesStripe && usesPaddle) problems.push('Configure either the STRIPE_ or the PADDLE_ variables, not both');
-  const billing = usesStripe ? readStripe(reader) : readPaddle(reader);
-  const testing = billing.provider === 'stripe' ? billing.stripe.mode === 'test' : billing.paddle.environment === 'sandbox';
+  const billing: BillingSettings = usesStripe ? readStripe(reader) : usesPaddle ? readPaddle(reader) : { provider: 'none' };
+  const testing = billing.provider === 'none' || (billing.provider === 'stripe' ? billing.stripe.mode === 'test' : billing.paddle.environment === 'sandbox');
 
   let mail: LicensingSettings['mail'] | null = null;
   if (value('SMTP_URL')) {
@@ -265,6 +266,16 @@ export type RunningLicensing = {
 
 function createBillingProvider(billing: BillingSettings): BillingProvider {
   switch (billing.provider) {
+    case 'none':
+      return {
+        name: 'none',
+        verifyWebhook: () => ({ ok: false, reason: 'invalid-payload' }),
+        createCheckout: async () => Promise.reject(new Error('Billing is not configured')),
+        createPortalSession: async () => Promise.reject(new Error('Billing is not configured')),
+        customerEmail: async () => null,
+        customerIdsByEmail: async () => [],
+        previewPrices: async () => []
+      };
     case 'paddle':
       return new PaddleBillingProvider(billing.paddle);
     case 'stripe':
@@ -274,6 +285,7 @@ function createBillingProvider(billing: BillingSettings): BillingProvider {
 
 /** Human-readable provider and mode for the startup log, without any secret. */
 export function describeBilling(billing: BillingSettings): string {
+  if (billing.provider === 'none') return 'manual licenses only';
   return billing.provider === 'stripe' ? `Stripe ${billing.stripe.mode} mode` : `Paddle ${billing.paddle.environment}`;
 }
 

@@ -45,6 +45,9 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
 
 ## Manuelle Lizenzen
 
+- Der Lizenzdienst kann vor der Stripe-Einrichtung im Modus `manual licenses only` starten. Dafür genügen
+  PostgreSQL, Signierschlüssel, Code-Pepper, Supportadresse und SMTP/Resend. Checkout und Webhooks bleiben bis
+  zur vollständigen Stripe-Konfiguration deaktiviert.
 - Nur für Support, Creator-Kooperationen, Tests oder Aktionen; der Grund ist Pflicht.
 - Möglichst mit Ablaufdatum (höchstens fünf Jahre). Keine erfundenen Stripe-Kunden oder -Abos.
 - Der Aktivierungscode wird beim Anlegen einmal angezeigt und nur als Hash gespeichert. Geht er verloren, im

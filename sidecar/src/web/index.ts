@@ -118,7 +118,7 @@ async function main(): Promise<void> {
     if (licensingConfig.kind !== 'enabled' || stopping) return;
     try {
       licensing = await startLicensing(licensingConfig.settings, jsonLogger);
-      log('info', `FlagCount Pro billing is enabled (${describeBilling(licensingConfig.settings.billing)})`);
+      log('info', `FlagCount Pro licensing is enabled (${describeBilling(licensingConfig.settings.billing)})`);
     } catch (error) {
       const delayMs = Math.min(60_000, 2_000 * 2 ** (attempt - 1));
       // Only the error class: database errors can contain connection details.

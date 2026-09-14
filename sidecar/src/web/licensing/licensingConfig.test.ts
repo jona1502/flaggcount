@@ -44,6 +44,14 @@ describe('readLicensingConfig', () => {
     expect(readLicensingConfig({ DASHBOARD_PASSWORD: 'x' })).toEqual({ kind: 'disabled' });
   });
 
+  it('starts in manual-only mode before a payment provider is configured', () => {
+    const result = readLicensingConfig(BASE);
+
+    expect(result.kind).toBe('enabled');
+    if (result.kind !== 'enabled') return;
+    expect(result.settings.billing).toEqual({ provider: 'none' });
+  });
+
   it('reads a complete Paddle sandbox configuration', () => {
     const result = readLicensingConfig(env({ PADDLE_CHECKOUT_URL: 'https://flagcount.example/pro/kaufen' }));
 
