@@ -79,6 +79,15 @@ describe('route table', () => {
     expect(caddyfile).toContain(`@events path_regexp ${EVENT_STREAM.source.replaceAll('\\/', '/')}`);
     expect(caddyfile).toContain('flush_interval -1');
   });
+
+  it('mounts the Caddyfile at the path produced by the deploy workflow', () => {
+    const compose = readFileSync(new URL('../docker-compose.yml', import.meta.url), 'utf8');
+    const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
+
+    expect(compose).toContain('./Caddyfile:/etc/caddy/Caddyfile:ro');
+    expect(workflow).toContain('source: deploy/Caddyfile');
+    expect(workflow).toContain('strip_components: 1');
+  });
 });
 
 async function listen(handler: Parameters<typeof createServer>[1]): Promise<number> {
