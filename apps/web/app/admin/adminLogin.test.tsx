@@ -170,6 +170,8 @@ describe('admin login flow', () => {
     expect(cookiesOf(signedOut)[0]).toContain('Max-Age=0');
     expect(active.sessions.verify(token)).toBeNull();
     expect(isSameOrigin(new Request(BASE, { headers: { origin: BASE, 'x-forwarded-host': 'flagcount.example', host: 'web:3000' } }))).toBe(true);
+    expect(isSameOrigin(new Request('http://web:3000/admin/auth/login', { headers: { origin: BASE, host: 'web:3000' } }), BASE)).toBe(true);
+    expect(isSameOrigin(new Request('http://web:3000/admin/auth/login', { headers: { origin: 'https://evil.example', host: 'web:3000' } }), BASE)).toBe(false);
   });
 });
 

@@ -38,13 +38,23 @@ export function readAdminConfig(env: Record<string, string | undefined>): AdminC
   const password = env['ADMIN_PASSWORT'] ?? env['ADMIN_PASSWORD'] ?? '';
   if (email || password) {
     const problems: string[] = [];
+    const publicBaseUrl = value('PUBLIC_BASE_URL').replace(/\/+$/, '');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) problems.push('ADMIN_EMAIL has an invalid format');
     if (password.length < 12 || password.length > 256) problems.push('ADMIN_PASSWORT must contain between 12 and 256 characters');
+    if (publicBaseUrl) {
+      try {
+        const url = new URL(publicBaseUrl);
+        const local = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname);
+        if ((url.protocol !== 'https:' && !local) || url.pathname !== '/' || url.search || url.hash) throw new Error('invalid');
+      } catch {
+        problems.push('PUBLIC_BASE_URL must be an https origin without a path');
+      }
+    }
     return problems.length
       ? { kind: 'invalid', problems }
       : {
           kind: 'enabled',
-          config: { clientId: '', clientSecret: '', allowedUserIds: new Set(), publicBaseUrl: '', email, password }
+          config: { clientId: '', clientSecret: '', allowedUserIds: new Set(), publicBaseUrl, email, password }
         };
   }
 

@@ -53,11 +53,14 @@ function limited(runtime: AdminRuntime, request: Request): Response | null {
 }
 
 /** A change must come from a page of this site: the Origin header has to match the requested host. */
-export function isSameOrigin(request: Request): boolean {
+export function isSameOrigin(request: Request, expectedOrigin?: string): boolean {
   const origin = request.headers.get('origin');
-  const hosts = [request.headers.get('x-forwarded-host'), request.headers.get('host')].filter(Boolean);
-  if (!origin || hosts.length === 0) return false;
+  if (!origin) return false;
   try {
+    if (expectedOrigin) return new URL(origin).origin === new URL(expectedOrigin).origin;
+    const hosts = [request.headers.get('x-forwarded-host'), request.headers.get('host')]
+      .filter(Boolean)
+      .flatMap((header) => header!.split(',').map((host) => host.trim()));
     return hosts.includes(new URL(origin).host);
   } catch {
     return false;
@@ -78,7 +81,9 @@ export function startLogin(runtime: AdminRuntime, request: Request): Response {
 export async function passwordLogin(runtime: AdminRuntime, request: Request): Promise<Response> {
   const tooMany = limited(runtime, request);
   if (tooMany) return tooMany;
-  if (!isSameOrigin(request) || !runtime.config.email || !runtime.config.password) return new Response('Forbidden', { status: 403, headers: baseHeaders() });
+  if (!isSameOrigin(request, runtime.config.publicBaseUrl) || !runtime.config.email || !runtime.config.password) {
+    return new Response('Forbidden', { status: 403, headers: baseHeaders() });
+  }
 
   const form = await request.formData().catch(() => null);
   const email = String(form?.get('email') ?? '').trim().toLowerCase();
@@ -135,7 +140,7 @@ export async function finishLogin(runtime: AdminRuntime, request: Request): Prom
 
 /** Ends the session; needs a same-origin form post with the session's CSRF token. */
 export async function logout(runtime: AdminRuntime, request: Request): Promise<Response> {
-  if (!isSameOrigin(request)) return new Response('Forbidden', { status: 403, headers: baseHeaders() });
+  if (!isSameOrigin(request, runtime.config.publicBaseUrl)) return new Response('Forbidden', { status: 403, headers: baseHeaders() });
   const token = readCookie(request.headers.get('cookie') ?? undefined, ADMIN_SESSION_COOKIE);
   const session = runtime.sessions.verify(token);
   if (session) {
