@@ -37,6 +37,19 @@ export function activationMail(code: string, reference: string, supportEmail: st
   };
 }
 
+export function supportMail(code: string, reference: string, supportEmail: string): MailContent {
+  return {
+    subject: 'Neuer Aktivierungscode für FlagCount Pro',
+    text: [
+      'Unser Support hat dir einen neuen Aktivierungscode für FlagCount Pro erstellt. Frühere Codes sind damit',
+      'ungültig; bereits aktivierte Computer bleiben aktiv.',
+      '',
+      instructions(code),
+      footer(reference, supportEmail)
+    ].join('\n')
+  };
+}
+
 export function recoveryMail(code: string, reference: string, supportEmail: string): MailContent {
   return {
     subject: 'Neuer Aktivierungscode für FlagCount Pro',

@@ -82,6 +82,36 @@ export type SubscriptionUpdate = {
   occurredAt: string;
 };
 
+/** One change made in the admin dashboard. Metadata never contains codes, notes, email or payment data. */
+export type AuditEntry = {
+  id: string;
+  /** The signed-in admin, e.g. `github:12345`. */
+  adminSubject: string;
+  action: string;
+  licenseId: string | null;
+  metadata: Record<string, string | number | boolean | null>;
+  createdAt: string;
+};
+
+export type LicenseSearch =
+  | { kind: 'recent' }
+  | { kind: 'id'; value: string }
+  /** The 10 characters of a support reference such as `FC-1A2B3C4D5E`. */
+  | { kind: 'reference'; value: string }
+  | { kind: 'customer'; value: string }
+  | { kind: 'subscription'; value: string };
+
+export type ManualLicenseInput = {
+  reason: ManualReason;
+  validUntil: string | null;
+  note: string | null;
+};
+
+export type SupportChanges = {
+  supportStatus?: SupportStatus;
+  supportNote?: string | null;
+};
+
 export type ActivationRequest = {
   licenseId: string;
   installationId: string;
@@ -116,8 +146,23 @@ export interface LicenseStore {
   completeWebhookEvent(eventId: string, now: string): Promise<void>;
   /** Lets the provider's retry process a failed event again. */
   abandonWebhookEvent(eventId: string): Promise<void>;
+  /** A license granted by support, without any provider customer or subscription. */
+  createManualLicense(input: ManualLicenseInput, id: string, now: string): Promise<LicenseRecord>;
+  searchLicenses(search: LicenseSearch, limit: number): Promise<LicenseRecord[]>;
+  /** Support block and note; billing fields are never changed here. `null` if the license does not exist. */
+  updateSupport(licenseId: string, changes: SupportChanges, now: string): Promise<LicenseRecord | null>;
+  /** Changes the end of a manual license; `null` for unknown and provider licenses. */
+  updateManualValidity(licenseId: string, validUntil: string | null, now: string): Promise<LicenseRecord | null>;
+  appendAudit(entry: AuditEntry): Promise<void>;
+  /** Newest entries first. */
+  listAudit(licenseId: string, limit: number): Promise<AuditEntry[]>;
   ping(): Promise<void>;
   close(): Promise<void>;
+}
+
+/** The characters of `licenseReference`, used to find a license from a support ticket. */
+export function referenceKey(licenseId: string): string {
+  return licenseId.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toUpperCase();
 }
 
 /** Keeps everything in memory, for tests and local development without PostgreSQL. */
@@ -264,6 +309,83 @@ export class MemoryLicenseStore implements LicenseStore {
 
   async abandonWebhookEvent(eventId: string) {
     this.events.delete(eventId);
+  }
+
+  private readonly audit: AuditEntry[] = [];
+
+  async createManualLicense(input: ManualLicenseInput, id: string, now: string) {
+    const license: LicenseRecord = {
+      id,
+      source: MANUAL_SOURCE,
+      providerCustomerId: null,
+      providerSubscriptionId: null,
+      providerStatus: null,
+      currentPeriodEndsAt: null,
+      scheduledCancelAt: null,
+      canceledAt: null,
+      revokedAt: null,
+      manualValidUntil: input.validUntil,
+      manualReason: input.reason,
+      supportStatus: 'none',
+      supportNote: input.note,
+      providerUpdatedAt: null,
+      codeHash: null,
+      codeIssuedAt: null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.licenses.set(id, license);
+    return { ...license };
+  }
+
+  async searchLicenses(search: LicenseSearch, limit: number) {
+    const all = [...this.licenses.values()];
+    const matches = (() => {
+      switch (search.kind) {
+        case 'recent':
+          return all;
+        case 'id':
+          return all.filter((license) => license.id === search.value);
+        case 'reference':
+          return all.filter((license) => referenceKey(license.id) === search.value);
+        case 'customer':
+          return all.filter((license) => license.providerCustomerId === search.value);
+        case 'subscription':
+          return all.filter((license) => license.providerSubscriptionId === search.value);
+      }
+    })();
+    return matches
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .slice(0, limit)
+      .map((license) => ({ ...license }));
+  }
+
+  async updateSupport(licenseId: string, changes: SupportChanges, now: string) {
+    const license = this.licenses.get(licenseId);
+    if (!license) return null;
+    if (changes.supportStatus !== undefined) license.supportStatus = changes.supportStatus;
+    if (changes.supportNote !== undefined) license.supportNote = changes.supportNote;
+    license.updatedAt = now;
+    return { ...license };
+  }
+
+  async updateManualValidity(licenseId: string, validUntil: string | null, now: string) {
+    const license = this.licenses.get(licenseId);
+    if (!license || license.source !== MANUAL_SOURCE) return null;
+    Object.assign(license, { manualValidUntil: validUntil, updatedAt: now });
+    return { ...license };
+  }
+
+  async appendAudit(entry: AuditEntry) {
+    this.audit.push({ ...entry, metadata: { ...entry.metadata } });
+  }
+
+  async listAudit(licenseId: string, limit: number) {
+    return this.audit
+      .filter((entry) => entry.licenseId === licenseId)
+      .reverse()
+      .slice(0, limit)
+      .map((entry) => ({ ...entry, metadata: { ...entry.metadata } }));
   }
 
   async ping() {}

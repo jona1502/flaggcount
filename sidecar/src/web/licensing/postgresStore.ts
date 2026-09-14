@@ -1,12 +1,16 @@
 import type { Pool, PoolClient } from 'pg';
 import type {
   ActivationRequest,
+  AuditEntry,
   InstallationRecord,
   LicenseRecord,
+  LicenseSearch,
   LicenseStore,
+  ManualLicenseInput,
   ManualReason,
   SubscriptionStatus,
   SubscriptionUpdate,
+  SupportChanges,
   SupportStatus
 } from './store';
 
@@ -241,6 +245,89 @@ export class PostgresLicenseStore implements LicenseStore {
 
   async abandonWebhookEvent(eventId: string) {
     await this.pool.query('DELETE FROM webhook_events WHERE event_id = $1 AND processed_at IS NULL', [eventId]);
+  }
+
+  async createManualLicense(input: ManualLicenseInput, id: string, now: string) {
+    const { rows } = await this.pool.query<LicenseRow>(
+      `INSERT INTO licenses (id, source, manual_reason, manual_valid_until, support_note, created_at, updated_at)
+       VALUES ($1, 'manual', $2, $3, $4, $5, $5)
+       RETURNING ${LICENSE_COLUMNS}`,
+      [id, input.reason, input.validUntil, input.note, now]
+    );
+    const [row] = rows;
+    if (!row) throw new Error('The manual license was not created');
+    return toLicense(row);
+  }
+
+  async searchLicenses(search: LicenseSearch, limit: number) {
+    const conditions: Record<Exclude<LicenseSearch['kind'], 'recent'>, string> = {
+      id: 'id::text = $1',
+      reference: "upper(left(replace(id::text, '-', ''), 10)) = $1",
+      customer: 'provider_customer_id = $1',
+      subscription: 'provider_subscription_id = $1'
+    };
+    const { rows } =
+      search.kind === 'recent'
+        ? await this.pool.query<LicenseRow>(`SELECT ${LICENSE_COLUMNS} FROM licenses ORDER BY updated_at DESC LIMIT $1`, [limit])
+        : await this.pool.query<LicenseRow>(
+            `SELECT ${LICENSE_COLUMNS} FROM licenses WHERE ${conditions[search.kind]} ORDER BY updated_at DESC LIMIT $2`,
+            [search.value, limit]
+          );
+    return rows.map(toLicense);
+  }
+
+  async updateSupport(licenseId: string, changes: SupportChanges, now: string) {
+    const { rows } = await this.pool.query<LicenseRow>(
+      `UPDATE licenses SET
+         support_status = COALESCE($2, support_status),
+         support_note = CASE WHEN $3 THEN $4 ELSE support_note END,
+         updated_at = $5
+       WHERE id = $1
+       RETURNING ${LICENSE_COLUMNS}`,
+      [licenseId, changes.supportStatus ?? null, changes.supportNote !== undefined, changes.supportNote ?? null, now]
+    );
+    return rows[0] ? toLicense(rows[0]) : null;
+  }
+
+  async updateManualValidity(licenseId: string, validUntil: string | null, now: string) {
+    const { rows } = await this.pool.query<LicenseRow>(
+      `UPDATE licenses SET manual_valid_until = $2, updated_at = $3
+       WHERE id = $1 AND source = 'manual'
+       RETURNING ${LICENSE_COLUMNS}`,
+      [licenseId, validUntil, now]
+    );
+    return rows[0] ? toLicense(rows[0]) : null;
+  }
+
+  async appendAudit(entry: AuditEntry) {
+    await this.pool.query(
+      `INSERT INTO admin_audit_log (id, admin_subject, action, license_id, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [entry.id, entry.adminSubject, entry.action, entry.licenseId, JSON.stringify(entry.metadata), entry.createdAt]
+    );
+  }
+
+  async listAudit(licenseId: string, limit: number) {
+    const { rows } = await this.pool.query<{
+      id: string;
+      admin_subject: string;
+      action: string;
+      license_id: string | null;
+      metadata: AuditEntry['metadata'];
+      created_at: Date;
+    }>(
+      `SELECT id, admin_subject, action, license_id, metadata, created_at FROM admin_audit_log
+       WHERE license_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2`,
+      [licenseId, limit]
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      adminSubject: row.admin_subject,
+      action: row.action,
+      licenseId: row.license_id,
+      metadata: row.metadata,
+      createdAt: row.created_at.toISOString()
+    }));
   }
 
   async ping() {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MemoryLicenseStore, type LicenseStore, type SubscriptionUpdate } from './store';
+import { MemoryLicenseStore, referenceKey, type LicenseSearch, type LicenseStore, type SubscriptionUpdate } from './store';
 
 const DATABASE_URL = process.env['TEST_DATABASE_URL'];
 
@@ -132,6 +132,66 @@ describe.each(factories)('$name license store', (factory) => {
     expect(await store.deactivateInstallation(license.id, 'device-a', T2)).toBe(true);
     expect(await store.deactivateInstallation(license.id, 'device-a', T2)).toBe(false);
     expect(await store.findInstallation(license.id, 'device-a')).toMatchObject({ deactivatedAt: T2 });
+  });
+
+  it('creates manual licenses without provider data and searches licenses', async () => {
+    const manualId = randomUUID();
+    const manual = await store.createManualLicense({ reason: 'creator', validUntil: T2, note: 'Kooperation' }, manualId, T1);
+    const paid = await createLicense(`sub_${randomUUID()}`);
+
+    expect(manual).toMatchObject({
+      id: manualId,
+      source: 'manual',
+      providerCustomerId: null,
+      providerSubscriptionId: null,
+      providerStatus: null,
+      providerUpdatedAt: null,
+      manualReason: 'creator',
+      manualValidUntil: T2,
+      supportStatus: 'none',
+      supportNote: 'Kooperation'
+    });
+    const found = async (search: LicenseSearch) => (await store.searchLicenses(search, 10)).map((license) => license.id);
+    expect(await found({ kind: 'id', value: manualId })).toEqual([manualId]);
+    expect(await found({ kind: 'reference', value: referenceKey(manualId) })).toEqual([manualId]);
+    expect(await found({ kind: 'subscription', value: paid.providerSubscriptionId ?? '' })).toEqual([paid.id]);
+    expect(await found({ kind: 'customer', value: 'ctm_1' })).toContain(paid.id);
+    expect((await store.searchLicenses({ kind: 'recent' }, 1)).length).toBe(1);
+  });
+
+  it('changes support fields and manual validity, but never the validity of provider licenses', async () => {
+    const paid = await createLicense();
+    const manual = await store.createManualLicense({ reason: 'support', validUntil: null, note: null }, randomUUID(), T0);
+
+    expect(await store.updateSupport(paid.id, { supportStatus: 'blocked' }, T1)).toMatchObject({ supportStatus: 'blocked', supportNote: null });
+    expect(await store.updateSupport(paid.id, { supportNote: 'Hinweis' }, T2)).toMatchObject({ supportStatus: 'blocked', supportNote: 'Hinweis', updatedAt: T2 });
+    expect(await store.updateSupport(paid.id, { supportNote: null }, T2)).toMatchObject({ supportNote: null });
+    expect(await store.updateSupport(randomUUID(), { supportStatus: 'none' }, T2)).toBeNull();
+
+    expect(await store.updateManualValidity(manual.id, T2, T1)).toMatchObject({ manualValidUntil: T2 });
+    expect(await store.updateManualValidity(paid.id, T2, T1)).toBeNull();
+    expect((await store.findById(paid.id))?.manualValidUntil).toBeNull();
+  });
+
+  it('keeps the admin audit log per license, newest first', async () => {
+    const license = await createLicense();
+    const entry = (action: string, createdAt: string) => ({
+      id: randomUUID(),
+      adminSubject: 'github:1',
+      action,
+      licenseId: license.id,
+      metadata: { installationId: 'device-a', mailed: false, until: null },
+      createdAt
+    });
+
+    await store.appendAudit(entry('license-blocked', T0));
+    await store.appendAudit(entry('license-unblocked', T1));
+
+    expect(await store.listAudit(license.id, 10)).toMatchObject([
+      { action: 'license-unblocked', createdAt: T1, metadata: { installationId: 'device-a', mailed: false, until: null } },
+      { action: 'license-blocked', createdAt: T0 }
+    ]);
+    expect(await store.listAudit(license.id, 1)).toHaveLength(1);
   });
 
   it('processes each webhook event once, unless processing failed', async () => {

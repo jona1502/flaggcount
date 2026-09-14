@@ -10,7 +10,7 @@ import {
 import type { EntitlementSigner } from '../../license/signature';
 import type { StructuredLogger } from '../structuredLog';
 import type { BillingEvent, BillingPlanId, BillingProvider, MailSender, PriceQuote, SubscriptionSnapshot } from './billing';
-import { activationMail, recoveryMail } from './mailTemplates';
+import { activationMail, recoveryMail, supportMail } from './mailTemplates';
 import {
   generateActivationCode,
   generateInstallationSecret,
@@ -339,25 +339,46 @@ export class LicenseService {
   }
 
   private async issueActivationCode(license: LicenseRecord, reason: 'activation' | 'recovery'): Promise<void> {
-    const { store, provider, mailer, logger, supportEmail, codePepper } = this.options;
+    await this.replaceActivationCode(license, 'email', reason);
+  }
+
+  /**
+   * Replaces the license's activation code; earlier codes stop working, activated installations stay.
+   * `email` sends the new code to the purchase address; `return` hands it to the caller once, e.g. to
+   * support for a manual license. The code itself is stored only as a keyed hash.
+   */
+  async replaceActivationCode(
+    license: LicenseRecord,
+    delivery: 'email' | 'return',
+    reason: 'activation' | 'recovery' | 'support'
+  ): Promise<{ code: string | null; mailed: boolean }> {
+    const { store, codePepper } = this.options;
     const code = generateActivationCode();
     const normalized = normalizeActivationCode(code);
     if (!normalized) throw new Error('Generated an invalid activation code');
     await store.setActivationCode(license.id, hashActivationCode(normalized, codePepper), this.timestamp());
+    if (delivery === 'return') return { code, mailed: false };
+    return { code: null, mailed: await this.mailCode(license, code, reason) };
+  }
 
+  private async mailCode(license: LicenseRecord, code: string, reason: 'activation' | 'recovery' | 'support'): Promise<boolean> {
+    const { provider, mailer, logger, supportEmail } = this.options;
     // A failed email must not fail the purchase: the customer can request the code again.
     try {
-      const email = license.providerCustomerId ? await provider.customerEmail(license.providerCustomerId) : null;
+      const email =
+        license.source === provider.name && license.providerCustomerId ? await provider.customerEmail(license.providerCustomerId) : null;
       if (!email) {
         logger('warn', 'activation-mail-skipped', { license: licenseReference(license.id), reason: 'no-email' });
-        return;
+        return false;
       }
       const reference = licenseReference(license.id);
-      const message = reason === 'activation' ? activationMail(code, reference, supportEmail) : recoveryMail(code, reference, supportEmail);
-      await mailer.send({ to: email, ...message });
+      const template = { activation: activationMail, recovery: recoveryMail, support: supportMail }[reason];
+      await mailer.send({ to: email, ...template(code, reference, supportEmail) });
       logger('info', 'activation-mail-sent', { license: reference, reason });
+      return true;
     } catch (error) {
       logger('error', 'activation-mail-failed', { license: licenseReference(license.id), error: errorName(error) });
+      return false;
     }
   }
 
@@ -395,11 +416,11 @@ export class LicenseService {
   }
 }
 
-function isInstallationId(value: unknown): value is string {
+export function isInstallationId(value: unknown): value is string {
   return typeof value === 'string' && INSTALLATION_ID_PATTERN.test(value);
 }
 
-function summarize(installation: InstallationRecord): InstallationSummary {
+export function summarize(installation: InstallationRecord): InstallationSummary {
   return {
     installationId: installation.installationId,
     activatedAt: installation.activatedAt,
