@@ -11,6 +11,7 @@ import { DEFAULT_RELAY_URL } from './relay/relayChannel';
 import { loadOrCreateRelayKey } from './relay/relayKey';
 import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './server/localServer';
 import { createTikTokConnection } from './tiktok/tiktokConnection';
+import { createTikTokAdapter } from './tiktok/TikTokAdapter';
 import { RoundHistoryStore } from './historyStore';
 
 // stdout is reserved for protocol events; route all console output to stderr.
@@ -91,7 +92,7 @@ async function main(): Promise<void> {
     onEntitlements: (entitlements) => app.setEntitlements(entitlements),
     log
   });
-  const app = new SidecarApp(createTikTokConnection, send, {
+  const app = new SidecarApp(createTikTokAdapter(createTikTokConnection), send, {
     license,
     history,
     onHistoryChanged: (records) => { void historyStore?.replace(records).catch(() => log('error', 'Saving round history failed')); }

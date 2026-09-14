@@ -6,7 +6,7 @@ import { MAX_TARGET, MIN_TARGET, isValidTarget, type VoteSnapshot } from '../../
 import { SidecarApp } from '../app';
 import { describeError } from '../logging';
 import { parseOverlaySettings, type LogLevel, type SidecarCommand, type SidecarEvent } from '../protocol';
-import type { LiveConnectionFactory } from '../tiktok/TikTokLiveService';
+import type { LiveChatServiceFactory } from '../live/LiveChatService';
 import { normalizeUsername } from '../tiktok/username';
 
 export type Logger = (level: LogLevel, message: string) => void;
@@ -28,13 +28,13 @@ export class WebController {
   private settings: Settings;
 
   constructor(
-    createConnection: LiveConnectionFactory,
+    createLiveService: LiveChatServiceFactory,
     settings: Settings,
     private readonly store: SettingsSaver,
     private readonly log: Logger
   ) {
     this.settings = settings;
-    this.app = new SidecarApp(createConnection, (event) => this.handleEvent(event));
+    this.app = new SidecarApp(createLiveService, (event) => this.handleEvent(event));
   }
 
   /** Applies the counters of the saved profile to the new round. */

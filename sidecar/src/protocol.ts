@@ -5,6 +5,7 @@ import { parseOverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 import type { LicenseCredentials } from './license/licenseManager';
 import type { RoundRecord } from '../../shared/history';
+import type { NormalizedChatMessage } from '../../shared/live';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
 export type ConnectionErrorCode = AppErrorCode;
@@ -17,14 +18,10 @@ export const PROTOCOL_VERSION = 5;
  * Stable, library-independent representation of a TikTok chat comment.
  * Internal to the sidecar: chat content is never sent to Tauri or the UI.
  */
-export type ChatMessage = {
-  messageId: string;
+export type ChatMessage = NormalizedChatMessage & {
   /** Stable TikTok user id; falls back to `unique:<handle>` if TikTok omits it. */
-  userId: string;
   uniqueId: string;
   nickname: string;
-  comment: string;
-  receivedAt: number;
 };
 
 /** Without a counter id, manual votes go to the first counter; single counters need no option id. */

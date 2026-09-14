@@ -3,6 +3,7 @@ import { describeError } from '../logging';
 import { createEntitlementVerifier, rawPublicKey } from '../license/signature';
 import type { LogLevel } from '../protocol';
 import { createTikTokConnectionFactory } from '../tiktok/tiktokConnection';
+import { createTikTokAdapter } from '../tiktok/TikTokAdapter';
 import { createLatestRelease } from './latestRelease';
 import { RelayChannels } from './relayChannels';
 import { SettingsStore } from './settingsStore';
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
 
   const store = new SettingsStore(join(dataDir, 'settings.json'));
   const waitlist = new WaitlistStore(join(dataDir, 'pro-waitlist.json'));
-  const controller = new WebController(createTikTokConnectionFactory({ signApiKey }), await store.load(), store, log);
+  const controller = new WebController(createTikTokAdapter(createTikTokConnectionFactory({ signApiKey })), await store.load(), store, log);
   await controller.start();
 
   // Billing is optional: without its configuration, or while its database is down, the dashboard,

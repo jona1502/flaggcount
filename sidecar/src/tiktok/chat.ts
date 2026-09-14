@@ -29,6 +29,7 @@ export function toChatMessage(raw: RawChatMessage, receivedAt: number): ChatMess
   }
 
   return {
+    platform: 'tiktok',
     messageId: raw.common?.msgId ?? '',
     userId,
     uniqueId,

@@ -8,6 +8,7 @@ import { RelayChannels, type BoardRelayUpdate } from './relayChannels';
 import { isCorrectPassword } from './session';
 import { WebController } from './webController';
 import { clientAddress, isTrustedProxyAddress, startWebServer, type WebServerOptions } from './webServer';
+import { createTikTokAdapter } from '../tiktok/TikTokAdapter';
 
 const PASSWORD = 'correct-horse-battery';
 const cleanups: (() => Promise<unknown> | void)[] = [];
@@ -21,7 +22,7 @@ afterEach(async () => {
 async function start(overrides: Partial<WebServerOptions> = {}) {
   const saved: Settings[] = [];
   const controller = new WebController(
-    () => ({ connect: async () => undefined, disconnect: async () => undefined }),
+    createTikTokAdapter(() => ({ connect: async () => undefined, disconnect: async () => undefined })),
     migrateSettingsV1(
       { username: '', target: 100, overlay: { ...DEFAULT_OVERLAY_SETTINGS, showBackground: true, showProgress: true } },
       '2026-01-01T00:00:00.000Z'

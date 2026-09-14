@@ -8,7 +8,7 @@ import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot }
 import type { LicenseManager } from './license/licenseManager';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { trimHistory, type RoundRecord } from '../../shared/history';
-import { TikTokLiveService, type LiveConnectionFactory } from './tiktok/TikTokLiveService';
+import type { LiveChatService, LiveChatServiceFactory } from './live/LiveChatService';
 
 export type SidecarStateSnapshot = {
   connection: ConnectionState;
@@ -32,7 +32,7 @@ export type SidecarAppOptions = {
   onHistoryChanged?: (history: RoundRecord[]) => void;
 };
 
-/** Wires the TikTok connection to the voting logic and reports sanitized updates. */
+/** Wires the selected live-chat provider to voting and reports sanitized updates. */
 export class SidecarApp {
   /** Counters as configured by the user; the plan decides which of them run. */
   private requested: CounterDefinition[];
@@ -40,7 +40,7 @@ export class SidecarApp {
   private overlayViews: OverlayView[];
   private entitlements: Entitlements;
   private readonly engine: VotingEngine;
-  private readonly live: TikTokLiveService;
+  private readonly live: LiveChatService;
   private readonly license: LicenseManager | null;
   private readonly voteListeners = new Set<(votes: VoteSnapshot) => void>();
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
@@ -54,7 +54,7 @@ export class SidecarApp {
   private profileName = 'Aktives Profil';
 
   constructor(
-    createConnection: LiveConnectionFactory,
+    createLiveService: LiveChatServiceFactory,
     private readonly send: (event: SidecarEvent) => void,
     options: SidecarAppOptions = {}
   ) {
@@ -74,7 +74,7 @@ export class SidecarApp {
       this.notifyBoard();
     });
 
-    this.live = new TikTokLiveService(createConnection, {
+    this.live = createLiveService({
       onStatus: (connection) => {
         send({ type: 'status', connection });
       },

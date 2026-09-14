@@ -9,6 +9,7 @@ import type { BillingEvent, BillingProvider, MailMessage } from './billing';
 import { LicenseService } from './licenseService';
 import { LICENSING_PATHS, createLicensingHandler, type LicensingHandlerOptions } from './licensingRoutes';
 import { MemoryLicenseStore } from './store';
+import { createTikTokAdapter } from '../../tiktok/TikTokAdapter';
 
 const KEYS = generateSigningKeyPair();
 const cleanups: (() => Promise<unknown>)[] = [];
@@ -44,7 +45,7 @@ async function start(overrides: Partial<LicensingHandlerOptions> = {}, withServi
     logger: () => undefined
   });
   const controller = new WebController(
-    () => ({ connect: async () => undefined, disconnect: async () => undefined }),
+    createTikTokAdapter(() => ({ connect: async () => undefined, disconnect: async () => undefined })),
     createDefaultSettings('2026-01-01T00:00:00.000Z'),
     { save: async () => undefined },
     () => undefined

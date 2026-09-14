@@ -6,6 +6,7 @@ import { DEFAULT_OVERLAY_SETTINGS } from '../../shared/settings';
 import { SidecarApp } from './app';
 import type { SidecarEvent } from './protocol';
 import type { LiveConnectionHandlers } from './tiktok/TikTokLiveService';
+import { createTikTokAdapter } from './tiktok/TikTokAdapter';
 
 const teams: CounterDefinition = {
   id: 'teams',
@@ -26,10 +27,10 @@ function createApp(entitlements: Entitlements = PRO_ENTITLEMENTS) {
   let rounds = 0;
 
   const app = new SidecarApp(
-    (_username, handlers) => {
+    createTikTokAdapter((_username, handlers) => {
       connections.push(handlers);
       return { connect: async () => undefined, disconnect: async () => undefined };
-    },
+    }),
     (event) => events.push(event),
     { counters: [createRedFlagCounter(10)], createRoundId: () => `round-${++rounds}`, entitlements }
   );

@@ -7,6 +7,7 @@ import { SidecarApp } from '../app';
 import { parseCommand, serializeEvent, type SidecarEvent } from '../protocol';
 import { startLocalServer } from '../server/localServer';
 import type { LiveConnectionHandlers } from '../tiktok/TikTokLiveService';
+import { createTikTokAdapter } from '../tiktok/TikTokAdapter';
 
 const TOKEN = 't'.repeat(64);
 const cleanups: (() => Promise<unknown> | void)[] = [];
@@ -25,10 +26,10 @@ async function startSidecar() {
   const connections: { username: string; handlers: LiveConnectionHandlers }[] = [];
 
   const app = new SidecarApp(
-    (username, handlers) => {
+    createTikTokAdapter((username, handlers) => {
       connections.push({ username, handlers });
       return { connect: async () => undefined, disconnect: async () => undefined };
-    },
+    }),
     // Round-trip through the wire format, exactly like the stdout pipe to Tauri.
     (event) => events.push(JSON.parse(serializeEvent(event)) as SidecarEvent)
   );

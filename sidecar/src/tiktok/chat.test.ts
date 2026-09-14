@@ -13,6 +13,7 @@ describe('toChatMessage', () => {
     );
 
     expect(message).toEqual({
+      platform: 'tiktok',
       messageId: 'm1',
       userId: '123',
       uniqueId: 'Viewer',
@@ -28,6 +29,7 @@ describe('toChatMessage', () => {
 
   it('defaults missing optional fields', () => {
     expect(toChatMessage({ user: { id: '5' } }, 2)).toEqual({
+      platform: 'tiktok',
       messageId: '',
       userId: '5',
       uniqueId: '',

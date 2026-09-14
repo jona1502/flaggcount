@@ -1,7 +1,8 @@
-import type { ChatMessage, ConnectionError, ConnectionErrorCode, ConnectionState, LogLevel } from '../protocol';
+import type { ConnectionErrorCode, ConnectionState, LogLevel } from '../protocol';
 import { toChatMessage, type RawChatMessage } from './chat';
 import { toConnectionError } from './errors';
 import { normalizeUsername } from './username';
+import type { LiveChatService, LiveChatServiceListener } from '../live/LiveChatService';
 
 export type LiveConnectionHandlers = {
   onChat: (raw: RawChatMessage) => void;
@@ -18,13 +19,7 @@ export interface LiveConnection {
 
 export type LiveConnectionFactory = (username: string, handlers: LiveConnectionHandlers) => LiveConnection;
 
-export type TikTokLiveServiceListener = {
-  onStatus: (state: ConnectionState) => void;
-  onChat: (message: ChatMessage) => void;
-  onError: (error: ConnectionError) => void;
-  /** Receives sanitized log messages: never usernames or chat content. */
-  onLog?: (level: LogLevel, message: string) => void;
-};
+export type TikTokLiveServiceListener = LiveChatServiceListener;
 
 export type ReconnectPolicy = {
   maxAttempts: number;
@@ -56,7 +51,7 @@ export function reconnectDelay(attempt: number, policy: ReconnectPolicy, random:
   return Math.round(exponential * (0.8 + 0.2 * random()));
 }
 
-export class TikTokLiveService {
+export class TikTokLiveService implements LiveChatService {
   private connection: LiveConnection | null = null;
   // Bumped whenever the current connection is replaced or dropped, so late
   // events from an old connection are ignored.
