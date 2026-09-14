@@ -75,7 +75,7 @@ export const OverlayEditor = forwardRef<HTMLHeadingElement, OverlayEditorProps>(
         label="Overlay-Bereiche"
         idPrefix="overlay-editor"
         items={[
-          { id: 'design', label: target.kind === 'board' ? 'Vorschau' : 'Design' },
+          { id: 'design', label: target.kind === 'counter' ? 'Design' : 'Vorschau' },
           { id: 'setup', label: 'Einrichtung' }
         ]}
         value={section}
@@ -85,11 +85,13 @@ export const OverlayEditor = forwardRef<HTMLHeadingElement, OverlayEditorProps>(
       <TabPanel idPrefix="overlay-editor" id={section}>
         {section === 'setup' ? (
           <OverlaySetupGuide target={target} />
-        ) : target.kind === 'board' ? (
+        ) : target.kind !== 'counter' ? (
           <div className="overlay-board-preview">
             <Callout tone="info" title="Alle Elemente in einem Overlay">
-              Die Gesamtansicht ordnet alle laufenden Zähler und Abstimmungen in einem festen Raster an. Jedes Element erscheint mit seinem eigenen
-              Design – bearbeite dafür das jeweilige Element.
+              {target.kind === 'board'
+                ? 'Die automatische Gesamtansicht zeigt alle laufenden Zähler und Abstimmungen.'
+                : 'Diese Ansicht zeigt die ausgewählten Elemente in der gespeicherten Reihenfolge und im gewählten Layout.'}{' '}
+              Jedes Element behält sein eigenes Design.
             </Callout>
             {target.localUrl && (
               <figure className="overlay-preview-frame">

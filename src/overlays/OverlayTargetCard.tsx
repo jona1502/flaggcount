@@ -17,6 +17,7 @@ export function statusBadge(status: OverlayTargetStatus, isPro: boolean): { tone
 
 export function targetTypeLabel(target: OverlayTarget): string {
   if (target.kind === 'board') return 'Alle Elemente';
+  if (target.kind === 'view') return `${target.view?.counterIds.length ?? 0} Elemente`;
   return target.mode === 'poll' ? 'Abstimmung' : 'Einfacher Zähler';
 }
 
@@ -42,7 +43,7 @@ export function OverlayTargetCard({ target, selected, isPro, onSelect, onCopy }:
   return (
     <li className={cx('overlay-card', selected && 'is-selected')} data-status={target.status}>
       <div className="overlay-swatch" style={swatch} aria-hidden="true" data-kind={target.kind}>
-        {target.kind === 'board' ? (
+        {target.kind !== 'counter' ? (
           <span className="overlay-swatch-board">
             <span />
             <span />
@@ -73,7 +74,7 @@ export function OverlayTargetCard({ target, selected, isPro, onSelect, onCopy }:
           aria-label={`${target.label} ${target.kind === 'board' ? 'ansehen' : 'bearbeiten'}`}
           onClick={onSelect}
         >
-          {target.kind === 'board' ? 'Ansehen' : 'Design'}
+          {target.kind === 'board' ? 'Ansehen' : 'Bearbeiten'}
         </Button>
         {target.localUrl && (
           <IconButton size="sm" variant="secondary" icon={IconCopy} label={`Lokale URL von ${target.label} kopieren`} onClick={() => onCopy(target.localUrl!)} />

@@ -1,4 +1,34 @@
 /* Overlay gallery, editor and setup guide. */
+.fc-app .overlay-gallery-section {
+  display: grid;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .overlay-gallery-section > h2,
+.fc-app .overlay-gallery-heading h2 {
+  font-size: var(--fc-text-lg);
+}
+
+.fc-app .overlay-gallery-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .overlay-gallery-heading p,
+.fc-app .overlay-gallery-heading > span {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .overlay-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-space-2);
+}
+
 .fc-app .overlay-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
@@ -200,6 +230,73 @@
 .fc-app .overlay-board-preview {
   display: grid;
   gap: var(--fc-space-4);
+}
+
+.fc-app .overlay-composer-form,
+.fc-app .overlay-composer-elements,
+.fc-app .overlay-composer-order {
+  display: grid;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .overlay-composer-elements {
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+}
+
+.fc-app .overlay-composer-elements legend,
+.fc-app .overlay-composer-order h3 {
+  font-weight: 700;
+}
+
+.fc-app .overlay-composer-checks,
+.fc-app .overlay-composer-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--fc-space-3);
+}
+
+.fc-app .overlay-composer-check {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-2);
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
+  cursor: pointer;
+}
+
+.fc-app .overlay-composer-check:has(input:checked) {
+  border-color: var(--fc-accent);
+}
+
+.fc-app .overlay-composer-check span,
+.fc-app .overlay-composer-check small {
+  display: grid;
+}
+
+.fc-app .overlay-composer-check small {
+  color: var(--fc-text-subtle);
+}
+
+.fc-app .overlay-composer-order ol {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .overlay-composer-order li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fc-space-2);
+  padding: var(--fc-space-2) var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
 }
 
 .fc-app .overlays-page .designer {

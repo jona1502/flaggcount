@@ -1,6 +1,6 @@
 import type { AppState } from '../../shared/appState';
 import { canUse, limitFor, type Entitlements } from '../../shared/entitlements';
-import type { CounterDefinition, CounterMode } from '../../shared/profiles';
+import type { CounterDefinition, CounterMode, OverlayView } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
 
 /** Scope of the combined overlay, as served by the sidecar under `/overlay/all`. */
@@ -12,7 +12,7 @@ export type OverlayTargetStatus = 'ready' | 'pro-required' | 'paused' | 'service
 export type OverlayTarget = {
   /** The counter id, or `all` for the combined view. */
   id: string;
-  kind: 'counter' | 'board';
+  kind: 'counter' | 'board' | 'view';
   label: string;
   mode: CounterMode | null;
   /** The design of a counter; the combined view shows every counter with its own design. */
@@ -23,6 +23,7 @@ export type OverlayTarget = {
   status: OverlayTargetStatus;
   /** The address of FlagCount 0.2, kept for the first counter so existing OBS sources keep working. */
   classic: boolean;
+  view: OverlayView | null;
 };
 
 /**
@@ -33,7 +34,8 @@ export function overlayTargets(
   state: AppState,
   entitlements: Entitlements,
   stored: readonly CounterDefinition[],
-  running: readonly CounterDefinition[]
+  running: readonly CounterDefinition[],
+  customViews: readonly OverlayView[] = []
 ): OverlayTarget[] {
   const base = state.overlayUrl;
   const online = state.counterOverlayUrls ?? {};
@@ -55,7 +57,8 @@ export function overlayTargets(
       publicUrl: available ? (classic ? state.publicOverlayUrl : (online[counter.id] ?? null)) : null,
       available,
       status,
-      classic
+      classic,
+      view: null
     };
   });
 
@@ -71,14 +74,39 @@ export function overlayTargets(
     publicUrl: boardStatus === 'ready' ? (online[OVERVIEW_TARGET] ?? null) : null,
     available: boardStatus === 'ready',
     status: boardStatus,
-    classic: false
+    classic: false,
+    view: null
   };
 
-  return [...counters, board];
+  const views = customViews.map((view): OverlayTarget => {
+    const activeIds = new Set(running.map((counter) => counter.id));
+    const status: OverlayTargetStatus = !canUse(entitlements, 'parallel-counters')
+      ? 'pro-required'
+      : !view.counterIds.some((id) => activeIds.has(id))
+        ? 'paused'
+        : base === null
+          ? 'service-unavailable'
+          : 'ready';
+    return {
+      id: view.id,
+      kind: 'view',
+      label: view.name,
+      mode: null,
+      overlay: null,
+      localUrl: status === 'ready' ? `${base}/view/${view.id}` : null,
+      publicUrl: status === 'ready' ? (online[view.id] ?? null) : null,
+      available: status === 'ready',
+      status,
+      classic: false,
+      view
+    };
+  });
+
+  return [...counters, board, ...views];
 }
 
 /** Browser source size that fits the overlay without cropping; its background stays transparent. */
 export function recommendedSize(target: OverlayTarget): { width: number; height: number } {
-  if (target.kind === 'board') return { width: 1280, height: 720 };
+  if (target.kind === 'board' || target.kind === 'view') return { width: 1280, height: 720 };
   return target.mode === 'poll' ? { width: 600, height: 400 } : { width: 520, height: 200 };
 }
