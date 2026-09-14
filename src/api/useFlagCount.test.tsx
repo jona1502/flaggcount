@@ -43,6 +43,8 @@ function createFakeApi() {
     getState: vi.fn(async () => initialState),
     connect: vi.fn(async (_username: string) => undefined),
     disconnect: vi.fn(async () => undefined),
+    startTwitchAuth: vi.fn(async () => undefined),
+    disconnectTwitchAccount: vi.fn(async () => undefined),
     addManualVote: vi.fn(async () => undefined),
     removeManualVote: vi.fn(async () => undefined),
     resetVotes: vi.fn(async () => undefined),

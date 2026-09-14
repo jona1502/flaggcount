@@ -6,13 +6,15 @@ import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 import type { LicenseCredentials } from './license/licenseManager';
 import type { RoundRecord } from '../../shared/history';
 import type { NormalizedChatMessage } from '../../shared/live';
+import type { TwitchAuthState } from '../../shared/live';
+import type { TwitchCredentials } from './twitch/oauth';
 
 export type { ConnectionState, ConnectionStatus } from '../../shared/appState';
 export type ConnectionErrorCode = AppErrorCode;
 export type ConnectionError = AppError;
 
 /** Bumped whenever commands or events change incompatibly; the sidecar reports it on `ready`. */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /**
  * Stable, library-independent representation of a TikTok chat comment.
@@ -34,6 +36,9 @@ export type VoteTarget = {
 export type SidecarCommand =
   | { type: 'connect'; username: string }
   | { type: 'disconnect' }
+  | { type: 'configureTwitchAuth'; credentials: TwitchCredentials | null }
+  | { type: 'startTwitchAuth' }
+  | { type: 'disconnectTwitchAccount' }
   | ({ type: 'addManualVote' } & VoteTarget)
   | ({ type: 'removeManualVote' } & VoteTarget)
   /** Without a counter id, every counter starts a new round. */
@@ -63,6 +68,8 @@ export type SidecarEvent =
   | { type: 'history'; history: RoundRecord[] }
   /** License status for the UI: never the code or the secret. */
   | { type: 'license'; license: LicenseState }
+  | { type: 'twitchAuth'; auth: TwitchAuthState }
+  | { type: 'twitchCredentials'; credentials: TwitchCredentials | null }
   /** Public Pro overlay URL per counter id and `all`; empty whenever Pro or the relay is unavailable. */
   | { type: 'overlayUrls'; urls: Record<string, string> }
   /** For Tauri to store: the secret goes to the Windows Credential Manager. `null` removes it. */
@@ -154,6 +161,15 @@ export function parseCommand(line: string): SidecarCommand | null {
       }
       return { type: 'configureLicense', installationId, credentials, entitlement: record['entitlement'] ?? null };
     }
+    case 'configureTwitchAuth': {
+      const credentials = record['credentials'];
+      if (credentials === null) return { type: 'configureTwitchAuth', credentials: null };
+      if (typeof credentials !== 'object' || Array.isArray(credentials)) return null;
+      const item = credentials as Record<string, unknown>;
+      return typeof item['accessToken'] === 'string' && typeof item['refreshToken'] === 'string' && typeof item['expiresAt'] === 'string'
+        ? { type: 'configureTwitchAuth', credentials: { accessToken: item['accessToken'], refreshToken: item['refreshToken'], expiresAt: item['expiresAt'] } }
+        : null;
+    }
     case 'activateLicense': {
       const { code, replaceInstallationId } = record;
       if (typeof code !== 'string' || code.trim() === '' || code.length > MAX_CODE_LENGTH) return null;
@@ -165,6 +181,8 @@ export function parseCommand(line: string): SidecarCommand | null {
     case 'clearHistory':
       return { type: 'clearHistory' };
     case 'disconnect':
+    case 'startTwitchAuth':
+    case 'disconnectTwitchAccount':
     case 'refreshLicense':
     case 'deactivateLicense':
     case 'openCustomerPortal':

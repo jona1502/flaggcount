@@ -15,14 +15,16 @@ use crate::license::{
 use crate::entitlements::profile_limit;
 use crate::profiles::effective_profile;
 use crate::settings::{CounterDefinition, CounterMode, OverlayView, Settings, DEFAULT_TARGET};
+use crate::twitch::{TwitchCredentials, TwitchVault};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 6;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
 /// Tells the sidecar where to keep its files, such as the key of the online overlay.
 pub const DATA_DIR_ENV: &str = "FLAGCOUNT_DATA_DIR";
+pub const TWITCH_CLIENT_ID_ENV: &str = "TWITCH_CLIENT_ID";
 /// The only window that receives app events.
 pub const MAIN_WINDOW: &str = "main";
 pub const STATE_CHANGED_EVENT: &str = "state-changed";
@@ -40,6 +42,10 @@ const MAX_LOG_MESSAGE_CHARS: usize = 300;
 pub enum SidecarCommand {
     Connect { username: String },
     Disconnect,
+    #[serde(rename_all = "camelCase")]
+    ConfigureTwitchAuth { credentials: Option<TwitchCredentials> },
+    StartTwitchAuth,
+    DisconnectTwitchAccount,
     /// Without ids the vote goes to the first counter; single counters need no option id.
     #[serde(rename_all = "camelCase")]
     AddManualVote {
@@ -262,6 +268,8 @@ pub enum SidecarEvent {
     History { history: Vec<Value> },
     OverlayUrls { urls: BTreeMap<String, String> },
     License { license: LicenseState },
+    TwitchAuth { auth: TwitchAuthState },
+    TwitchCredentials { credentials: Option<TwitchCredentials> },
     /// Credentials and entitlement to store on this computer; `None` removes them.
     LicenseCredentials {
         credentials: Option<LicenseCredentials>,
@@ -283,6 +291,7 @@ pub enum StateUpdate {
     Error(AppError),
     Log(LogLevel, String),
     Credentials(Option<LicenseCredentials>, Option<Value>),
+    TwitchCredentials(Option<TwitchCredentials>),
     OpenUrl(String),
     None,
 }
@@ -344,6 +353,11 @@ pub fn apply_event(
             state.license = license;
             StateUpdate::State
         }
+        SidecarEvent::TwitchAuth { auth } => {
+            state.twitch_auth = Some(auth);
+            StateUpdate::State
+        }
+        SidecarEvent::TwitchCredentials { credentials } => StateUpdate::TwitchCredentials(credentials),
         SidecarEvent::LicenseCredentials {
             credentials,
             entitlement,
@@ -429,6 +443,7 @@ struct Inner {
     session: Option<SidecarSession>,
     state: AppState,
     license: StoredLicense,
+    twitch_credentials: Option<TwitchCredentials>,
     desired: DesiredConnection,
     stopping: bool,
     started_at: Option<Instant>,
@@ -441,6 +456,7 @@ enum Outcome {
     Error(AppError),
     Log(LogLevel, String),
     SaveLicense(StoredLicense),
+    SaveTwitchCredentials(Option<TwitchCredentials>),
     OpenUrl(String),
     Nothing,
 }
@@ -463,6 +479,12 @@ impl Sidecar {
     pub fn init_license(&self, license: StoredLicense) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.license = license;
+        }
+    }
+
+    pub fn init_twitch_credentials(&self, credentials: Option<TwitchCredentials>) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.twitch_credentials = credentials;
         }
     }
 
@@ -510,9 +532,16 @@ impl Sidecar {
             let (mut events, child) = app
                 .shell()
                 .sidecar(SIDECAR_NAME)
-                .map(|command| match app.path().app_data_dir() {
-                    Ok(dir) => command.env(DATA_DIR_ENV, dir),
-                    Err(_) => command,
+                .map(|command| {
+                    let command = match app.path().app_data_dir() {
+                        Ok(dir) => command.env(DATA_DIR_ENV, dir),
+                        Err(_) => command,
+                    };
+                    if let Some(value) = option_env!("TWITCH_CLIENT_ID").filter(|value| !value.is_empty()) {
+                        command.env(TWITCH_CLIENT_ID_ENV, value)
+                    } else {
+                        command
+                    }
                 })
                 .and_then(|command| command.spawn())
                 .map_err(|_| AppError::sidecar_unavailable())?;
@@ -617,6 +646,10 @@ impl Sidecar {
                     inner.license.entitlement = entitlement;
                     Outcome::SaveLicense(inner.license.clone())
                 }
+                StateUpdate::TwitchCredentials(credentials) => {
+                    inner.twitch_credentials = credentials.clone();
+                    Outcome::SaveTwitchCredentials(credentials)
+                }
                 StateUpdate::OpenUrl(url) => Outcome::OpenUrl(url),
                 StateUpdate::None => Outcome::Nothing,
             };
@@ -630,7 +663,9 @@ impl Sidecar {
                 } else {
                     None
                 };
-                startup_commands(&inner.state.settings, &inner.state.license, &inner.license, reconnect_to)
+                let mut commands = startup_commands(&inner.state.settings, &inner.state.license, &inner.license, reconnect_to);
+                commands.insert(1, SidecarCommand::ConfigureTwitchAuth { credentials: inner.twitch_credentials.clone() });
+                commands
             } else {
                 Vec::new()
             };
@@ -646,6 +681,12 @@ impl Sidecar {
             }
             Outcome::Log(level, message) => log_sidecar_message(level, &message),
             Outcome::SaveLicense(license) => self.save_license(app, &license),
+            Outcome::SaveTwitchCredentials(credentials) => {
+                let saved = app.try_state::<TwitchVault>().map_or(Err(()), |vault| vault.save(credentials.as_ref()));
+                if saved.is_err() {
+                    emit_error(app, &AppError::new("unknown", "Twitch credentials could not be stored"));
+                }
+            }
             Outcome::OpenUrl(url) => {
                 if let Err(error) = open_external(app, &url) {
                     emit_error(app, &error);

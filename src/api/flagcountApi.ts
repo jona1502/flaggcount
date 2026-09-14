@@ -14,6 +14,8 @@ export type FlagCountApi = {
   getState: () => Promise<AppState>;
   connect: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  startTwitchAuth: () => Promise<void>;
+  disconnectTwitchAccount: () => Promise<void>;
   /** Without ids the first counter is meant, exactly as before parallel counters existed. */
   addManualVote: (counterId?: string, optionId?: string) => Promise<void>;
   removeManualVote: (counterId?: string, optionId?: string) => Promise<void>;

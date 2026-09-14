@@ -7,6 +7,8 @@ import { toAppError, type FlagCountApi, type Unlisten } from './flagcountApi';
 export type FlagCountActions = {
   connect: (username: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  startTwitchAuth: () => Promise<void>;
+  disconnectTwitchAccount: () => Promise<void>;
   addManualVote: (counterId?: string, optionId?: string) => Promise<void>;
   removeManualVote: (counterId?: string, optionId?: string) => Promise<void>;
   /** Without a counter id every round starts over. */
@@ -115,6 +117,8 @@ export function useFlagCount(api: FlagCountApi): FlagCountController {
     () => ({
       connect: (username) => run(() => api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
+      startTwitchAuth: () => run(() => api.startTwitchAuth()),
+      disconnectTwitchAccount: () => run(() => api.disconnectTwitchAccount()),
       addManualVote: (counterId, optionId) => run(() => api.addManualVote(counterId, optionId)),
       removeManualVote: (counterId, optionId) => run(() => api.removeManualVote(counterId, optionId)),
       resetVotes: (counterId) => run(() => api.resetVotes(counterId)),

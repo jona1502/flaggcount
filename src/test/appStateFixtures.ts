@@ -137,6 +137,8 @@ export function createActions() {
   return {
     connect: vi.fn(async (_username: string) => undefined),
     disconnect: vi.fn(async () => undefined),
+    startTwitchAuth: vi.fn(async () => undefined),
+    disconnectTwitchAccount: vi.fn(async () => undefined),
     addManualVote: vi.fn(async (_counterId?: string, _optionId?: string) => undefined),
     removeManualVote: vi.fn(async (_counterId?: string, _optionId?: string) => undefined),
     resetVotes: vi.fn(async (_counterId?: string) => undefined),

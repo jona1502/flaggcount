@@ -13,6 +13,8 @@ import { DEFAULT_OVERLAY_PORT, createSessionToken, startLocalServer } from './se
 import { createTikTokConnection } from './tiktok/tiktokConnection';
 import { createTikTokAdapter } from './tiktok/TikTokAdapter';
 import { RoundHistoryStore } from './historyStore';
+import { TwitchOAuthClient } from './twitch/oauth';
+import { TwitchAuthManager } from './twitch/TwitchAuthManager';
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -84,6 +86,15 @@ async function startRelay(app: SidecarApp): Promise<RunningRelays | null> {
 async function main(): Promise<void> {
   const historyStore = process.env['FLAGCOUNT_DATA_DIR'] ? new RoundHistoryStore(`${process.env['FLAGCOUNT_DATA_DIR']}\\round-history.json`) : null;
   const history = historyStore ? await historyStore.load() : [];
+  const twitchClientId = process.env['TWITCH_CLIENT_ID']?.trim();
+  const twitchAuth = twitchClientId
+    ? new TwitchAuthManager(new TwitchOAuthClient(twitchClientId), {
+        onState: (auth) => send({ type: 'twitchAuth', auth }),
+        onCredentials: (credentials) => send({ type: 'twitchCredentials', credentials }),
+        onOpenUrl: (url) => send({ type: 'openUrl', url }),
+        onError: (code) => send({ type: 'error', error: { code, message: `Twitch authentication failed (${code})` } })
+      })
+    : undefined;
   // The license service runs on the same FlagCount server as the online overlay.
   const license = new LicenseManager({
     send,
@@ -94,6 +105,7 @@ async function main(): Promise<void> {
   });
   const app = new SidecarApp(createTikTokAdapter(createTikTokConnection), send, {
     license,
+    twitchAuth,
     history,
     onHistoryChanged: (records) => { void historyStore?.replace(records).catch(() => log('error', 'Saving round history failed')); }
   });

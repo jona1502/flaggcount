@@ -9,6 +9,8 @@ import type { LicenseManager } from './license/licenseManager';
 import type { SidecarCommand, SidecarEvent } from './protocol';
 import { trimHistory, type RoundRecord } from '../../shared/history';
 import type { LiveChatService, LiveChatServiceFactory } from './live/LiveChatService';
+import type { TwitchAuthManager } from './twitch/TwitchAuthManager';
+import type { TwitchAuthState } from '../../shared/live';
 
 export type SidecarStateSnapshot = {
   connection: ConnectionState;
@@ -17,6 +19,7 @@ export type SidecarStateSnapshot = {
   overlay: OverlaySettings;
   license: LicenseState;
   history: RoundRecord[];
+  twitchAuth: TwitchAuthState;
 };
 
 export type SidecarAppOptions = {
@@ -30,6 +33,7 @@ export type SidecarAppOptions = {
   license?: LicenseManager;
   history?: RoundRecord[];
   onHistoryChanged?: (history: RoundRecord[]) => void;
+  twitchAuth?: TwitchAuthManager;
 };
 
 /** Wires the selected live-chat provider to voting and reports sanitized updates. */
@@ -42,6 +46,7 @@ export class SidecarApp {
   private readonly engine: VotingEngine;
   private readonly live: LiveChatService;
   private readonly license: LicenseManager | null;
+  private readonly twitchAuth: TwitchAuthManager | null;
   private readonly voteListeners = new Set<(votes: VoteSnapshot) => void>();
   private readonly overlayListeners = new Set<(overlay: OverlaySettings) => void>();
   private readonly boardListeners = new Set<() => void>();
@@ -60,6 +65,7 @@ export class SidecarApp {
   ) {
     this.entitlements = options.entitlements ?? FREE_ENTITLEMENTS;
     this.license = options.license ?? null;
+    this.twitchAuth = options.twitchAuth ?? null;
     this.history = options.history ?? [];
     this.onHistoryChanged = options.onHistoryChanged ?? (() => undefined);
     this.requested = options.counters ?? [createRedFlagCounter()];
@@ -96,6 +102,7 @@ export class SidecarApp {
       overlay: this.getOverlaySettings(),
       license: this.license?.getState() ?? FREE_LICENSE_STATE,
       history: structuredClone(this.history)
+      ,twitchAuth: this.twitchAuth?.getState() ?? { status: 'signed-out' }
     };
   }
 
@@ -196,6 +203,19 @@ export class SidecarApp {
         break;
       case 'disconnect':
         await this.live.disconnect();
+        break;
+      case 'configureTwitchAuth':
+        await this.twitchAuth?.configure(command.credentials);
+        break;
+      case 'startTwitchAuth':
+        if (!this.twitchAuth) {
+          this.send({ type: 'error', error: { code: 'provider-not-configured', message: 'Twitch is not configured' } });
+        } else {
+          await this.twitchAuth.start();
+        }
+        break;
+      case 'disconnectTwitchAccount':
+        this.twitchAuth?.disconnect();
         break;
       case 'addManualVote':
       case 'removeManualVote': {

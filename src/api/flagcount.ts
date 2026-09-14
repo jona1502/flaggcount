@@ -16,6 +16,8 @@ export const flagcountApi: FlagCountApi = {
   getState: (): Promise<AppState> => invoke<AppState>('get_state'),
   connect: (username: string): Promise<void> => invoke('connect', { username }),
   disconnect: (): Promise<void> => invoke('disconnect'),
+  startTwitchAuth: (): Promise<void> => invoke('start_twitch_auth'),
+  disconnectTwitchAccount: (): Promise<void> => invoke('disconnect_twitch_account'),
   // Without ids the first counter is meant, exactly as before parallel counters existed.
   addManualVote: (counterId?: string, optionId?: string): Promise<void> =>
     counterId === undefined ? invoke('add_manual_vote') : invoke('add_manual_vote', { counterId, optionId: optionId ?? null }),

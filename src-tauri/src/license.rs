@@ -15,6 +15,7 @@ pub const SECRET_SERVICE: &str = "com.jona1502.flagcount";
 pub const FLAGCOUNT_HOST: &str = "overlay.muhrindustries.com";
 /// Stripe Checkout and the Stripe customer portal. Exact hosts, no wildcard for other Stripe pages.
 pub const STRIPE_HOSTS: [&str; 2] = ["checkout.stripe.com", "billing.stripe.com"];
+pub const TWITCH_AUTH_HOST: &str = "www.twitch.tv";
 /// Pricing, terms and checkout of FlagCount Pro.
 pub const PRO_PAGE_URL: &str = "https://overlay.muhrindustries.com/pro";
 pub const MAX_ACTIVATION_CODE_LENGTH: usize = 64;
@@ -129,6 +130,7 @@ pub fn is_allowed_external_url(url: &str) -> bool {
     let host = authority.to_ascii_lowercase();
     host == FLAGCOUNT_HOST
         || STRIPE_HOSTS.contains(&host.as_str())
+        || (host == TWITCH_AUTH_HOST && rest.split(['?', '#']).next().unwrap_or_default().starts_with("www.twitch.tv/activate"))
         || host == "paddle.com"
         || host.ends_with(".paddle.com")
 }

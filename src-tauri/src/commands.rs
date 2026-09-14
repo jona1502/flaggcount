@@ -204,6 +204,16 @@ pub fn set_counter_overlay_settings<R: Runtime>(
     send_counters(&sidecar, &settings)
 }
 
+#[tauri::command]
+pub fn start_twitch_auth(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::StartTwitchAuth)
+}
+
+#[tauri::command]
+pub fn disconnect_twitch_account(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
+    sidecar.send(&SidecarCommand::DisconnectTwitchAccount)
+}
+
 fn sync_overlay_views(sidecar: &Sidecar, settings: &Settings) -> Result<(), AppError> {
     send_counters(sidecar, settings)
 }
