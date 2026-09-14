@@ -1,6 +1,6 @@
 [package]
 name = "flagcount"
-version = "0.2.3"
+version = "0.3.0"
 description = "Zählt rote Flaggen im TikTok-Live-Chat"
 authors = ["jona1502"]
 edition = "2021"

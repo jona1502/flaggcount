@@ -1,7 +1,14 @@
 # Änderungsverlauf
 
-## Noch nicht veröffentlicht
+## 0.3.0 – 2026-09-14
 
+- FlagCount Pro eingeführt: sichere Lizenzaktivierung in der Desktop-App, Abos über Paddle und öffentliche Preis-/Checkout-Seite.
+- Mehrere parallele Live-Zähler, eigene Umfragen mit individuellen Auslösern und mehreren Antwortmöglichkeiten.
+- Mehrere Stream-Profile verwalten.
+- Mehrere Zähler-Overlays gleichzeitig; Pro-Overlays mit Premium-Themes und eigenem Branding.
+- Private Rundenhistorie mit aggregierten Statistiken und sicherem CSV-Export.
+- Priorisierter Support für Pro-Kunden.
+- Die Free-Version funktioniert weiterhin ohne Lizenz und ohne Konto.
 - Freiwillige, standardmäßig deaktivierte Produkttelemetrie mit sichtbarem Datenschutzschalter ergänzt.
 - Telemetrie strikt auf App-/OS-Version, feste Ereignisse, grobe Stimm-Buckets und bereinigte Fehlercodes begrenzt.
 - Öffentlichen Telemetrie-Endpunkt mit Schema-Prüfung und Rate-Limit ergänzt.
@@ -32,7 +39,3 @@
 - Manuelles Hinzufügen von Flaggen ermöglicht, auch ohne aktive TikTok-Verbindung.
 - Verbindungsstatus vereinfacht und erfolgreichen Verbindungen einen grünen Leuchteffekt gegeben.
 - „OBS-Overlay“ in „Streaming-Overlay“ umbenannt.
-# Unreleased
-
-- FlagCount Pro: öffentliche Preis-/Checkout-Seite, priorisierter Support und Betriebs-Runbook.
-- Pro-Overlays unterstützen Themes, Branding, aggregierte Historie und sicheren CSV-Export.
