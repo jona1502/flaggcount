@@ -1,4 +1,4 @@
-// Local development: one origin for Next.js and the backend, like the Caddy proxy in production.
+// Local development: one origin for Next.js and the backend, like host nginx in production.
 //   npm run dev:next                                   (Next.js on 3001)
 //   PORT=3010 npm run start:web                        (backend on 3010, after npm run build:server)
 //   npm run dev:proxy                                  (http://localhost:3000)

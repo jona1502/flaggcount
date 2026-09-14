@@ -68,6 +68,3 @@ jobs:
           push: false
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
-
-      - name: Validate proxy configuration
-        run: docker run --rm -i caddy:2.11-alpine sh -c 'cat > /tmp/Caddyfile && caddy validate --config /tmp/Caddyfile --adapter caddyfile' < deploy/Caddyfile

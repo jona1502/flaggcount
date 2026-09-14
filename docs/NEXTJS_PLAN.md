@@ -175,7 +175,7 @@ flagcount-server
   interner Port 3010
 ```
 
-Davor läuft Caddy, nginx oder ein vergleichbarer Reverse Proxy. Nur der Proxy ist öffentlich erreichbar. PostgreSQL bleibt ausschließlich im privaten Netz.
+Davor läuft der vorhandene Host-nginx als einziger Reverse Proxy. Die Containerports sind ausschließlich über Loopback erreichbar. PostgreSQL bleibt ausschließlich im privaten Netz.
 
 Anforderungen:
 

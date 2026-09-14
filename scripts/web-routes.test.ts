@@ -69,24 +69,17 @@ describe('route table', () => {
     expect(bodyLimit('/pro')).toBeNull();
   });
 
-  it('matches the production Caddyfile', () => {
-    const caddyfile = readFileSync(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
-    const matcher = (name: string) =>
-      new Set((new RegExp(`@${name} path ([^\\n]+)`).exec(caddyfile)?.[1] ?? '').trim().split(/\s+/));
-    const caddyPaths = (exact: string[], prefixes: string[]) => new Set([...exact, ...prefixes.map((prefix) => `${prefix}*`)]);
-
-    expect(matcher('backend')).toEqual(caddyPaths(BACKEND_EXACT, BACKEND_PREFIXES));
-    expect(caddyfile).toContain(`@events path_regexp ${EVENT_STREAM.source.replaceAll('\\/', '/')}`);
-    expect(caddyfile).toContain('flush_interval -1');
-  });
-
-  it('mounts the Caddyfile at the path produced by the deploy workflow', () => {
+  it('keeps production nginx connected directly to both containers', () => {
+    const nginx = readFileSync(new URL('../deploy/nginx-flagcount-locations.conf', import.meta.url), 'utf8');
     const compose = readFileSync(new URL('../docker-compose.yml', import.meta.url), 'utf8');
-    const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
 
-    expect(compose).toContain('./Caddyfile:/etc/caddy/Caddyfile:ro');
-    expect(workflow).toContain('source: deploy/Caddyfile');
-    expect(workflow).toContain('strip_components: 1');
+    expect(nginx).toContain('proxy_pass http://127.0.0.1:3018;');
+    expect(nginx).toContain('proxy_pass http://127.0.0.1:3017;');
+    expect(nginx).toContain('proxy_buffering off;');
+    expect(nginx).toContain('proxy_read_timeout 1h;');
+    expect(compose).toContain('127.0.0.1:3017:3000');
+    expect(compose).toContain('127.0.0.1:3018:3010');
+    expect(compose).not.toContain('caddy');
   });
 });
 

@@ -1,5 +1,4 @@
-// Which service answers a path behind the reverse proxy. Mirrors deploy/Caddyfile and docs/WEB_ROUTING.md;
-// scripts/web-routes.test.ts checks that the Caddyfile and this table agree.
+// Which service answers a path behind the reverse proxy. Mirrors the host-nginx rules and docs/WEB_ROUTING.md.
 
 /** Paths answered by the backend: APIs, overlays, relay, webhooks and operations. */
 export const BACKEND_EXACT = ['/api', '/overlay', '/healthz', '/readyz', '/download'];

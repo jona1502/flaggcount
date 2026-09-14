@@ -45,14 +45,13 @@ jobs:
             docker compose config --quiet
             docker compose pull
 
-            # Backend- und Web-Image tragen denselben git-SHA. Staende vor der Trennung in
-            # proxy/web/server brauchen zusaetzlich die damalige docker-compose.yml.
+            # Backend- und Web-Image tragen denselben git-SHA.
             if ! docker compose up -d --remove-orphans --wait --wait-timeout 180; then
               docker compose ps
-              docker compose logs --no-color --tail=200 proxy web server
+              docker compose logs --no-color --tail=200 web server
               exit 1
             fi
 
-            curl -fsS -o /dev/null -w 'backend: %{http_code}\n' http://127.0.0.1:3016/healthz
-            curl -fsS -o /dev/null -w 'web: %{http_code}\n' http://127.0.0.1:3016/health
+            curl -fsS -o /dev/null -w 'backend: %{http_code}\n' http://127.0.0.1:3018/healthz
+            curl -fsS -o /dev/null -w 'web: %{http_code}\n' http://127.0.0.1:3017/health
             echo "Aktiver Tag: ${IMAGE_TAG_INPUT}"

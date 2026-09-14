@@ -54,8 +54,7 @@ Nicht Teil des Webs: Der lokale Server der Desktop-App (`sidecar/src/server/loca
 
 ## Proxy-Regeln
 
-Umgesetzt in `deploy/Caddyfile` (Produktion) und `scripts/dev-proxy.mjs` (lokal); beide nutzen dieselbe
-Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile und Tabelle übereinstimmen.
+Umgesetzt in `deploy/nginx-flagcount-locations.conf` (Produktion) und `scripts/dev-proxy.mjs` (lokal).
 
 - Zum Backend: `/api`, `/api/*`, `/overlay`, `/overlay/*`, `/o/*`, `/ob/*`, `/healthz`, `/readyz`, `/download`.
 - Alles andere geht an Next.js (`/`, `/pro`, `/dashboard`, `/admin`, `/admin/*`, `/_next/*`, `/health` …).
@@ -87,7 +86,7 @@ Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile un
 - Body-Limits: Webhooks 1 MB, übrige Backend-Routen 64 KB; das Backend prüft zusätzlich strenger.
 - Timeouts: Verbindungsaufbau 5 s, Antwort-Header vom Backend 30 s, von Next.js 60 s.
 - Das Backend glaubt `CF-Connecting-IP` und `X-Forwarded-For` nur, wenn die Verbindung aus Loopback oder einem
-  privaten Netz kommt (Caddy, nginx). Aus `X-Forwarded-For` gilt die rechte Adresse, die kein Proxy ist.
+  privaten Netz kommt (nginx). Aus `X-Forwarded-For` gilt die rechte Adresse, die kein Proxy ist.
 
 ## Sicherheitsheader
 
@@ -102,15 +101,15 @@ Routing-Tabelle aus `scripts/web-routes.mjs`, ein Test prüft, dass Caddyfile un
 ## Betrieb
 
 ```text
-Host-nginx (TLS) -> 127.0.0.1:3016 -> proxy (Caddy :8080)
-                                        |-> web    (Next.js :3000)
-                                        `-> server (Backend :3010, PostgreSQL, Daten-Volume)
+Host-nginx (TLS)
+  |-> 127.0.0.1:3017 -> web    (Next.js :3000)
+  `-> 127.0.0.1:3018 -> server (Backend :3010, PostgreSQL, Daten-Volume)
 ```
 
-- `docker-compose.yml` startet `proxy`, `web` und `server`; nur `proxy` veröffentlicht einen Port.
+- `docker-compose.yml` startet `web` und `server`; beide Ports sind ausschließlich an `127.0.0.1` gebunden.
 - Secrets getrennt: `server` liest `.env`, `web` liest `.env.web` (optional, keine Backend-Secrets).
-- Healthchecks: `server` über `/healthz`, `web` über `/health`, `proxy` startet erst, wenn beide gesund sind.
-- Fällt `web` aus, antworten Overlays, Relay, SSE und Lizenz-API weiter, weil der Proxy sie direkt ans Backend gibt.
+- Healthchecks: `server` über `/healthz`, `web` über `/health`.
+- Fällt `web` aus, antworten Overlays, Relay, SSE und Lizenz-API weiter, weil nginx sie direkt ans Backend gibt.
 
 ## Lokale Entwicklung
 
