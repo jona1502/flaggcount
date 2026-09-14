@@ -74,6 +74,17 @@ describe('board overlay routes', () => {
     expect((await get(port, '/overlay/board.css')).status).toBe(200);
   });
 
+  it('serves custom view routes with their explicit layout', async () => {
+    const { port } = await start((scope) => scope === 'v-main'
+      ? { status: 'ok', counters: [view], layout: { layout: 'horizontal', gap: 24, horizontalAlign: 'start', verticalAlign: 'end', scale: 80 } }
+      : { status: 'not-found' });
+
+    const page = await get(port, '/overlay/view/v-main');
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('data-events="/overlay/view/v-main/events"');
+    expect(page.body).toContain('&quot;layout&quot;:&quot;horizontal&quot;');
+  });
+
   it('explains overlays that need Pro or do not exist', async () => {
     const { port } = await start((scope) => (scope === 'all' ? { status: 'pro-required' } : { status: 'not-found' }));
 

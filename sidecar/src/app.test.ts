@@ -274,4 +274,31 @@ describe('SidecarApp', () => {
     await app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams] });
     expect(running()).toEqual(['red-flags']);
   });
+
+  it('builds a custom overlay view from selected counters in saved order', async () => {
+    const { app } = createApp(PRO_ENTITLEMENTS);
+    await app.handleCommand({
+      type: 'configureCounters',
+      counters: [createRedFlagCounter(10), teams],
+      overlayViews: [{
+        id: 'v-main',
+        name: 'Hauptszene',
+        counterIds: ['teams', 'red-flags'],
+        layout: 'horizontal',
+        gap: 24,
+        horizontalAlign: 'center',
+        verticalAlign: 'end',
+        scale: 80,
+        createdAt: '2026-09-15T00:00:00.000Z',
+        updatedAt: '2026-09-15T00:00:00.000Z'
+      }]
+    });
+
+    expect(app.getBoard('v-main')).toMatchObject({
+      status: 'ok',
+      counters: [{ counterId: 'teams' }, { counterId: 'red-flags' }],
+      layout: { layout: 'horizontal', gap: 24, verticalAlign: 'end', scale: 80 }
+    });
+    expect(app.getBoardScopes()).toContain('v-main');
+  });
 });

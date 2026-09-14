@@ -20,14 +20,14 @@ export type OverlaySource = {
 
 export type OverlayHandler = (pathname: string, request: IncomingMessage, response: ServerResponse) => void;
 
-const BOARD_PATH = /^\/overlay\/(?:counter\/([^/]+)|(all))(\/events)?$/;
+const BOARD_PATH = /^\/overlay\/(?:counter\/([^/]+)|view\/([^/]+)|(all))(\/events)?$/;
 
 export function isOverlayPath(pathname: string): boolean {
   return pathname === '/overlay' || pathname.startsWith('/overlay/');
 }
 
 export function boardOverlayPath(scope: string): string {
-  return scope === OVERVIEW_SCOPE ? '/overlay/all' : `/overlay/counter/${scope}`;
+  return scope === OVERVIEW_SCOPE ? '/overlay/all' : scope.startsWith('v-') ? `/overlay/view/${scope}` : `/overlay/counter/${scope}`;
 }
 
 /** Serves the OBS overlay pages, their assets and the live event streams. Used by the local and the web server. */
@@ -68,7 +68,7 @@ export function createOverlayHandler(source: OverlaySource, heartbeatMs = HEARTB
             response,
             200,
             'text/html; charset=utf-8',
-            renderBoardPage(access.counters, { eventsUrl: `${boardOverlayPath(scope)}/events`, scope }),
+            renderBoardPage(access.counters, { eventsUrl: `${boardOverlayPath(scope)}/events`, scope, layout: access.layout }),
             headers
           );
           return;
@@ -84,7 +84,7 @@ export function createOverlayHandler(source: OverlaySource, heartbeatMs = HEARTB
     openEventStream(response);
     const push = (): void => {
       const access = source.getBoard?.(scope) ?? { status: 'not-found' };
-      writeEvent(response, 'board', { status: access.status, counters: access.status === 'ok' ? access.counters : [] });
+      writeEvent(response, 'board', { status: access.status, counters: access.status === 'ok' ? access.counters : [], layout: access.status === 'ok' ? access.layout : undefined });
     };
     push();
     const unsubscribe = source.subscribeBoard?.(push);
@@ -104,7 +104,7 @@ export function createOverlayHandler(source: OverlaySource, heartbeatMs = HEARTB
 
     const board = BOARD_PATH.exec(pathname);
     if (board) {
-      serveBoard(board[2] ?? board[1] ?? '', Boolean(board[3]), request, response);
+      serveBoard(board[3] ?? board[2] ?? board[1] ?? '', Boolean(board[4]), request, response);
       return;
     }
 

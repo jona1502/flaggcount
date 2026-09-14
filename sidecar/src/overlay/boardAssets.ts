@@ -1,4 +1,4 @@
-import type { CounterView } from '../../../shared/overlayBoard';
+import { DEFAULT_BOARD_LAYOUT, type BoardLayout, type CounterView } from '../../../shared/overlayBoard';
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -13,7 +13,7 @@ const HEAD = `<meta charset="utf-8">
  * Overlay for one counter or all running counters. The initial state travels as JSON in a data
  * attribute, because the CSP forbids inline scripts; the script only ever writes it as text.
  */
-export function renderBoardPage(counters: CounterView[], options: { eventsUrl: string; scope: string }): string {
+export function renderBoardPage(counters: CounterView[], options: { eventsUrl: string; scope: string; layout?: BoardLayout }): string {
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -21,7 +21,7 @@ ${HEAD}
 <script src="/overlay/board.js" defer></script>
 </head>
 <body>
-<div class="board" id="board" data-scope="${escapeAttribute(options.scope)}" data-events="${escapeAttribute(options.eventsUrl)}" data-initial="${escapeAttribute(JSON.stringify({ counters }))}" data-connected="true"></div>
+<div class="board" id="board" data-scope="${escapeAttribute(options.scope)}" data-events="${escapeAttribute(options.eventsUrl)}" data-initial="${escapeAttribute(JSON.stringify({ counters, layout: options.layout ?? DEFAULT_BOARD_LAYOUT }))}" data-connected="true"></div>
 </body>
 </html>
 `;
@@ -201,6 +201,8 @@ export const BOARD_SCRIPT = `(function () {
   var EDGE_GAP = 0.04;
   var size = 0.92;
   var position = 'center';
+  var horizontalAlign = 'center';
+  var verticalAlign = 'center';
 
   function rgba(hex, alpha) {
     var value = parseInt(hex.slice(1), 16);
@@ -225,10 +227,12 @@ export const BOARD_SCRIPT = `(function () {
     var scaledHeight = height * scale;
     var gap = viewHeight * EDGE_GAP;
     var y = (viewHeight - scaledHeight) / 2;
-    if (position === 'top') y = gap;
-    if (position === 'bottom') y = viewHeight - scaledHeight - gap;
+    if (verticalAlign === 'start' || position === 'top') y = gap;
+    if (verticalAlign === 'end' || position === 'bottom') y = viewHeight - scaledHeight - gap;
     y = Math.max(0, Math.min(y, viewHeight - scaledHeight));
     var x = (viewWidth - width * scale) / 2;
+    if (horizontalAlign === 'start') x = gap;
+    if (horizontalAlign === 'end') x = viewWidth - width * scale - gap;
     root.style.transform = 'translate(' + Math.round(x * 100) / 100 + 'px, ' + Math.round(y * 100) / 100 + 'px) scale(' + scale + ')';
   }
 
@@ -293,14 +297,31 @@ export const BOARD_SCRIPT = `(function () {
     return card;
   }
 
-  function render(counters) {
+  function applyLayout(layout, count) {
+    layout = layout || {};
+    var chosen = layout.layout || 'auto';
+    if (chosen === 'auto') chosen = count > 2 ? 'grid' : 'horizontal';
+    root.style.display = chosen === 'grid' ? 'grid' : 'flex';
+    root.style.flexDirection = chosen === 'horizontal' ? 'row' : 'column';
+    root.style.gridTemplateColumns = chosen === 'grid' ? 'repeat(2, max-content)' : '';
+    root.style.gap = String(Number.isInteger(layout.gap) ? layout.gap : 18) + 'px';
+    horizontalAlign = layout.horizontalAlign || 'center';
+    verticalAlign = layout.verticalAlign || 'center';
+    var percent = Number(layout.scale);
+    if (percent >= 20 && percent <= 100) size = percent / 100;
+  }
+
+  function render(counters, layout) {
     root.textContent = '';
     if (!counters || !counters.length) return;
+    applyLayout(layout, counters.length);
     var design = counters[0].overlay;
     if (design) {
-      if (design.position === 'top' || design.position === 'center' || design.position === 'bottom') position = design.position;
-      var percent = Number(design.size);
-      if (percent >= 20 && percent <= 100) size = percent / 100;
+      if (!layout) {
+        if (design.position === 'top' || design.position === 'center' || design.position === 'bottom') position = design.position;
+        var percent = Number(design.size);
+        if (percent >= 20 && percent <= 100) size = percent / 100;
+      }
     }
     counters.forEach(function (view) {
       root.appendChild(renderCounter(view));
@@ -310,7 +331,8 @@ export const BOARD_SCRIPT = `(function () {
 
   window.addEventListener('resize', fit);
   try {
-    render(JSON.parse(root.getAttribute('data-initial') || '{}').counters);
+    var initial = JSON.parse(root.getAttribute('data-initial') || '{}');
+    render(initial.counters, initial.layout);
   } catch (error) {
     // Start empty and wait for the event stream.
   }
@@ -318,7 +340,8 @@ export const BOARD_SCRIPT = `(function () {
   var source = new EventSource(root.getAttribute('data-events'));
   source.addEventListener('board', function (event) {
     try {
-      render(JSON.parse(event.data).counters);
+      var update = JSON.parse(event.data);
+      render(update.counters, update.layout);
       root.setAttribute('data-connected', 'true');
     } catch (error) {
       // Ignore malformed updates and keep the last known state.

@@ -1,8 +1,8 @@
 import type { ConnectionState } from '../../shared/appState';
 import { FREE_ENTITLEMENTS, canUse, checkCounters, effectiveCounters, limitFor, type Entitlements } from '../../shared/entitlements';
 import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
-import { OVERVIEW_SCOPE, buildCounterViews, type BoardAccess } from '../../shared/overlayBoard';
-import { createRedFlagCounter, type CounterDefinition } from '../../shared/profiles';
+import { DEFAULT_BOARD_LAYOUT, OVERVIEW_SCOPE, buildCounterViews, type BoardAccess } from '../../shared/overlayBoard';
+import { createRedFlagCounter, type CounterDefinition, type OverlayView } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
 import type { LicenseManager } from './license/licenseManager';
@@ -22,6 +22,7 @@ export type SidecarStateSnapshot = {
 export type SidecarAppOptions = {
   /** Counters until Tauri configures the saved ones; the red flag counter by default. */
   counters?: CounterDefinition[];
+  overlayViews?: OverlayView[];
   createRoundId?: () => string;
   /** What the plan allows until the license manager reports otherwise; Free by default. */
   entitlements?: Entitlements;
@@ -36,6 +37,7 @@ export class SidecarApp {
   /** Counters as configured by the user; the plan decides which of them run. */
   private requested: CounterDefinition[];
   private definitions: CounterDefinition[];
+  private overlayViews: OverlayView[];
   private entitlements: Entitlements;
   private readonly engine: VotingEngine;
   private readonly live: TikTokLiveService;
@@ -61,6 +63,7 @@ export class SidecarApp {
     this.history = options.history ?? [];
     this.onHistoryChanged = options.onHistoryChanged ?? (() => undefined);
     this.requested = options.counters ?? [createRedFlagCounter()];
+    this.overlayViews = options.overlayViews ?? [];
     this.definitions = effectiveCounters(this.requested, this.entitlements);
     this.engine = new VotingEngine(this.definitions, { createRoundId: options.createRoundId });
     for (const counter of this.definitions) this.startedAt.set(counter.id, new Date().toISOString());
@@ -150,18 +153,28 @@ export class SidecarApp {
   getBoard(scope: string): BoardAccess {
     const views = buildCounterViews(this.engine.getSnapshots(), this.definitions);
     if (scope === OVERVIEW_SCOPE) {
-      return canUse(this.entitlements, 'parallel-counters') ? { status: 'ok', counters: views } : { status: 'pro-required' };
+      return canUse(this.entitlements, 'parallel-counters')
+        ? { status: 'ok', counters: views, layout: { ...DEFAULT_BOARD_LAYOUT, layout: 'vertical' } }
+        : { status: 'pro-required' };
+    }
+    const custom = this.overlayViews.find((view) => view.id === scope);
+    if (custom) {
+      if (!canUse(this.entitlements, 'parallel-counters')) return { status: 'pro-required' };
+      const selected = custom.counterIds.map((id) => views.find((view) => view.counterId === id)).filter((view): view is NonNullable<typeof view> => Boolean(view));
+      if (selected.length === 0) return { status: 'not-found' };
+      const { layout, gap, horizontalAlign, verticalAlign, scale } = custom;
+      return { status: 'ok', counters: selected, layout: { layout, gap, horizontalAlign, verticalAlign, scale } };
     }
     const index = views.findIndex((view) => view.counterId === scope);
     const view = views[index];
     if (!view) return { status: 'not-found' };
-    return index < limitFor(this.entitlements, 'overlayUrls') ? { status: 'ok', counters: [view] } : { status: 'pro-required' };
+    return index < limitFor(this.entitlements, 'overlayUrls') ? { status: 'ok', counters: [view], layout: { ...DEFAULT_BOARD_LAYOUT } } : { status: 'pro-required' };
   }
 
   /** Every overlay scope the plan allows right now: the running counters and, with Pro, the overview. */
   getBoardScopes(): string[] {
     const scopes = this.definitions.map((definition) => definition.id);
-    return [...scopes, OVERVIEW_SCOPE].filter((scope) => this.getBoard(scope).status === 'ok');
+    return [...scopes, OVERVIEW_SCOPE, ...this.overlayViews.map((view) => view.id)].filter((scope) => this.getBoard(scope).status === 'ok');
   }
 
   getSignedEntitlement() {
@@ -204,6 +217,7 @@ export class SidecarApp {
       case 'configureCounters':
         this.profileId = command.profileId ?? this.profileId;
         this.profileName = command.profileName ?? this.profileName;
+        this.overlayViews = command.overlayViews ?? [];
         this.configure(command.counters);
         break;
       case 'configureLicense':

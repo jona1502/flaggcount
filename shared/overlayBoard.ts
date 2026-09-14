@@ -1,4 +1,19 @@
-import { MAX_COUNTERS, MAX_NAME_LENGTH, MAX_POLL_OPTIONS, type CounterDefinition, type CounterMode } from './profiles';
+import {
+  MAX_COUNTERS,
+  MAX_NAME_LENGTH,
+  MAX_POLL_OPTIONS,
+  MAX_OVERLAY_VIEW_GAP,
+  MAX_OVERLAY_VIEW_SCALE,
+  MIN_OVERLAY_VIEW_GAP,
+  MIN_OVERLAY_VIEW_SCALE,
+  OVERLAY_ALIGNMENTS,
+  OVERLAY_LAYOUTS,
+  type CounterDefinition,
+  type CounterMode,
+  type OverlayAlignment,
+  type OverlayLayout,
+  type OverlayView
+} from './profiles';
 import { DEFAULT_OVERLAY_SETTINGS, isHexColor, parseOverlaySettings, type OverlaySettings } from './settings';
 import { isValidTarget } from './voting/target';
 import type { CounterSnapshot } from './voting/VotingEngine';
@@ -28,8 +43,18 @@ export type CounterView = {
   overlay: OverlaySettings;
 };
 
+export type BoardLayout = Pick<OverlayView, 'layout' | 'gap' | 'horizontalAlign' | 'verticalAlign' | 'scale'>;
+
+export const DEFAULT_BOARD_LAYOUT: Readonly<BoardLayout> = Object.freeze({
+  layout: 'auto',
+  gap: 18,
+  horizontalAlign: 'center',
+  verticalAlign: 'center',
+  scale: 92
+});
+
 export type BoardAccess =
-  | { status: 'ok'; counters: CounterView[] }
+  | { status: 'ok'; counters: CounterView[]; layout?: BoardLayout }
   /** The plan does not include this overlay; FlagCount Pro does. */
   | { status: 'pro-required' }
   | { status: 'not-found' };
@@ -109,4 +134,29 @@ export function parseCounterViews(value: unknown): CounterView[] | null {
     views.push(view);
   }
   return views;
+}
+
+export function parseBoardLayout(value: unknown): BoardLayout | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const { layout, gap, horizontalAlign, verticalAlign, scale } = value as Record<string, unknown>;
+  if (
+    !(OVERLAY_LAYOUTS as readonly unknown[]).includes(layout) ||
+    !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(horizontalAlign) ||
+    !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(verticalAlign) ||
+    typeof gap !== 'number' ||
+    !Number.isInteger(gap) ||
+    gap < MIN_OVERLAY_VIEW_GAP ||
+    gap > MAX_OVERLAY_VIEW_GAP ||
+    typeof scale !== 'number' ||
+    !Number.isInteger(scale) ||
+    scale < MIN_OVERLAY_VIEW_SCALE ||
+    scale > MAX_OVERLAY_VIEW_SCALE
+  ) return null;
+  return {
+    layout: layout as OverlayLayout,
+    gap,
+    horizontalAlign: horizontalAlign as OverlayAlignment,
+    verticalAlign: verticalAlign as OverlayAlignment,
+    scale
+  };
 }
