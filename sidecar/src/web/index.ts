@@ -13,6 +13,8 @@ import { createJsonLogger } from './structuredLog';
 import { clientAddress, startWebServer } from './webServer';
 import { WaitlistStore } from './waitlistStore';
 import { acceptsBoardEntitlement } from './boardEntitlement';
+import { AdminSessions, GitHubOAuth, readAdminConfig } from './admin/adminAuth';
+import { createAdminHandler } from './admin/adminRoutes';
 
 // Entry point of the web version (Docker). Configuration comes from the environment, see .env.example.
 const MIN_PASSWORD_LENGTH = 12;
@@ -70,6 +72,25 @@ async function main(): Promise<void> {
   const verifyBoardEntitlement = (value: unknown): boolean =>
     entitlementVerifier ? acceptsBoardEntitlement(value, entitlementVerifier) : false;
 
+  // The admin area exists only with its own GitHub login configuration and needs the license service.
+  const adminConfig = readAdminConfig(process.env);
+  if (adminConfig.kind === 'invalid') {
+    log('warn', `The admin area is disabled: ${adminConfig.problems.join('; ')}`);
+  } else if (adminConfig.kind === 'enabled' && licensingConfig.kind !== 'enabled') {
+    log('warn', 'The admin area needs FlagCount Pro billing to be configured; its API answers 503 until then');
+  }
+  const adminHandler =
+    adminConfig.kind === 'enabled'
+      ? createAdminHandler({
+          config: adminConfig.config,
+          sessions: new AdminSessions(),
+          oauth: new GitHubOAuth(adminConfig.config),
+          admin: () => licensing?.admin ?? null,
+          logger: jsonLogger,
+          clientAddress
+        })
+      : undefined;
+
   const server = await startWebServer({
     backend: controller,
     password,
@@ -80,6 +101,7 @@ async function main(): Promise<void> {
     boardRelay: new RelayChannels(),
     verifyBoardEntitlement,
     licensing: licensingHandler,
+    admin: adminHandler,
     waitlist,
     host,
     port,

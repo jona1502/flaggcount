@@ -13,6 +13,7 @@ import { channelIdForKey, isChannelId, isRelayKey, parseVoteSnapshot, relayOverl
 import { BASE_HEADERS, keepAlive, openEventStream, send, sendJson, writeEvent } from '../server/http';
 import { HEARTBEAT_MS, createOverlayHandler, isOverlayPath, type OverlaySource } from '../server/overlayRoutes';
 import type { ReleaseInfo } from './latestRelease';
+import type { AdminHandler } from './admin/adminRoutes';
 import type { LicensingHandler } from './licensing/licensingRoutes';
 import type { BoardRelayUpdate, RelayChannels } from './relayChannels';
 import type { WaitlistResult } from './waitlistStore';
@@ -59,6 +60,8 @@ export type WebServerOptions = {
   verifyBoardEntitlement?: (value: unknown) => boolean;
   /** Public license and billing API under `/api/v1/`, separate from the dashboard login. */
   licensing?: LicensingHandler;
+  /** Admin area with its own GitHub login under `/admin` and `/api/admin/`; absent unless configured. */
+  admin?: AdminHandler;
   host?: string;
   port?: number;
   heartbeatMs?: number;
@@ -93,6 +96,9 @@ const ENTITLEMENT_HEADER = 'x-flagcount-entitlement';
 const WAITING_VOTES: VoteSnapshot = { count: 0, target: 100, roundId: '', targetReached: false };
 /** Client-side routes of the web app: the landing page with the Pro offer, the checkout return page and the dashboard. */
 const APP_ROUTES = new Set(['/', '/pro', '/pro/', '/pro/erfolgreich', '/dashboard', '/dashboard/']);
+/** The separate admin bundle; served only while the admin area is configured. */
+const ADMIN_ENTRY = '/admin.html';
+const ADMIN_ROUTES = new Set(['/admin', '/admin/', ADMIN_ENTRY]);
 
 const DASHBOARD_HEADERS = {
   'Content-Security-Policy':
@@ -643,9 +649,13 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       return;
     }
 
+    if (ADMIN_ROUTES.has(pathname) && !options.admin) {
+      sendJson(response, 404, { error: 'not-found' });
+      return;
+    }
     let relativePath: string;
     try {
-      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : pathname);
+      relativePath = decodeURIComponent(APP_ROUTES.has(pathname) ? APP_ENTRY : ADMIN_ROUTES.has(pathname) ? ADMIN_ENTRY : pathname);
     } catch {
       sendJson(response, 404, { error: 'not-found' });
       return;
@@ -695,6 +705,9 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
     if (pathname === '/readyz') {
       const ready = (await options.licensing?.ready()) ?? true;
       send(response, ready ? 200 : 503, 'text/plain; charset=utf-8', ready ? 'ready' : 'unavailable');
+      return;
+    }
+    if (options.admin && (await options.admin.handle(pathname, request, response))) {
       return;
     }
     if (options.licensing && (await options.licensing.handle(pathname, request, response))) {

@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { migrate } from '../database/migrations';
 import { createEntitlementSigner } from '../../license/signature';
 import type { StructuredLogger } from '../structuredLog';
+import { AdminService } from './adminService';
 import type { BillingPlanId, BillingProvider, MailSender } from './billing';
 import { LicenseService } from './licenseService';
 import { OutboxMailSender, SmtpMailSender } from './mail';
@@ -257,6 +258,8 @@ function readStripe(reader: Reader): BillingSettings {
 
 export type RunningLicensing = {
   service: LicenseService;
+  /** Support operations for the admin area. */
+  admin: AdminService;
   close(): Promise<void>;
 };
 
@@ -300,5 +303,11 @@ export async function startLicensing(settings: LicensingSettings, logger: Struct
     supportEmail: settings.supportEmail,
     logger
   });
-  return { service, close: () => store.close() };
+  const admin = new AdminService({
+    store,
+    licenses: service,
+    logger,
+    stripeMode: settings.billing.provider === 'stripe' ? settings.billing.stripe.mode : null
+  });
+  return { service, admin, close: () => store.close() };
 }
