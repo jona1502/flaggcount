@@ -96,6 +96,15 @@ describe('admin login flow', () => {
     expect(signedIn.status).toBe(303);
     expect(signedIn.headers.get('location')).toBe('/admin');
     expect(cookieValue(signedIn, '__Host-flagcount_admin')).toMatch(/^[\w-]{43}$/);
+
+    const proxied = await passwordLogin(
+      active,
+      new Request('http://web:3000/admin/auth/login', {
+        method: 'POST',
+        body: new URLSearchParams({ email: 'admin@example.com', password: 'a-secure-password' })
+      })
+    );
+    expect(proxied.status).toBe(303);
   });
 
   it('starts the GitHub login with state, PKCE and a lax login cookie', () => {

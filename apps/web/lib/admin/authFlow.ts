@@ -81,9 +81,7 @@ export function startLogin(runtime: AdminRuntime, request: Request): Response {
 export async function passwordLogin(runtime: AdminRuntime, request: Request): Promise<Response> {
   const tooMany = limited(runtime, request);
   if (tooMany) return tooMany;
-  if (!isSameOrigin(request, runtime.config.publicBaseUrl) || !runtime.config.email || !runtime.config.password) {
-    return new Response('Forbidden', { status: 403, headers: baseHeaders() });
-  }
+  if (!runtime.config.email || !runtime.config.password) return new Response('Not found', { status: 404, headers: baseHeaders() });
 
   const form = await request.formData().catch(() => null);
   const email = String(form?.get('email') ?? '').trim().toLowerCase();
