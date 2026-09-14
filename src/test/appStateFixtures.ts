@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type { AppState } from '../../shared/appState';
 import { FEATURES, type Feature } from '../../shared/entitlements';
+import type { RoundRecord } from '../../shared/history';
 import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
 import { migrateSettingsV1, type CounterDefinition, type Settings, type StreamProfile } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
@@ -68,6 +69,28 @@ export function teamPoll(id = 'teams', name = 'Team-Wahl'): CounterDefinition {
     ],
     withdrawalTriggers: [],
     overlay: { ...DEFAULT_OVERLAY_SETTINGS }
+  };
+}
+
+/** An aggregated round as the history stores it: counts only, no viewers or chat messages. */
+export function historyRound(overrides: Partial<RoundRecord> = {}): RoundRecord {
+  return {
+    schemaVersion: 1,
+    id: 'round-1',
+    profileId: 'default',
+    profileName: 'Standard',
+    counterId: 'red-flags',
+    counterName: 'Rote Flaggen',
+    mode: 'single',
+    startedAt: '2026-09-10T18:00:00.000Z',
+    endedAt: '2026-09-10T18:05:30.000Z',
+    endReason: 'reset',
+    target: 10,
+    targetReached: true,
+    totalCount: 12,
+    options: [{ optionId: 'red-flag', label: 'Rote Flagge', count: 12 }],
+    manualVotes: 1,
+    ...overrides
   };
 }
 

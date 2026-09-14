@@ -1,0 +1,135 @@
+/* Round history. */
+.fc-app .history-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: var(--fc-space-3);
+  margin: 0;
+}
+
+.fc-app .history-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--fc-space-1);
+  padding: var(--fc-space-4);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+}
+
+.fc-app .history-stats dt {
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .history-stats dd {
+  margin: 0;
+  font-size: var(--fc-text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-app .history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .history-toolbar .ui-field {
+  flex: 1 1 14rem;
+  max-width: 24rem;
+}
+
+.fc-app .history-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+}
+
+.fc-app .history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .history-table th,
+.fc-app .history-table td {
+  padding: 0.6rem var(--fc-space-3);
+  border-bottom: 1px solid var(--fc-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.fc-app .history-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--fc-surface-raised);
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fc-app .history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.fc-app .history-table tbody tr:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+
+.fc-app .history-table .is-number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.fc-app .history-element {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .history-mode {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .history-privacy {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .history-details {
+  display: grid;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .history-options {
+  display: grid;
+  gap: var(--fc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .history-options li {
+  display: grid;
+  gap: var(--fc-space-1);
+}
+
+.fc-app .history-option-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+  font-weight: 600;
+}
+
+.fc-app .history-options li[data-leading='true'] .history-option-head span:first-child::after {
+  margin-left: var(--fc-space-2);
+  color: var(--fc-success);
+  font-size: var(--fc-text-xs);
+  content: 'vorne';
+}
