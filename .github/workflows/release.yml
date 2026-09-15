@@ -11,8 +11,28 @@ permissions:
 
 jobs:
   release-windows:
-    name: Build and publish Windows release
-    runs-on: windows-latest
+    name: Build and publish ${{ matrix.name }} release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - name: macOS Intel
+            os: macos-13
+            target: x86_64-apple-darwin
+            bundles: dmg
+          - name: macOS Apple Silicon
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - name: Linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
@@ -28,7 +48,11 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsecret-1-dev
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -56,7 +80,7 @@ jobs:
 
       # tauri-build checks that every externalBin exists, so the Rust tests need the sidecar too.
       - name: Build sidecar
-        run: npm run build:sidecar
+        run: npm run build:sidecar -- --target ${{ matrix.target }}
 
       - name: Run Rust tests
         run: npm run test:rust
@@ -77,4 +101,4 @@ jobs:
           prerelease: false
           uploadUpdaterJson: true
           updaterJsonPreferNsis: true
-          args: --bundles nsis
+          args: --bundles ${{ matrix.bundles }} --target ${{ matrix.target }}
