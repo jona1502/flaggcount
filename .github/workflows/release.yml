@@ -71,7 +71,7 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: Audience Live v__VERSION__
           releaseBody: |
-            Audience Live heißt jetzt Audience Live. Einstellungen und Lizenzen bleiben erhalten.
+            FlagCount heißt jetzt Audience Live. Einstellungen und Lizenzen bleiben erhalten.
             Weitere Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false
