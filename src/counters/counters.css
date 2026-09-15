@@ -318,7 +318,7 @@
 .fc-app .save-bar {
   position: sticky;
   z-index: 20;
-  bottom: 2.75rem;
+  bottom: var(--fc-space-4);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -326,8 +326,9 @@
   padding: var(--fc-space-3) var(--fc-space-4);
   border: 1px solid color-mix(in srgb, var(--fc-warning) 40%, var(--fc-border-strong));
   border-radius: var(--fc-radius-lg);
-  background: color-mix(in srgb, var(--fc-warning) 8%, var(--fc-surface-raised));
+  background: color-mix(in srgb, var(--fc-warning) 8%, rgb(25 25 41 / 0.88));
   box-shadow: var(--fc-shadow-lg);
+  backdrop-filter: blur(12px);
 }
 
 .fc-app .save-bar-text {
