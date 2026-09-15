@@ -14,7 +14,7 @@ export type ConnectionErrorCode = AppErrorCode;
 export type ConnectionError = AppError;
 
 /** Bumped whenever commands or events change incompatibly; the sidecar reports it on `ready`. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /**
  * Stable, library-independent representation of a TikTok chat comment.
@@ -34,6 +34,8 @@ export type VoteTarget = {
 
 /** Commands sent by Tauri to the sidecar, one JSON object per stdin line. */
 export type SidecarCommand =
+  | { type: 'connect'; platform: 'tiktok' | 'twitch'; channelInput: string }
+  /** Accepted internally during the persisted-command migration. */
   | { type: 'connect'; username: string }
   | { type: 'disconnect' }
   | { type: 'configureTwitchAuth'; credentials: TwitchCredentials | null }
@@ -125,7 +127,11 @@ export function parseCommand(line: string): SidecarCommand | null {
   const record = value as Record<string, unknown>;
   switch (record['type']) {
     case 'connect':
-      return typeof record['username'] === 'string' ? { type: 'connect', username: record['username'] } : null;
+      if (record['platform'] === 'twitch') return { type: 'connect', platform: 'twitch', channelInput: '' };
+      if ((record['platform'] === undefined || record['platform'] === 'tiktok') && typeof (record['channelInput'] ?? record['username']) === 'string') {
+        return { type: 'connect', platform: 'tiktok', channelInput: String(record['channelInput'] ?? record['username']) };
+      }
+      return null;
     case 'configureCounters': {
       const counters = parseCounterDefinitions(record['counters']);
       if (!counters) return null;

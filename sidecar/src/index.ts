@@ -15,6 +15,8 @@ import { createTikTokAdapter } from './tiktok/TikTokAdapter';
 import { RoundHistoryStore } from './historyStore';
 import { TwitchOAuthClient } from './twitch/oauth';
 import { TwitchAuthManager } from './twitch/TwitchAuthManager';
+import { TwitchLiveService } from './twitch/TwitchLiveService';
+import { createPlatformLiveService } from './live/PlatformLiveService';
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -103,7 +105,13 @@ async function main(): Promise<void> {
     onEntitlements: (entitlements) => app.setEntitlements(entitlements),
     log
   });
-  const app = new SidecarApp(createTikTokAdapter(createTikTokConnection), send, {
+  const liveFactory = twitchAuth && twitchClientId
+    ? createPlatformLiveService(
+        createTikTokAdapter(createTikTokConnection),
+        (listener) => new TwitchLiveService(listener, { clientId: twitchClientId, auth: twitchAuth })
+      )
+    : createTikTokAdapter(createTikTokConnection);
+  const app = new SidecarApp(liveFactory, send, {
     license,
     twitchAuth,
     history,

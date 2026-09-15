@@ -18,7 +18,7 @@ use crate::settings::{CounterDefinition, CounterMode, OverlayView, Settings, DEF
 use crate::twitch::{TwitchCredentials, TwitchVault};
 
 /// Line protocol version this app speaks; the sidecar reports its own on `ready`.
-pub const PROTOCOL_VERSION: u32 = 6;
+pub const PROTOCOL_VERSION: u32 = 7;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
 pub const SIDECAR_NAME: &str = "flagcount-sidecar";
@@ -40,7 +40,8 @@ const MAX_LOG_MESSAGE_CHARS: usize = 300;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SidecarCommand {
-    Connect { username: String },
+    #[serde(rename_all = "camelCase")]
+    Connect { platform: LivePlatform, channel_input: String },
     Disconnect,
     #[serde(rename_all = "camelCase")]
     ConfigureTwitchAuth { credentials: Option<TwitchCredentials> },
@@ -381,7 +382,7 @@ pub fn startup_commands(
     settings: &Settings,
     license_state: &LicenseState,
     license: &StoredLicense,
-    reconnect_to: Option<&str>,
+    reconnect_to: Option<&DesiredConnection>,
 ) -> Vec<SidecarCommand> {
     let mut commands: Vec<SidecarCommand> = configure_counters(settings, license_state).into_iter().collect();
     commands.push(SidecarCommand::ConfigureLicense {
@@ -389,9 +390,10 @@ pub fn startup_commands(
         credentials: license.credentials.clone(),
         entitlement: license.entitlement.clone(),
     });
-    if let Some(username) = reconnect_to {
+    if let Some(source) = reconnect_to {
         commands.push(SidecarCommand::Connect {
-            username: username.to_string(),
+            platform: source.platform,
+            channel_input: source.channel_input.clone(),
         });
     }
     commands
@@ -422,16 +424,26 @@ pub fn counters_after_license_change(
 }
 
 /// The stream the user wants to be connected to, so a restarted sidecar can resume it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DesiredConnection {
-    pub username: Option<String>,
+    pub platform: LivePlatform,
+    pub channel_input: String,
+    pub active: bool,
+}
+
+impl Default for DesiredConnection {
+    fn default() -> Self { Self { platform: LivePlatform::Tiktok, channel_input: String::new(), active: false } }
 }
 
 impl DesiredConnection {
     pub fn remember(&mut self, command: &SidecarCommand) {
         match command {
-            SidecarCommand::Connect { username } => self.username = Some(username.clone()),
-            SidecarCommand::Disconnect => self.username = None,
+            SidecarCommand::Connect { platform, channel_input } => {
+                self.platform = *platform;
+                self.channel_input = channel_input.clone();
+                self.active = true;
+            }
+            SidecarCommand::Disconnect => self.active = false,
             _ => {}
         }
     }
@@ -633,7 +645,7 @@ impl Sidecar {
                 if connection.status == ConnectionStatus::Disconnected
                     && inner.state.connection.status != ConnectionStatus::Disconnected
                 {
-                    inner.desired.username = None;
+                    inner.desired.active = false;
                 }
             }
 
@@ -658,11 +670,7 @@ impl Sidecar {
             });
             let mut startup = if is_ready {
                 let reconnect = std::mem::take(&mut inner.restore_pending);
-                let reconnect_to = if reconnect {
-                    inner.desired.username.as_deref()
-                } else {
-                    None
-                };
+                let reconnect_to = reconnect.then_some(&inner.desired).filter(|source| source.active);
                 let mut commands = startup_commands(&inner.state.settings, &inner.state.license, &inner.license, reconnect_to);
                 commands.insert(1, SidecarCommand::ConfigureTwitchAuth { credentials: inner.twitch_credentials.clone() });
                 commands
@@ -840,9 +848,10 @@ mod tests {
         let cases = [
             (
                 SidecarCommand::Connect {
-                    username: "streamer".into(),
+                    platform: LivePlatform::Tiktok,
+                    channel_input: "streamer".into(),
                 },
-                json!({ "type": "connect", "username": "streamer" }),
+                json!({ "type": "connect", "platform": "tiktok", "channelInput": "streamer" }),
             ),
             (SidecarCommand::Disconnect, json!({ "type": "disconnect" })),
             (
@@ -1242,9 +1251,10 @@ mod tests {
             ]
         );
         assert_eq!(
-            startup_commands(&settings, &LicenseState::default(), &license, Some("streamer")).last(),
+            startup_commands(&settings, &LicenseState::default(), &license, Some(&DesiredConnection { platform: LivePlatform::Tiktok, channel_input: "streamer".into(), active: true })).last(),
             Some(&SidecarCommand::Connect {
-                username: "streamer".into()
+                platform: LivePlatform::Tiktok,
+                channel_input: "streamer".into()
             })
         );
     }
@@ -1276,12 +1286,14 @@ mod tests {
         let mut desired = DesiredConnection::default();
 
         desired.remember(&SidecarCommand::Connect {
-            username: "streamer".into(),
+            platform: LivePlatform::Tiktok,
+            channel_input: "streamer".into(),
         });
         desired.remember(&SidecarCommand::GetState);
-        assert_eq!(desired.username.as_deref(), Some("streamer"));
+        assert!(desired.active);
+        assert_eq!(desired.channel_input, "streamer");
 
         desired.remember(&SidecarCommand::Disconnect);
-        assert_eq!(desired.username, None);
+        assert!(!desired.active);
     }
 }

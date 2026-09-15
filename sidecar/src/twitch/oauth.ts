@@ -65,6 +65,13 @@ export class TwitchOAuthClient {
     }));
   }
 
+  async revoke(accessToken: string): Promise<void> {
+    const response = await this.request(`${ID_BASE}/revoke`, {
+      method: 'POST', body: new URLSearchParams({ client_id: this.clientId, token: accessToken })
+    });
+    if (!response.ok) throw new TwitchOAuthError('network');
+  }
+
   private async tokenRequest(body: URLSearchParams): Promise<TwitchCredentials> {
     const response = await this.request(`${ID_BASE}/token`, { method: 'POST', body });
     const value = await json(response);

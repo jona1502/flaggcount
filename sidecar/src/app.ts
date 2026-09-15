@@ -199,7 +199,9 @@ export class SidecarApp {
   async handleCommand(command: SidecarCommand): Promise<void> {
     switch (command.type) {
       case 'connect':
-        await this.live.connect(command.username);
+        await ('username' in command
+          ? this.live.connect(command.username, 'tiktok')
+          : this.live.connect(command.channelInput, command.platform));
         break;
       case 'disconnect':
         await this.live.disconnect();
@@ -215,7 +217,7 @@ export class SidecarApp {
         }
         break;
       case 'disconnectTwitchAccount':
-        this.twitchAuth?.disconnect();
+        await this.twitchAuth?.disconnect();
         break;
       case 'addManualVote':
       case 'removeManualVote': {

@@ -7,7 +7,7 @@ const counter = createRedFlagCounter(25, { ...DEFAULT_OVERLAY_SETTINGS, showBack
 
 describe('parseCommand', () => {
   it.each([
-    ['{"type":"connect","username":"streamer"}', { type: 'connect', username: 'streamer' }],
+    ['{"type":"connect","username":"streamer"}', { type: 'connect', platform: 'tiktok', channelInput: 'streamer' }],
     ['{"type":"disconnect"}', { type: 'disconnect' }],
     ['{"type":"addManualVote"}', { type: 'addManualVote' }],
     ['{"type":"addManualVote","counterId":"poll","optionId":"a"}', { type: 'addManualVote', counterId: 'poll', optionId: 'a' }],
@@ -71,6 +71,6 @@ describe('serializeEvent', () => {
   it('writes exactly one JSON line', () => {
     expect(
       serializeEvent({ type: 'ready', protocolVersion: PROTOCOL_VERSION, port: 1234, token: 'abc', publicOverlayUrl: null })
-    ).toBe('{"type":"ready","protocolVersion":6,"port":1234,"token":"abc","publicOverlayUrl":null}\n');
+    ).toBe('{"type":"ready","protocolVersion":7,"port":1234,"token":"abc","publicOverlayUrl":null}\n');
   });
 });

@@ -4,8 +4,8 @@ use crate::license::{self, LicenseState};
 use crate::overlay_views::{self, OverlayViewInput};
 use crate::entitlements::{has_feature, CSV_EXPORT, CUSTOM_BRANDING, PREMIUM_TEMPLATES};
 use crate::profiles::{self, effective_profile};
-use crate::settings::{self, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
-use crate::sidecar::{configure_counters, open_external, AppError, AppState, Sidecar, SidecarCommand};
+use crate::settings::{self, LivePlatform as SettingsLivePlatform, OverlaySettings, Settings, SettingsSaver, MAX_TARGET, MIN_TARGET};
+use crate::sidecar::{configure_counters, open_external, AppError, AppState, LivePlatform, Sidecar, SidecarCommand};
 
 /// Rejects obviously invalid input early; the sidecar performs the full TikTok validation.
 pub fn validate_username(username: &str) -> Result<String, AppError> {
@@ -69,14 +69,21 @@ pub fn connect<R: Runtime>(
     app: AppHandle<R>,
     sidecar: State<'_, Sidecar>,
     saver: State<'_, SettingsSaver>,
-    username: String,
+    username: Option<String>,
+    platform: Option<LivePlatform>,
 ) -> Result<(), AppError> {
-    let username = validate_username(&username)?;
+    let platform = platform.unwrap_or(LivePlatform::Tiktok);
+    let username = if platform == LivePlatform::Tiktok { validate_username(username.as_deref().unwrap_or_default())? } else { String::new() };
     sidecar.send(&SidecarCommand::Connect {
-        username: username.clone(),
+        platform,
+        channel_input: username.clone(),
     })?;
 
-    saver.save(&sidecar.update_settings(&app, |settings| settings.username = username));
+    saver.save(&sidecar.update_settings(&app, |settings| {
+        if platform == LivePlatform::Tiktok { settings.username = username.clone(); }
+        settings.live_source.platform = if platform == LivePlatform::Twitch { SettingsLivePlatform::Twitch } else { SettingsLivePlatform::Tiktok };
+        settings.live_source.channel_input = username;
+    }));
     Ok(())
 }
 

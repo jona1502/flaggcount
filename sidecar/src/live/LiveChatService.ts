@@ -1,3 +1,4 @@
+import type { LivePlatform } from '../../../shared/live';
 import type { ConnectionError, ConnectionState, LogLevel, ChatMessage } from '../protocol';
 
 export type LiveChatServiceListener = {
@@ -10,7 +11,7 @@ export type LiveChatServiceListener = {
 /** Provider-neutral lifecycle used by voting, desktop and web orchestration. */
 export interface LiveChatService {
   getState(): ConnectionState;
-  connect(channelInput?: string): Promise<void>;
+  connect(channelInput?: string, platform?: LivePlatform): Promise<void>;
   disconnect(): Promise<void>;
 }
 

@@ -62,11 +62,13 @@ export class TwitchAuthManager {
     if (generation === this.generation) this.setState({ status: 'expired' });
   }
 
-  disconnect(): void {
+  async disconnect(): Promise<void> {
     this.generation++;
+    const accessToken = this.credentials?.accessToken;
     this.credentials = null;
     this.listener.onCredentials(null);
     this.setState({ status: 'signed-out' });
+    if (accessToken) await this.client.revoke(accessToken).catch(() => undefined);
   }
 
   private setState(state: TwitchAuthState): void {
