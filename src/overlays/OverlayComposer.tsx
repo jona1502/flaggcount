@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import type { CounterDefinition, OverlayLayout, OverlayView, OverlayViewInput } from '../../shared/profiles';
 import { Button, Dialog, Field, IconButton, IconChevronDown, IconChevronUp, Input, Select } from '../components/ui';
 
-const DEFAULT_INPUT: OverlayViewInput = {
+/** The composer picks each counter once; saving turns the selection into scene entries. */
+type Draft = Omit<OverlayViewInput, 'items'> & { counterIds: string[] };
+
+const DEFAULT_INPUT: Draft = {
   name: '',
   counterIds: [],
   layout: 'auto',
@@ -29,7 +32,7 @@ const labels: Record<OverlayLayout, string> = {
 };
 
 export function OverlayComposer({ open, counters, view, pending, onClose, onSave }: OverlayComposerProps): React.JSX.Element | null {
-  const [draft, setDraft] = useState<OverlayViewInput>(DEFAULT_INPUT);
+  const [draft, setDraft] = useState<Draft>(DEFAULT_INPUT);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function OverlayComposer({ open, counters, view, pending, onClose, onSave
       view
         ? {
             name: view.name,
-            counterIds: [...view.counterIds],
+            counterIds: [...new Set(view.items.map((item) => item.counterId))],
             layout: view.layout,
             gap: view.gap,
             horizontalAlign: view.horizontalAlign,
@@ -64,7 +67,8 @@ export function OverlayComposer({ open, counters, view, pending, onClose, onSave
   const submit = (): void => {
     setSubmitted(true);
     if (!draft.name.trim() || draft.counterIds.length === 0) return;
-    onSave({ ...draft, name: draft.name.trim() });
+    const { counterIds, ...rest } = draft;
+    onSave({ ...rest, name: draft.name.trim(), items: counterIds.map((counterId, index) => ({ id: `i-${index + 1}`, counterId, scale: 100 })) });
   };
 
   return (

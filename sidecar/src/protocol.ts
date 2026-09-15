@@ -1,6 +1,6 @@
 import type { AppError, AppErrorCode, ConnectionState } from '../../shared/appState';
 import type { LicenseState, SignedEntitlement } from '../../shared/licensing';
-import { parseCounterDefinitions, parseOverlayView, type CounterDefinition, type OverlayView } from '../../shared/profiles';
+import { MAX_OVERLAY_VIEWS, parseCounterDefinitions, parseOverlayView, type CounterDefinition, type OverlayView } from '../../shared/profiles';
 import { parseOverlaySettings } from '../../shared/settings';
 import type { CounterSnapshot, VoteSnapshot } from '../../shared/voting';
 import type { LicenseCredentials } from './license/licenseManager';
@@ -137,7 +137,7 @@ export function parseCommand(line: string): SidecarCommand | null {
       if (!counters) return null;
       const counterIds = new Set(counters.map((counter) => counter.id));
       const rawViews = record['overlayViews'] ?? [];
-      if (!Array.isArray(rawViews) || rawViews.length > 4) return null;
+      if (!Array.isArray(rawViews) || rawViews.length > MAX_OVERLAY_VIEWS) return null;
       const overlayViews = rawViews.map((view) => parseOverlayView(view, counterIds));
       if (overlayViews.some((view) => view === null)) return null;
       const profileId = typeof record['profileId'] === 'string' && ID_PATTERN.test(record['profileId']) ? record['profileId'] : undefined;

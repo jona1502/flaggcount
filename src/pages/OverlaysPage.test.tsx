@@ -57,7 +57,10 @@ describe('Overlays', () => {
 
     expect(actions.createOverlayView).toHaveBeenCalledWith({
       name: 'Hauptszene',
-      counterIds: ['red-flags', 'teams'],
+      items: [
+        { id: 'i-1', counterId: 'red-flags', scale: 100 },
+        { id: 'i-2', counterId: 'teams', scale: 100 }
+      ],
       layout: 'horizontal',
       gap: 18,
       horizontalAlign: 'center',

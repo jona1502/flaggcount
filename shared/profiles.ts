@@ -4,7 +4,7 @@ import { DEFAULT_TARGET, isValidTarget } from './voting/target';
 import { parseTrigger, triggerKey, type Trigger } from './voting/triggers';
 import { parseSavedLiveSource, type SavedLiveSource } from './live';
 
-export const SETTINGS_SCHEMA_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 5;
 /** Absolute upper bounds of the data model; the plan of the user may allow less. */
 export const MAX_PROFILES = 10;
 export const MAX_COUNTERS = 4;
@@ -13,7 +13,13 @@ export const MAX_POLL_OPTIONS = 6;
 export const MAX_OPTION_TRIGGERS = 8;
 export const MAX_WITHDRAWAL_TRIGGERS = 4;
 export const MAX_NAME_LENGTH = 60;
-export const MAX_OVERLAY_VIEWS = 4;
+export const MAX_OVERLAY_VIEWS = 8;
+/** Entries per scene; the same counter may appear more than once, e.g. large and small. */
+export const MAX_SCENE_ITEMS = 6;
+export const MIN_SCENE_ITEM_SCALE = 40;
+export const MAX_SCENE_ITEM_SCALE = 160;
+/** Scene id of the automatic scene with every running counter; also the default live scene. */
+export const AUTO_SCENE_ID = 'all';
 export const MIN_OVERLAY_VIEW_GAP = 0;
 export const MAX_OVERLAY_VIEW_GAP = 64;
 export const MIN_OVERLAY_VIEW_SCALE = 20;
@@ -51,11 +57,19 @@ export type OverlayLayout = (typeof OVERLAY_LAYOUTS)[number];
 export const OVERLAY_ALIGNMENTS = ['start', 'center', 'end'] as const;
 export type OverlayAlignment = (typeof OVERLAY_ALIGNMENTS)[number];
 
-/** A stable browser-source composition of counters from one profile. */
+/** One entry of a scene. Its own id tells two entries of the same counter apart. */
+export type OverlaySceneItem = {
+  id: string;
+  counterId: string;
+  /** Size of this entry in percent. */
+  scale: number;
+};
+
+/** A stable browser-source composition of counters from one profile, shown as a scene in the app. */
 export type OverlayView = {
   id: string;
   name: string;
-  counterIds: string[];
+  items: OverlaySceneItem[];
   layout: OverlayLayout;
   gap: number;
   horizontalAlign: OverlayAlignment;
@@ -71,6 +85,10 @@ export type StreamProfile = {
   name: string;
   counters: CounterDefinition[];
   overlayViews: OverlayView[];
+  /** The scene shown under `/overlay/live`: `all` or the id of one of `overlayViews`. */
+  liveSceneId: string;
+  /** Hides the live overlay without forgetting the live scene. */
+  liveHidden: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -87,7 +105,7 @@ export type Settings = {
 };
 
 /** How stored settings were turned into the current schema; anything but `none` must be written back. */
-export type SettingsMigration = 'none' | 'from-v1' | 'from-v2' | 'from-v3' | 'replaced-invalid';
+export type SettingsMigration = 'none' | 'from-v1' | 'from-v2' | 'from-v3' | 'from-v4' | 'replaced-invalid';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_TIMESTAMP_LENGTH = 40;
@@ -162,6 +180,8 @@ export function migrateSettingsV1(settings: SettingsV1, now: string): Settings {
         name: 'Standard',
         counters: [createRedFlagCounter(settings.target, settings.overlay)],
         overlayViews: [],
+        liveSceneId: AUTO_SCENE_ID,
+        liveHidden: false,
         createdAt: now,
         updatedAt: now
       }
@@ -238,24 +258,40 @@ export function parseCounterDefinitions(value: unknown): CounterDefinition[] | n
   return counters && hasUniqueIds(counters) ? counters : null;
 }
 
+function parseSceneItem(value: unknown, counterIds?: ReadonlySet<string>): OverlaySceneItem | null {
+  if (!isRecord(value)) return null;
+  const { id, counterId, scale } = value;
+  if (!isId(id) || !isId(counterId) || (counterIds !== undefined && !counterIds.has(counterId))) return null;
+  if (typeof scale !== 'number' || !Number.isInteger(scale) || scale < MIN_SCENE_ITEM_SCALE || scale > MAX_SCENE_ITEM_SCALE) return null;
+  return { id, counterId, scale };
+}
+
+/**
+ * Entries of a scene. Up to schema 4 a view listed each counter once in `counterIds`; those become entries
+ * `i-1`, `i-2`, … at full size, exactly like the Rust migration.
+ */
+function parseSceneItems(value: UnknownRecord, counterIds?: ReadonlySet<string>): OverlaySceneItem[] | null {
+  const legacy = value['counterIds'];
+  const raw = Array.isArray(value['items'])
+    ? value['items']
+    : Array.isArray(legacy) && new Set(legacy).size === legacy.length
+      ? legacy.map((counterId: unknown, index) => ({ id: `i-${index + 1}`, counterId, scale: 100 }))
+      : null;
+  const items = raw && parseList(raw, 1, MAX_SCENE_ITEMS, (item) => parseSceneItem(item, counterIds));
+  return items && hasUniqueIds(items) ? items : null;
+}
+
 export function parseOverlayView(value: unknown, counterIds?: ReadonlySet<string>): OverlayView | null {
   if (!isRecord(value)) return null;
   const { id, layout, gap, horizontalAlign, verticalAlign, scale, createdAt, updatedAt } = value;
   const name = parseName(value['name']);
-  const ids = value['counterIds'];
-  const validIds =
-    Array.isArray(ids) &&
-    ids.length >= 1 &&
-    ids.length <= MAX_COUNTERS &&
-    ids.every((candidate): candidate is string => isId(candidate)) &&
-    new Set(ids).size === ids.length &&
-    (counterIds === undefined || ids.every((candidate) => counterIds.has(candidate)));
+  const items = parseSceneItems(value, counterIds);
   if (
     !isId(id) ||
-    id === 'all' ||
+    id === AUTO_SCENE_ID ||
     counterIds?.has(id) === true ||
     name === null ||
-    !validIds ||
+    items === null ||
     !(OVERLAY_LAYOUTS as readonly unknown[]).includes(layout) ||
     !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(horizontalAlign) ||
     !(OVERLAY_ALIGNMENTS as readonly unknown[]).includes(verticalAlign) ||
@@ -275,7 +311,7 @@ export function parseOverlayView(value: unknown, counterIds?: ReadonlySet<string
   return {
     id,
     name,
-    counterIds: [...ids],
+    items,
     layout: layout as OverlayLayout,
     gap,
     horizontalAlign: horizontalAlign as OverlayAlignment,
@@ -297,7 +333,12 @@ export function parseStreamProfile(value: unknown): StreamProfile | null {
   if (!isId(id) || name === null || counters === null || overlayViews === null || !hasUniqueIds(overlayViews) || !isTimestamp(createdAt) || !isTimestamp(updatedAt)) {
     return null;
   }
-  return { id, name, counters, overlayViews, createdAt, updatedAt };
+  // A live scene that no longer exists falls back to the automatic scene instead of breaking the profile.
+  const requestedScene = value['liveSceneId'];
+  const liveSceneId =
+    typeof requestedScene === 'string' && overlayViews.some((view) => view.id === requestedScene) ? requestedScene : AUTO_SCENE_ID;
+  const liveHidden = value['liveHidden'] === true;
+  return { id, name, counters, overlayViews, liveSceneId, liveHidden, createdAt, updatedAt };
 }
 
 function parseSettingsV2(record: UnknownRecord): Settings | null {
@@ -325,9 +366,10 @@ function parseSettingsV2(record: UnknownRecord): Settings | null {
 export function parseSettings(value: unknown, now: string): { settings: Settings; migration: SettingsMigration } {
   if (isRecord(value) && value['schemaVersion'] !== undefined) {
     const version = value['schemaVersion'];
-    const settings = version === SETTINGS_SCHEMA_VERSION || version === 3 || version === 2 ? parseSettingsV2(value) : null;
+    const settings = version === SETTINGS_SCHEMA_VERSION || version === 4 || version === 3 || version === 2 ? parseSettingsV2(value) : null;
     if (settings) {
-      return { settings, migration: version === 2 ? 'from-v2' : version === 3 ? 'from-v3' : 'none' };
+      const migration: SettingsMigration = version === 2 ? 'from-v2' : version === 3 ? 'from-v3' : version === 4 ? 'from-v4' : 'none';
+      return { settings, migration };
     }
     return { settings: migrateSettingsV1(parseSettingsV1(value), now), migration: 'replaced-invalid' };
   }

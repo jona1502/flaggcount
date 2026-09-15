@@ -167,7 +167,7 @@ export class SidecarApp {
     const custom = this.overlayViews.find((view) => view.id === scope);
     if (custom) {
       if (!canUse(this.entitlements, 'parallel-counters')) return { status: 'pro-required' };
-      const selected = custom.counterIds.map((id) => views.find((view) => view.counterId === id)).filter((view): view is NonNullable<typeof view> => Boolean(view));
+      const selected = custom.items.map((item) => views.find((view) => view.counterId === item.counterId)).filter((view): view is NonNullable<typeof view> => Boolean(view));
       if (selected.length === 0) return { status: 'not-found' };
       const { layout, gap, horizontalAlign, verticalAlign, scale } = custom;
       return { status: 'ok', counters: selected, layout: { layout, gap, horizontalAlign, verticalAlign, scale } };

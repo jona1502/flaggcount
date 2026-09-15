@@ -82,7 +82,7 @@ export function overlayTargets(
     const activeIds = new Set(running.map((counter) => counter.id));
     const status: OverlayTargetStatus = !canUse(entitlements, 'parallel-counters')
       ? 'pro-required'
-      : !view.counterIds.some((id) => activeIds.has(id))
+      : !view.items.some((item) => activeIds.has(item.counterId))
         ? 'paused'
         : base === null
           ? 'service-unavailable'

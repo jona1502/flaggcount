@@ -1,7 +1,7 @@
 import {
-  MAX_COUNTERS,
   MAX_NAME_LENGTH,
   MAX_POLL_OPTIONS,
+  MAX_SCENE_ITEMS,
   MAX_OVERLAY_VIEW_GAP,
   MAX_OVERLAY_VIEW_SCALE,
   MIN_OVERLAY_VIEW_GAP,
@@ -126,7 +126,7 @@ function parseView(value: unknown): CounterView | null {
 
 /** Reads counter views from untrusted input, e.g. a relay update. An empty list clears an overlay. */
 export function parseCounterViews(value: unknown): CounterView[] | null {
-  if (!Array.isArray(value) || value.length > MAX_COUNTERS) return null;
+  if (!Array.isArray(value) || value.length > MAX_SCENE_ITEMS) return null;
   const views: CounterView[] = [];
   for (const item of value) {
     const view = parseView(item);

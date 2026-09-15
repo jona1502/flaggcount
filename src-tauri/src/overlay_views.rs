@@ -9,7 +9,8 @@ use crate::entitlements::{has_feature, PARALLEL_COUNTERS};
 use crate::license::LicenseState;
 use crate::profiles::{effective_profile, pro_required, validated_profile_name};
 use crate::settings::{
-    OverlayAlignment, OverlayLayout, OverlayView, Settings, MAX_NAME_LENGTH, MAX_OVERLAY_VIEWS,
+    OverlayAlignment, OverlayLayout, OverlaySceneItem, OverlayView, Settings, AUTO_SCENE_ID, MAX_NAME_LENGTH,
+    MAX_OVERLAY_VIEWS,
 };
 use crate::sidecar::AppError;
 
@@ -17,7 +18,7 @@ use crate::sidecar::AppError;
 #[serde(rename_all = "camelCase")]
 pub struct OverlayViewInput {
     pub name: String,
-    pub counter_ids: Vec<String>,
+    pub items: Vec<OverlaySceneItem>,
     pub layout: OverlayLayout,
     pub gap: u8,
     pub horizontal_align: OverlayAlignment,
@@ -61,7 +62,8 @@ fn build(input: OverlayViewInput, id: String, now: &str, counter_ids: &HashSet<S
     OverlayView {
         id,
         name: input.name,
-        counter_ids: input.counter_ids,
+        items: input.items,
+        counter_ids: Vec::new(),
         layout: input.layout,
         gap: input.gap,
         horizontal_align: input.horizontal_align,
@@ -129,6 +131,9 @@ pub fn delete(settings: &mut Settings, license: &LicenseState, view_id: &str, no
     if profile.overlay_views.len() == before {
         return Err(invalid("The overlay view does not exist"));
     }
+    if profile.live_scene_id == view_id {
+        profile.live_scene_id = AUTO_SCENE_ID.into();
+    }
     profile.updated_at = now.into();
     Ok(())
 }
@@ -160,7 +165,7 @@ pub fn duplicate(
         license,
         OverlayViewInput {
             name: validated_profile_name(&format!("{}{suffix}", base.trim_end()))?,
-            counter_ids: source.counter_ids,
+            items: source.items,
             layout: source.layout,
             gap: source.gap,
             horizontal_align: source.horizontal_align,
@@ -191,7 +196,7 @@ mod tests {
     fn input(name: &str) -> OverlayViewInput {
         OverlayViewInput {
             name: name.into(),
-            counter_ids: vec!["red-flags".into()],
+            items: vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100 }],
             layout: OverlayLayout::Horizontal,
             gap: 18,
             horizontal_align: OverlayAlignment::Center,
@@ -218,6 +223,19 @@ mod tests {
     }
 
     #[test]
+    fn shows_the_same_counter_twice_and_resets_the_live_scene_on_delete() {
+        let mut settings = Settings::default();
+        let mut twice = input("Doppelt");
+        twice.items.push(OverlaySceneItem { id: "i-2".into(), counter_id: "red-flags".into(), scale: 60 });
+        create(&mut settings, &pro(), twice, "v-main".into(), NOW).unwrap();
+        assert_eq!(settings.profiles[0].overlay_views[0].items.len(), 2);
+
+        settings.profiles[0].live_scene_id = "v-main".into();
+        delete(&mut settings, &pro(), "v-main", NOW).unwrap();
+        assert_eq!(settings.profiles[0].live_scene_id, AUTO_SCENE_ID);
+    }
+
+    #[test]
     fn free_and_invalid_counter_ids_are_rejected_without_changes() {
         let mut settings = Settings::default();
         assert_eq!(
@@ -227,7 +245,7 @@ mod tests {
             "pro-required"
         );
         let mut invalid = input("Szene");
-        invalid.counter_ids = vec!["missing".into()];
+        invalid.items[0].counter_id = "missing".into();
         assert_eq!(
             create(&mut settings, &pro(), invalid, "v-main".into(), NOW)
                 .unwrap_err()

@@ -89,6 +89,8 @@ pub fn create_profile(
         name,
         counters: vec![CounterDefinition::red_flags(DEFAULT_TARGET, OverlaySettings::default())],
         overlay_views: vec![],
+        live_scene_id: crate::settings::AUTO_SCENE_ID.into(),
+        live_hidden: false,
         created_at: now.into(),
         updated_at: now.into(),
     });
@@ -234,9 +236,12 @@ pub fn replace_counters(
     profile.counters = counters;
     let ids: std::collections::HashSet<_> = profile.counters.iter().map(|counter| counter.id.as_str()).collect();
     profile.overlay_views.retain_mut(|view| {
-        view.counter_ids.retain(|id| ids.contains(id.as_str()));
-        !view.counter_ids.is_empty()
+        view.items.retain(|item| ids.contains(item.counter_id.as_str()));
+        !view.items.is_empty()
     });
+    if !profile.overlay_views.iter().any(|view| view.id == profile.live_scene_id) {
+        profile.live_scene_id = crate::settings::AUTO_SCENE_ID.into();
+    }
     profile.updated_at = now.into();
     Ok(())
 }

@@ -53,7 +53,7 @@ export function createSettings(counters?: CounterDefinition[], extraProfiles: St
 }
 
 export function createProfile(id: string, name: string, counters: CounterDefinition[]): StreamProfile {
-  return { id, name, counters, overlayViews: [], createdAt: NOW, updatedAt: NOW };
+  return { id, name, counters, overlayViews: [], liveSceneId: 'all', liveHidden: false, createdAt: NOW, updatedAt: NOW };
 }
 
 /** A two-option poll as a Pro user would create it. */

@@ -3,6 +3,7 @@ import {
   MAX_COUNTERS,
   MAX_NAME_LENGTH,
   MAX_PROFILES,
+  MAX_SCENE_ITEMS,
   activeProfile,
   createDefaultSettings,
   createRedFlagCounter,
@@ -45,7 +46,7 @@ describe('settings migration', () => {
 
     expect(migration).toBe('from-v1');
     expect(settings).toEqual({
-      schemaVersion: 4,
+      schemaVersion: 5,
       username: 'streamer',
       liveSource: { platform: 'tiktok', channelInput: 'streamer' },
       activeProfileId: 'default',
@@ -72,6 +73,8 @@ describe('settings migration', () => {
             }
           ],
           overlayViews: [],
+          liveSceneId: 'all',
+          liveHidden: false,
           createdAt: NOW,
           updatedAt: NOW
         }
@@ -95,7 +98,7 @@ describe('settings migration', () => {
       expect(settings.username).toBe('streamer');
       expect(primaryCounter(settings).target).toBe(30);
     }
-    expect(parseSettings({ schemaVersion: 4 }, NOW).migration).toBe('replaced-invalid');
+    expect(parseSettings({ schemaVersion: 5 }, NOW).migration).toBe('replaced-invalid');
     expect(parseSettings(null, NOW)).toEqual({ settings: createDefaultSettings(NOW), migration: 'from-v1' });
   });
 
@@ -117,7 +120,7 @@ describe('overlay views', () => {
   const view = {
     id: 'main-scene',
     name: 'Hauptszene',
-    counterIds: ['red-flags'],
+    items: [{ id: 'i-1', counterId: 'red-flags', scale: 100 }],
     layout: 'horizontal',
     gap: 18,
     horizontalAlign: 'center',
@@ -136,7 +139,7 @@ describe('overlay views', () => {
     };
     const migrated = parseSettings(old, LATER);
     expect(migrated.migration).toBe('from-v2');
-    expect(migrated.settings.schemaVersion).toBe(4);
+    expect(migrated.settings.schemaVersion).toBe(5);
     expect(migrated.settings.profiles[0]?.overlayViews).toEqual([]);
   });
 
@@ -148,12 +151,66 @@ describe('overlay views', () => {
     expect(migrated.settings.liveSource).toEqual({ platform: 'tiktok', channelInput: '' });
   });
 
-  it('accepts valid views and rejects unknown or duplicate counters', () => {
+  it('accepts scenes that show the same counter twice at different sizes', () => {
     const counters = new Set(['red-flags']);
+    const twice = {
+      ...view,
+      items: [
+        { id: 'big', counterId: 'red-flags', scale: 140 },
+        { id: 'small', counterId: 'red-flags', scale: 60 }
+      ]
+    };
+
     expect(parseOverlayView(view, counters)).toEqual(view);
-    expect(parseOverlayView({ ...view, counterIds: ['missing'] }, counters)).toBeNull();
-    expect(parseOverlayView({ ...view, counterIds: ['red-flags', 'red-flags'] }, counters)).toBeNull();
-    expect(parseOverlayView({ ...view, id: 'all' }, counters)).toBeNull();
+    expect(parseOverlayView(twice, counters)).toEqual(twice);
+  });
+
+  it.each([
+    ['an unknown counter', [{ id: 'i-1', counterId: 'missing', scale: 100 }]],
+    ['duplicate entry ids', [{ id: 'i-1', counterId: 'red-flags', scale: 100 }, { id: 'i-1', counterId: 'red-flags', scale: 80 }]],
+    ['no entries', []],
+    ['too many entries', Array.from({ length: MAX_SCENE_ITEMS + 1 }, (_, index) => ({ id: `i-${index}`, counterId: 'red-flags', scale: 100 }))],
+    ['a size below the minimum', [{ id: 'i-1', counterId: 'red-flags', scale: 39 }]],
+    ['a size above the maximum', [{ id: 'i-1', counterId: 'red-flags', scale: 161 }]]
+  ])('rejects a scene with %s', (_name, items) => {
+    expect(parseOverlayView({ ...view, items }, new Set(['red-flags']))).toBeNull();
+  });
+
+  it('keeps the reserved id of the automatic scene free', () => {
+    expect(parseOverlayView({ ...view, id: 'all' }, new Set(['red-flags']))).toBeNull();
+  });
+
+  it('migrates version 4 views into scene entries and starts with the automatic live scene', () => {
+    const current = createDefaultSettings(NOW);
+    const { items: _items, ...legacyView } = view;
+    const legacyProfile = (counterIds: string[]) =>
+      current.profiles.map(({ liveSceneId: _scene, liveHidden: _hidden, ...profile }) => ({
+        ...profile,
+        overlayViews: [{ ...legacyView, counterIds }]
+      }));
+
+    const migrated = parseSettings({ ...current, schemaVersion: 4, profiles: legacyProfile(['red-flags']) }, LATER);
+
+    expect(migrated.migration).toBe('from-v4');
+    expect(migrated.settings.profiles[0]).toMatchObject({
+      overlayViews: [{ id: 'main-scene', items: [{ id: 'i-1', counterId: 'red-flags', scale: 100 }] }],
+      liveSceneId: 'all',
+      liveHidden: false
+    });
+    expect(parseSettings({ ...current, schemaVersion: 4, profiles: legacyProfile(['red-flags', 'red-flags']) }, LATER).migration).toBe(
+      'replaced-invalid'
+    );
+  });
+
+  it('falls back to the automatic scene when the live scene no longer exists', () => {
+    const settings = createDefaultSettings(NOW);
+    const profile = { ...settings.profiles[0], overlayViews: [view], liveSceneId: 'main-scene', liveHidden: true };
+
+    expect(parseSettings({ ...settings, profiles: [profile] }, NOW).settings.profiles[0]).toMatchObject({
+      liveSceneId: 'main-scene',
+      liveHidden: true
+    });
+    expect(parseSettings({ ...settings, profiles: [{ ...profile, liveSceneId: 'gone' }] }, NOW).settings.profiles[0]?.liveSceneId).toBe('all');
   });
 });
 

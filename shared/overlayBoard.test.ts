@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPollCounter } from './counterValidation';
 import { buildCounterViews, parseCounterViews } from './overlayBoard';
-import { createRedFlagCounter } from './profiles';
+import { MAX_SCENE_ITEMS, createRedFlagCounter } from './profiles';
 import { DEFAULT_OVERLAY_SETTINGS } from './settings';
 import type { CounterSnapshot } from './voting';
 
@@ -59,10 +59,16 @@ describe('parseCounterViews', () => {
     expect(parseCounterViews([])).toEqual([]);
   });
 
+  it('accepts the same counter several times, up to the entries of a scene', () => {
+    const view = buildCounterViews(snapshots, [poll])[0];
+
+    expect(parseCounterViews(Array(MAX_SCENE_ITEMS).fill(view))).toHaveLength(MAX_SCENE_ITEMS);
+  });
+
   it.each([
     null,
     'views',
-    Array(5).fill(buildCounterViews(snapshots, [poll])[0]),
+    Array(MAX_SCENE_ITEMS + 1).fill(buildCounterViews(snapshots, [poll])[0]),
     [{ ...buildCounterViews(snapshots, [poll])[0], counterId: '<script>' }],
     [{ ...buildCounterViews(snapshots, [poll])[0], name: 'x'.repeat(61) }],
     [{ ...buildCounterViews(snapshots, [poll])[0], totalCount: -1 }],

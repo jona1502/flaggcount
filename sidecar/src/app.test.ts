@@ -284,7 +284,10 @@ describe('SidecarApp', () => {
       overlayViews: [{
         id: 'v-main',
         name: 'Hauptszene',
-        counterIds: ['teams', 'red-flags'],
+        items: [
+          { id: 'i-1', counterId: 'teams', scale: 100 },
+          { id: 'i-2', counterId: 'red-flags', scale: 100 }
+        ],
         layout: 'horizontal',
         gap: 24,
         horizontalAlign: 'center',

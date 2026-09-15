@@ -17,7 +17,7 @@ export function statusBadge(status: OverlayTargetStatus, isPro: boolean): { tone
 
 export function targetTypeLabel(target: OverlayTarget): string {
   if (target.kind === 'board') return 'Alle Elemente';
-  if (target.kind === 'view') return `${target.view?.counterIds.length ?? 0} Elemente`;
+  if (target.kind === 'view') return `${target.view?.items.length ?? 0} Elemente`;
   return target.mode === 'poll' ? 'Abstimmung' : 'Einfacher Zähler';
 }
 

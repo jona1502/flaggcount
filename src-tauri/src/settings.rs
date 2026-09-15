@@ -13,9 +13,10 @@ pub const SETTINGS_FILE: &str = "settings.json";
 pub const SETTINGS_V1_BACKUP_FILE: &str = "settings.v1.backup.json";
 pub const SETTINGS_V2_BACKUP_FILE: &str = "settings.v2.backup.json";
 pub const SETTINGS_V3_BACKUP_FILE: &str = "settings.v3.backup.json";
+pub const SETTINGS_V4_BACKUP_FILE: &str = "settings.v4.backup.json";
 /// Copy of a settings file that could not be read, written before it is replaced.
 pub const SETTINGS_INVALID_BACKUP_FILE: &str = "settings.invalid.backup.json";
-pub const SETTINGS_SCHEMA_VERSION: u8 = 4;
+pub const SETTINGS_SCHEMA_VERSION: u8 = 5;
 
 pub const DEFAULT_TARGET: u32 = 100;
 pub const MIN_TARGET: u32 = 1;
@@ -35,7 +36,13 @@ pub const MAX_POLL_OPTIONS: usize = 6;
 pub const MAX_OPTION_TRIGGERS: usize = 8;
 pub const MAX_WITHDRAWAL_TRIGGERS: usize = 4;
 pub const MAX_NAME_LENGTH: usize = 60;
-pub const MAX_OVERLAY_VIEWS: usize = 4;
+pub const MAX_OVERLAY_VIEWS: usize = 8;
+/// Entries per scene; the same counter may appear more than once.
+pub const MAX_SCENE_ITEMS: usize = 6;
+pub const MIN_SCENE_ITEM_SCALE: u8 = 40;
+pub const MAX_SCENE_ITEM_SCALE: u8 = 160;
+/// Scene id of the automatic scene with every running counter; also the default live scene.
+pub const AUTO_SCENE_ID: &str = "all";
 pub const MAX_OVERLAY_VIEW_GAP: u8 = 64;
 /// Counted in UTF-16 code units, like JavaScript's `length`.
 pub const MAX_TRIGGER_LENGTH: usize = 40;
@@ -411,11 +418,24 @@ pub enum OverlayAlignment {
     End,
 }
 
+/// One entry of a scene; its own id tells two entries of the same counter apart.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlaySceneItem {
+    pub id: String,
+    pub counter_id: String,
+    pub scale: u8,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OverlayView {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub items: Vec<OverlaySceneItem>,
+    /// Up to schema 4 a view listed each counter once; only read to migrate those views.
+    #[serde(default, skip_serializing)]
     pub counter_ids: Vec<String>,
     pub layout: OverlayLayout,
     pub gap: u8,
@@ -428,17 +448,38 @@ pub struct OverlayView {
 
 impl OverlayView {
     pub fn validated(mut self, counters: &HashSet<String>) -> Option<Self> {
+        // Views of schema 4 become entries i-1, i-2, … at full size, exactly like shared/profiles.ts.
+        if self.items.is_empty() && !self.counter_ids.is_empty() {
+            if !has_unique(self.counter_ids.iter().map(String::as_str)) {
+                return None;
+            }
+            self.items = self
+                .counter_ids
+                .iter()
+                .enumerate()
+                .map(|(index, counter_id)| OverlaySceneItem {
+                    id: format!("i-{}", index + 1),
+                    counter_id: counter_id.clone(),
+                    scale: 100,
+                })
+                .collect();
+        }
+        self.counter_ids = Vec::new();
         let timestamps_valid = [&self.created_at, &self.updated_at]
             .iter()
             .all(|timestamp| (1..=MAX_TIMESTAMP_LENGTH).contains(&timestamp.len()));
-        let ids_valid = (1..=MAX_COUNTERS).contains(&self.counter_ids.len())
-            && has_unique(self.counter_ids.iter().map(String::as_str))
-            && self.counter_ids.iter().all(|id| is_valid_id(id) && counters.contains(id));
+        let items_valid = (1..=MAX_SCENE_ITEMS).contains(&self.items.len())
+            && has_unique(self.items.iter().map(|item| item.id.as_str()))
+            && self.items.iter().all(|item| {
+                is_valid_id(&item.id)
+                    && counters.contains(&item.counter_id)
+                    && (MIN_SCENE_ITEM_SCALE..=MAX_SCENE_ITEM_SCALE).contains(&item.scale)
+            });
         if !is_valid_id(&self.id)
-            || self.id == "all"
+            || self.id == AUTO_SCENE_ID
             || counters.contains(&self.id)
             || !timestamps_valid
-            || !ids_valid
+            || !items_valid
             || self.gap > MAX_OVERLAY_VIEW_GAP
             || !(MIN_OVERLAY_SIZE..=MAX_OVERLAY_SIZE).contains(&self.scale)
         {
@@ -457,6 +498,12 @@ pub struct StreamProfile {
     pub counters: Vec<CounterDefinition>,
     #[serde(default)]
     pub overlay_views: Vec<OverlayView>,
+    /// The scene shown under `/overlay/live`: `all` or the id of one of `overlay_views`.
+    #[serde(default = "auto_scene_id")]
+    pub live_scene_id: String,
+    /// Hides the live overlay without forgetting the live scene.
+    #[serde(default)]
+    pub live_hidden: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -480,8 +527,16 @@ impl StreamProfile {
             .into_iter()
             .map(|view| view.validated(&counter_ids))
             .collect::<Option<Vec<_>>>()?;
+        // A live scene that no longer exists falls back to the automatic scene instead of breaking the profile.
+        if !self.overlay_views.iter().any(|view| view.id == self.live_scene_id) {
+            self.live_scene_id = AUTO_SCENE_ID.into();
+        }
         has_unique(self.overlay_views.iter().map(|view| view.id.as_str())).then_some(self)
     }
+}
+
+fn auto_scene_id() -> String {
+    AUTO_SCENE_ID.into()
 }
 
 /// Settings of FlagCount 0.2, only read to migrate them.
@@ -540,6 +595,7 @@ pub enum Migration {
     FromV1,
     FromV2,
     FromV3,
+    FromV4,
     ReplacedInvalid,
 }
 
@@ -586,6 +642,8 @@ impl Settings {
                 name: "Standard".into(),
                 counters: vec![CounterDefinition::red_flags(settings.target, settings.overlay)],
                 overlay_views: vec![],
+                live_scene_id: AUTO_SCENE_ID.into(),
+                live_hidden: false,
                 created_at: now.into(),
                 updated_at: now.into(),
             }],
@@ -641,7 +699,7 @@ impl Settings {
             None => (Self::migrated(legacy(), now), Migration::FromV1),
             Some(version) => {
                 let raw_version = version.as_u64();
-                let current = matches!(raw_version, Some(2 | 3 | 4))
+                let current = matches!(raw_version, Some(2 | 3 | 4 | 5))
                     .then(|| Self::from_document(read("username"), read("liveSource"), read("activeProfileId"), read("profiles")))
                     .flatten();
                 match current {
@@ -651,6 +709,8 @@ impl Settings {
                             Migration::FromV2
                         } else if raw_version == Some(3) {
                             Migration::FromV3
+                        } else if raw_version == Some(4) {
+                            Migration::FromV4
                         } else {
                             Migration::None
                         },
@@ -795,6 +855,7 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> Settings {
         Migration::FromV1 => (SETTINGS_V1_BACKUP_FILE, false),
         Migration::FromV2 => (SETTINGS_V2_BACKUP_FILE, false),
         Migration::FromV3 => (SETTINGS_V3_BACKUP_FILE, false),
+        Migration::FromV4 => (SETTINGS_V4_BACKUP_FILE, false),
         Migration::ReplacedInvalid => (SETTINGS_INVALID_BACKUP_FILE, true),
     };
 
@@ -943,7 +1004,7 @@ mod tests {
         assert_eq!(
             value,
             json!({
-                "schemaVersion": 4,
+                "schemaVersion": 5,
                 "username": "",
                 "liveSource": { "platform": "tiktok", "channelInput": "" },
                 "activeProfileId": "default",
@@ -965,6 +1026,8 @@ mod tests {
                         "overlay": serde_json::to_value(OverlaySettings::default()).unwrap()
                     }],
                     "overlayViews": [],
+                    "liveSceneId": "all",
+                    "liveHidden": false,
                     "createdAt": EPOCH_TIMESTAMP,
                     "updatedAt": EPOCH_TIMESTAMP
                 }]
@@ -986,7 +1049,7 @@ mod tests {
             assert_eq!(settings.username, "streamer");
             assert_eq!(settings.primary_counter().unwrap().target, Some(30));
         }
-        assert_eq!(resolve(json!({ "schemaVersion": 4 })).1, Migration::ReplacedInvalid);
+        assert_eq!(resolve(json!({ "schemaVersion": 5 })).1, Migration::ReplacedInvalid);
     }
 
     #[test]
@@ -995,6 +1058,65 @@ mod tests {
         document["activeProfileId"] = json!("gone");
 
         assert_eq!(resolve(document).0.active_profile_id, DEFAULT_PROFILE_ID);
+    }
+
+    #[test]
+    fn migrates_version_4_views_into_scene_entries() {
+        let mut document = stored(&Settings::default());
+        document["schemaVersion"] = json!(4);
+        let profile = document["profiles"][0].as_object_mut().unwrap();
+        profile.remove("liveSceneId");
+        profile.remove("liveHidden");
+        profile.insert(
+            "overlayViews".into(),
+            json!([{
+                "id": "v-main", "name": "Hauptszene", "counterIds": ["red-flags"], "layout": "horizontal",
+                "gap": 18, "horizontalAlign": "center", "verticalAlign": "center", "scale": 92,
+                "createdAt": NOW, "updatedAt": NOW
+            }]),
+        );
+
+        let (settings, migration) = resolve(document.clone());
+
+        assert_eq!(migration, Migration::FromV4);
+        let profile = &settings.profiles[0];
+        assert_eq!(
+            profile.overlay_views[0].items,
+            vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100 }]
+        );
+        assert_eq!(profile.live_scene_id, AUTO_SCENE_ID);
+        assert!(!profile.live_hidden);
+        let saved = serde_json::to_value(&profile.overlay_views[0]).unwrap();
+        assert!(saved.get("counterIds").is_none());
+
+        document["profiles"][0]["overlayViews"][0]["counterIds"] = json!(["red-flags", "red-flags"]);
+        assert_eq!(resolve(document).1, Migration::ReplacedInvalid);
+    }
+
+    #[test]
+    fn allows_the_same_counter_twice_and_resets_a_missing_live_scene() {
+        let mut document = stored(&Settings::default());
+        document["profiles"][0]["overlayViews"] = json!([{
+            "id": "v-main", "name": "Doppelt",
+            "items": [
+                { "id": "big", "counterId": "red-flags", "scale": 140 },
+                { "id": "small", "counterId": "red-flags", "scale": 60 }
+            ],
+            "layout": "vertical", "gap": 18, "horizontalAlign": "center", "verticalAlign": "end", "scale": 80,
+            "createdAt": NOW, "updatedAt": NOW
+        }]);
+        document["profiles"][0]["liveSceneId"] = json!("v-main");
+
+        let (settings, migration) = resolve(document.clone());
+        assert_eq!(migration, Migration::None);
+        assert_eq!(settings.profiles[0].overlay_views[0].items.len(), 2);
+        assert_eq!(settings.profiles[0].live_scene_id, "v-main");
+
+        document["profiles"][0]["liveSceneId"] = json!("gone");
+        assert_eq!(resolve(document.clone()).0.profiles[0].live_scene_id, AUTO_SCENE_ID);
+
+        document["profiles"][0]["overlayViews"][0]["items"][1]["scale"] = json!(161);
+        assert_eq!(resolve(document).1, Migration::ReplacedInvalid);
     }
 
     #[test]
