@@ -10,7 +10,7 @@
 - Profile, Historie (mit Kennzahlen, Filter, Details und Rückmeldung zum CSV-Export) und Lizenz & Konto (mit freigeschalteten Funktionen, Grenzen und einer Diagnose, falls Pro-Funktionen fehlen) sind neu gestaltet.
 - Nach der Aktivierung ist Pro ohne Neustart freigeschaltet. Nicht verfügbare Pro-Funktionen bleiben sichtbar und erklären, was fehlt.
 - Das Fenster startet größer und hat eine Mindestgröße von 800 × 600 Pixeln. Alle Bereiche sind per Tastatur bedienbar und respektieren reduzierte Bewegung.
-- FlagCount Pro wird über Stripe verkauft: Checkout, Kundenportal für Rechnungen, Zahlungsmethode und Kündigung sowie Lizenzwiederherstellung per E-Mail. Ein FlagCount-Konto ist weiterhin nicht nötig.
+- Audience Live Pro wird über Stripe verkauft: Checkout, Kundenportal für Rechnungen, Zahlungsmethode und Kündigung sowie Lizenzwiederherstellung per E-Mail. Ein Audience-Live-Konto ist weiterhin nicht nötig.
 - Lizenzen folgen dem aktuellen Stand des Stripe-Abos; der Aktivierungscode kommt erst nach bestätigter Zahlung.
 - Die Desktop-App öffnet Stripe Checkout und das Stripe-Kundenportal.
 - Die Seiten `/pro` und `/pro/erfolgreich` sind erreichbar und zeigen die aktuellen Preise.

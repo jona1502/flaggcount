@@ -1,4 +1,4 @@
-# FlagCount Desktop – Abläufe, Zustände und Abnahme
+# Audience Live Desktop – Abläufe, Zustände und Abnahme
 
 Dieses Dokument beschreibt die neu gestaltete Desktop-App unter `src/`: wo welche Funktion liegt, wie Free, Pro und Lizenzprobleme dargestellt werden und welche Abläufe vor einem Release manuell geprüft werden. Die Bedienung für Streamer steht im [README](../README.md).
 

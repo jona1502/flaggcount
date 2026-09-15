@@ -1,4 +1,4 @@
-# FlagCount Pro – Stripe einrichten
+# Audience Live Pro – Stripe einrichten
 
 Diese Anleitung beschreibt die Einrichtung von Stripe im **Test Mode** (Sandbox). Der Live Mode wird erst
 eingerichtet, wenn der vollständige Testkauf, Kündigung, fehlgeschlagene Zahlung, Rückerstattung und
@@ -23,20 +23,20 @@ Die Entscheidung ist steuerlich und rechtlich; sie gehört vor dem Live Mode zum
 
 ## 2. Dashboard im Test Mode
 
-1. **Produkt** „FlagCount Pro“ anlegen, Steuercode für Software/SaaS wählen (bei Managed Payments einen als
+1. **Produkt** „Audience Live Pro“ anlegen, Steuercode für Software/SaaS wählen (bei Managed Payments einen als
    „Für Managed Payments zugelassen“ markierten Code).
 2. **Preise** am Produkt anlegen: monatlich, jährlich und optional ein zeitlich begrenzter Founding-Preis. Für
    Endkunden in der EU das Steuerverhalten „inklusive“ wählen, damit der angezeigte Preis der Endpreis ist.
 3. **Customer Portal** konfigurieren (Einstellungen → Billing → Kundenportal):
    - Rechnungen anzeigen, Zahlungsmethode ändern: an
    - Kündigen: an, **zum Ende des Abrechnungszeitraums**
-   - Tarifwechsel: nur zwischen den FlagCount-Preisen
+   - Tarifwechsel: nur zwischen den Audience-Live-Preisen
    - Branding (Logo, Farben) und Links zu AGB und Datenschutzerklärung
    - Die ID der Konfiguration (`bpc_…`) optional als `STRIPE_PORTAL_CONFIGURATION_ID` setzen.
 4. **E-Mails** (Einstellungen → Billing → Abonnements und E-Mails): Zahlungsbelege, fehlgeschlagene Zahlungen
    und Hinweise vor Verlängerung aktivieren.
 5. **Retry-/Dunning-Regeln** (Smart Retries): mehrere Versuche über rund zwei Wochen, danach das Abo kündigen.
-   FlagCount gewährt bei `past_due` eine Frist von 14 Tagen; die Regeln sollten dazu passen.
+   Audience Live gewährt bei `past_due` eine Frist von 14 Tagen; die Regeln sollten dazu passen.
 6. **Branding** (Einstellungen → Branding) für Checkout, Portal und Belege.
 
 ## 3. Webhook-Endpoint

@@ -53,7 +53,7 @@ Weitere Abläufe, Lizenzzustände und die Abnahme-Checkliste beschreibt [docs/AP
 Hinweise:
 
 - Audience Live muss laufen, damit das Overlay Daten erhält. Wird die App neu gestartet, verbindet sich das Overlay von selbst wieder; solange keine Verbindung besteht, erscheint es abgeblendet.
-- Ist Port `3847` bereits belegt, weicht FlagCount auf einen freien Port aus. In diesem Fall die URL erneut kopieren und in OBS eintragen.
+- Ist Port `3847` bereits belegt, weicht Audience Live auf einen freien Port aus. In diesem Fall die URL erneut kopieren und in OBS eintragen.
 - Die lokale URL ist nur auf diesem Computer erreichbar. Beide Overlays zeigen ausschließlich Zählerstände, Ziele und das Design – keine Chatnachrichten oder Zuschauernamen.
 
 ## Aufbau

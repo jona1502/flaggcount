@@ -1,4 +1,4 @@
-# FlagCount Pro – Betrieb und Compliance
+# Audience Live Pro – Betrieb und Compliance
 
 Dieses Runbook beschreibt die wiederholbaren Abläufe für Billing, Lizenzen und Support. Es enthält keine
 Rechtsberatung; Impressum, Datenschutzerklärung, AGB und Widerrufstext müssen vor dem Launch rechtlich geprüft
@@ -74,7 +74,7 @@ und in die öffentliche Website eingebunden werden. Die Einrichtung von Stripe s
 
 ## Datenschutz
 
-Gespeichert werden für FlagCount Pro:
+Gespeichert werden für Audience Live Pro:
 
 - interne Lizenz-ID, Stripe-Kunden- und Abo-Kennung, Abo-Status, bezahltes Periodenende, geplante Kündigung;
 - Hash des Aktivierungscodes und Zeitpunkt der Ausstellung;
