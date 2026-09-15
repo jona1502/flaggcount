@@ -68,7 +68,7 @@
   place-items: center;
   border-radius: var(--fc-radius-md);
   background:
-    conic-gradient(#1f1f27 25%, #17171d 0 50%, #1f1f27 0 75%, #17171d 0) 0 0 / 16px 16px;
+    conic-gradient(#1d1d2e 25%, #151524 0 50%, #1d1d2e 0 75%, #151524 0) 0 0 / 16px 16px;
 }
 
 .fc-app .overlay-swatch-panel {

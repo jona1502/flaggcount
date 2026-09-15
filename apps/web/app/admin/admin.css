@@ -107,8 +107,8 @@
 }
 
 .admin-badge.blocked {
-  border-color: var(--accent);
-  color: var(--accent-hover);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .admin-pagination {

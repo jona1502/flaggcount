@@ -1,16 +1,21 @@
 :root {
   color-scheme: dark;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #111115;
-  color: #f4f4f6;
+  background: #0a0a14;
+  color: #f4f4f8;
 
-  --panel: #1a1a20;
-  --panel-raised: #202027;
-  --field: #121216;
-  --border: #303038;
-  --muted: #9d9da8;
-  --accent: #e62d3b;
-  --accent-hover: #f43b49;
+  /* Audience Live brand: indigo accent and the cyan-indigo-violet logo gradient. */
+  --panel: #14141f;
+  --panel-raised: #1b1b2b;
+  --field: #0e0e19;
+  --border: #2a2a44;
+  --muted: #a0a0ba;
+  --accent: #6246ea;
+  --accent-hover: #7a62ff;
+  --brand-gradient: linear-gradient(135deg, #22d3ee 0%, #4f46e5 50%, #a855f7 100%);
+  /* Errors and destructive actions stay red and never use the brand accent. */
+  --danger: #ff6b5b;
+  --danger-strong: #b3261e;
   --success: #3ecf8e;
   --warning: #f5a524;
 }
@@ -19,8 +24,8 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at 50% -20%, rgb(230 45 59 / 0.09), transparent 38rem),
-    #111115;
+    radial-gradient(circle at 50% -20%, rgb(98 70 234 / 0.13), transparent 38rem),
+    #0a0a14;
 }
 
 .app {
@@ -224,7 +229,7 @@ input:disabled {
 }
 
 input[aria-invalid='true'] {
-  border-color: var(--accent);
+  border-color: var(--danger);
 }
 
 input:focus-visible,
@@ -253,13 +258,13 @@ button:focus-visible {
 
 .button.primary,
 .button.danger {
-  background: var(--accent);
+  background: var(--danger-strong);
   color: #fff;
 }
 
 .button.primary:hover:not(:disabled),
 .button.danger:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: #9a1f18;
 }
 
 .button.secondary {
@@ -272,9 +277,9 @@ button:focus-visible {
 }
 
 .button.danger-outline {
-  border-color: var(--accent);
+  border-color: var(--danger);
   background: transparent;
-  color: var(--accent-hover);
+  color: var(--danger);
 }
 
 .field-error {
@@ -311,7 +316,7 @@ button:focus-visible {
 }
 
 .status[data-status='unavailable'] .status-dot {
-  background: var(--accent);
+  background: var(--danger);
 }
 
 .vote-count {
@@ -342,7 +347,7 @@ button:focus-visible {
 
 .progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--brand-gradient);
   transition: width 0.25s ease;
 }
 
@@ -1657,7 +1662,7 @@ input[readonly] {
 }
 
 .profile-item[data-active='true'] {
-  border-color: rgb(230 45 59 / 0.55);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .profile-item[data-usable='false'] .profile-name strong {
@@ -2134,7 +2139,7 @@ input[readonly] {
 
 .admin-message.error,
 .admin-error {
-  color: var(--accent-hover);
+  color: var(--danger);
 }
 
 .admin-message.success {

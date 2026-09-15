@@ -34,7 +34,7 @@
   height: 100vh;
   padding: var(--fc-space-4) var(--fc-space-3);
   border-right: 1px solid var(--fc-border);
-  background: rgb(9 9 13 / 0.72);
+  background: rgb(8 8 18 / 0.72);
   transition: width var(--fc-duration) var(--fc-ease);
 }
 
@@ -104,8 +104,8 @@
 }
 
 .fc-app .shell-nav-item.is-active {
-  background: var(--fc-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--fc-border);
+  background: var(--fc-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fc-accent) 30%, transparent);
   color: var(--fc-text);
 }
 
@@ -116,7 +116,7 @@
   left: calc(-1 * var(--fc-space-3));
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--fc-accent);
+  background: var(--fc-brand-gradient);
   content: '';
 }
 
@@ -208,7 +208,7 @@
   gap: var(--fc-space-1) var(--fc-space-2);
   padding: 0.3rem var(--fc-space-4);
   border-top: 1px solid var(--fc-border);
-  background: rgb(13 13 17 / 0.94);
+  background: rgb(10 10 20 / 0.94);
   color: var(--fc-text-muted);
   font-size: var(--fc-text-xs);
 }

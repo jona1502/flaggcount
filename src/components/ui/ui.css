@@ -3,25 +3,29 @@
  * `src/styles.css` is shared with the public website and must not change there.
  */
 .fc-app {
-  /* Color */
-  --fc-bg: #0d0d11;
-  --fc-bg-glow: rgb(215 38 61 / 0.08);
-  --fc-surface: #15151b;
-  --fc-surface-raised: #1c1c24;
-  --fc-surface-hover: #22222b;
-  --fc-surface-sunken: #0f0f14;
-  --fc-border: #2a2a34;
-  --fc-border-strong: #3b3b47;
-  --fc-text: #f3f3f6;
-  --fc-text-muted: #a8a8b4;
-  --fc-text-subtle: #8c8c99;
-  /* Brand red for primary actions, the logo and live accents; 5:1 against white text. */
-  --fc-accent: #d7263d;
-  --fc-accent-hover: #bf1d33;
-  --fc-accent-soft: rgb(215 38 61 / 0.14);
-  --fc-accent-text: #ff7583;
+  /* Color – taken from the Audience Live logo: cyan, indigo and violet on a blue-black ground. */
+  --fc-bg: #0a0a14;
+  --fc-bg-glow: rgb(98 70 234 / 0.13);
+  --fc-bg-glow-secondary: rgb(34 211 238 / 0.05);
+  --fc-surface: #12121f;
+  --fc-surface-raised: #191929;
+  --fc-surface-hover: #202033;
+  --fc-surface-sunken: #0d0d18;
+  --fc-border: #262640;
+  --fc-border-strong: #363656;
+  --fc-text: #f3f3f8;
+  --fc-text-muted: #a9a9c2;
+  --fc-text-subtle: #8b8ba6;
+  /* Brand indigo for primary actions and the active navigation; 5.8:1 against white text. */
+  --fc-accent: #6246ea;
+  --fc-accent-hover: #5234d8;
+  --fc-accent-soft: rgb(98 70 234 / 0.16);
+  --fc-accent-text: #a99bff;
   --fc-on-accent: #ffffff;
-  /* Errors and destructive actions use a warmer red with an icon, so they never look like the brand accent. */
+  /* The logo gradient is reserved for the brand, progress and Pro – never for ordinary buttons. */
+  --fc-brand-gradient: linear-gradient(135deg, #22d3ee 0%, #4f46e5 50%, #a855f7 100%);
+  --fc-cyan: #22d3ee;
+  /* Red only means errors and destructive actions, so it never competes with the brand. */
   --fc-danger: #ff6b5b;
   --fc-danger-strong: #b3261e;
   --fc-danger-soft: rgb(255 107 91 / 0.12);
@@ -29,11 +33,11 @@
   --fc-success-soft: rgb(62 207 142 / 0.12);
   --fc-warning: #f5b544;
   --fc-warning-soft: rgb(245 181 68 / 0.12);
-  --fc-info: #6cb2ff;
-  --fc-info-soft: rgb(108 178 255 / 0.12);
-  --fc-pro: #c5a3ff;
-  --fc-pro-soft: rgb(197 163 255 / 0.13);
-  --fc-focus: #7cb8ff;
+  --fc-info: #60a5fa;
+  --fc-info-soft: rgb(96 165 250 / 0.12);
+  --fc-pro: #d8b4fe;
+  --fc-pro-soft: rgb(168 85 247 / 0.14);
+  --fc-focus: #67e8f9;
 
   /* Spacing */
   --fc-space-1: 0.25rem;
@@ -46,9 +50,9 @@
   --fc-space-10: 2.5rem;
 
   /* Radius and elevation */
-  --fc-radius-sm: 6px;
-  --fc-radius-md: 10px;
-  --fc-radius-lg: 14px;
+  --fc-radius-sm: 8px;
+  --fc-radius-md: 12px;
+  --fc-radius-lg: 16px;
   --fc-radius-pill: 999px;
   --fc-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
   --fc-shadow-md: 0 8px 24px -12px rgb(0 0 0 / 0.6);
@@ -76,7 +80,8 @@
   box-sizing: border-box;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 70% -10%, var(--fc-bg-glow), transparent 40rem),
+    radial-gradient(circle at 75% -10%, var(--fc-bg-glow), transparent 42rem),
+    radial-gradient(circle at 0% 110%, var(--fc-bg-glow-secondary), transparent 36rem),
     var(--fc-bg);
   color: var(--fc-text);
   font-family: var(--fc-font);
@@ -196,7 +201,7 @@
 }
 
 .fc-app .ui-button--secondary:hover:not(:disabled) {
-  border-color: #50505e;
+  border-color: #4a4a70;
   background: var(--fc-surface-hover);
 }
 
@@ -364,9 +369,11 @@
   color: var(--fc-info);
 }
 
+/* Pro wears the logo gradient as its outline, so it stands apart from the indigo accent. */
 .fc-app .ui-badge--pro {
-  border-color: color-mix(in srgb, var(--fc-pro) 35%, transparent);
-  background: var(--fc-pro-soft);
+  background:
+    linear-gradient(var(--fc-surface-raised), var(--fc-surface-raised)) padding-box,
+    var(--fc-brand-gradient) border-box;
   color: var(--fc-pro);
 }
 
@@ -612,7 +619,7 @@
 
 .fc-app .ui-input:hover:not(:disabled),
 .fc-app .ui-select:hover:not(:disabled) {
-  border-color: #52525f;
+  border-color: #4c4c72;
 }
 
 .fc-app .ui-input:focus-visible,
@@ -864,7 +871,7 @@
   padding: 0.35rem 0.55rem;
   border: 1px solid var(--fc-border-strong);
   border-radius: var(--fc-radius-sm);
-  background: #26262f;
+  background: #22223a;
   box-shadow: var(--fc-shadow-md);
   color: var(--fc-text);
   font-size: var(--fc-text-xs);
