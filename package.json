@@ -1,6 +1,6 @@
 {
   "name": "audience-live",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "Live-Zuschauerinteraktion und Counter für Streams",
   "author": "jona1502",

@@ -95,7 +95,7 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: Audience Live v__VERSION__
           releaseBody: |
-            Neue Live-Ansicht mit Szenen und fester Live-URL: Elemente zusammenstellen und im Stream mit einem Klick umschalten. Einstellungen, Profile und Lizenzen bleiben erhalten.
+            Live-Ansicht: jedes Element einzeln ein- und ausblenden und die Reihenfolge direkt im Stream ändern. Einstellungen, Profile und Lizenzen bleiben erhalten.
             Weitere Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false
