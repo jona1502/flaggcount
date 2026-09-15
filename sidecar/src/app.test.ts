@@ -309,6 +309,39 @@ describe('SidecarApp', () => {
     expect(app.getBoardScopes()).toContain('v-main');
   });
 
+  it('leaves hidden scene entries out and keeps a scene with every entry hidden empty', async () => {
+    const { app } = createApp(PRO_ENTITLEMENTS);
+    const configure = (hiddenTeams: boolean, hiddenFlags: boolean) =>
+      app.handleCommand({
+        type: 'configureCounters',
+        counters: [createRedFlagCounter(10), teams],
+        overlayViews: [
+          {
+            id: 'v-main',
+            name: 'Szene',
+            items: [
+              { id: 'i-1', counterId: 'teams', scale: 100, ...(hiddenTeams ? { hidden: true } : {}) },
+              { id: 'i-2', counterId: 'red-flags', scale: 100, ...(hiddenFlags ? { hidden: true } : {}) }
+            ],
+            layout: 'horizontal',
+            gap: 24,
+            horizontalAlign: 'center',
+            verticalAlign: 'end',
+            scale: 80,
+            createdAt: '2026-09-15T00:00:00.000Z',
+            updatedAt: '2026-09-15T00:00:00.000Z'
+          }
+        ],
+        liveSceneId: 'v-main'
+      });
+
+    await configure(true, false);
+    expect(app.getBoard('v-main')).toMatchObject({ status: 'ok', counters: [{ counterId: 'red-flags', itemId: 'i-2' }] });
+
+    await configure(true, true);
+    expect(app.getBoard('live')).toMatchObject({ status: 'ok', counters: [] });
+  });
+
   it('shows the chosen live scene under the live scope, hides it and falls back to the automatic scene', async () => {
     const { app } = createApp(PRO_ENTITLEMENTS);
     const scene = {

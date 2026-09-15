@@ -170,11 +170,13 @@ export class SidecarApp {
     const custom = this.overlayViews.find((view) => view.id === scope);
     if (custom) {
       if (!canUse(this.entitlements, 'parallel-counters')) return { status: 'pro-required' };
-      const selected = custom.items.flatMap((item) => {
-        const view = views.find((candidate) => candidate.counterId === item.counterId);
+      const present = custom.items.filter((item) => views.some((view) => view.counterId === item.counterId));
+      if (present.length === 0) return { status: 'not-found' };
+      // Hidden entries stay out; a scene with every entry hidden shows nothing instead of falling back.
+      const selected = present.flatMap((item) => {
+        const view = item.hidden ? undefined : views.find((candidate) => candidate.counterId === item.counterId);
         return view ? [{ ...view, itemId: item.id, itemScale: item.scale }] : [];
       });
-      if (selected.length === 0) return { status: 'not-found' };
       const { layout, gap, horizontalAlign, verticalAlign, scale } = custom;
       return { status: 'ok', counters: selected, layout: { layout, gap, horizontalAlign, verticalAlign, scale, sizing: 'canvas' } };
     }

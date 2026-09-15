@@ -220,7 +220,7 @@ mod tests {
     fn input(name: &str) -> OverlayViewInput {
         OverlayViewInput {
             name: name.into(),
-            items: vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100 }],
+            items: vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100, hidden: false }],
             layout: OverlayLayout::Horizontal,
             gap: 18,
             horizontal_align: OverlayAlignment::Center,
@@ -269,7 +269,7 @@ mod tests {
     fn shows_the_same_counter_twice_and_resets_the_live_scene_on_delete() {
         let mut settings = Settings::default();
         let mut twice = input("Doppelt");
-        twice.items.push(OverlaySceneItem { id: "i-2".into(), counter_id: "red-flags".into(), scale: 60 });
+        twice.items.push(OverlaySceneItem { id: "i-2".into(), counter_id: "red-flags".into(), scale: 60, hidden: true });
         create(&mut settings, &pro(), twice, "v-main".into(), NOW).unwrap();
         assert_eq!(settings.profiles[0].overlay_views[0].items.len(), 2);
 

@@ -427,6 +427,13 @@ pub struct OverlaySceneItem {
     pub id: String,
     pub counter_id: String,
     pub scale: u8,
+    /// Hidden entries stay in the scene but are not shown; only stored while `true`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub hidden: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -463,6 +470,7 @@ impl OverlayView {
                     id: format!("i-{}", index + 1),
                     counter_id: counter_id.clone(),
                     scale: 100,
+                    hidden: false,
                 })
                 .collect();
         }
@@ -1085,7 +1093,7 @@ mod tests {
         let profile = &settings.profiles[0];
         assert_eq!(
             profile.overlay_views[0].items,
-            vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100 }]
+            vec![OverlaySceneItem { id: "i-1".into(), counter_id: "red-flags".into(), scale: 100, hidden: false }]
         );
         assert_eq!(profile.live_scene_id, AUTO_SCENE_ID);
         assert!(!profile.live_hidden);
@@ -1109,10 +1117,16 @@ mod tests {
             "createdAt": NOW, "updatedAt": NOW
         }]);
         document["profiles"][0]["liveSceneId"] = json!("v-main");
+        document["profiles"][0]["overlayViews"][0]["items"][1]["hidden"] = json!(true);
 
         let (settings, migration) = resolve(document.clone());
         assert_eq!(migration, Migration::None);
         assert_eq!(settings.profiles[0].overlay_views[0].items.len(), 2);
+        assert!(!settings.profiles[0].overlay_views[0].items[0].hidden);
+        assert!(settings.profiles[0].overlay_views[0].items[1].hidden);
+        let saved = serde_json::to_value(&settings.profiles[0].overlay_views[0].items).unwrap();
+        assert!(saved[0].get("hidden").is_none());
+        assert_eq!(saved[1]["hidden"], json!(true));
         assert_eq!(settings.profiles[0].live_scene_id, "v-main");
 
         document["profiles"][0]["liveSceneId"] = json!("gone");

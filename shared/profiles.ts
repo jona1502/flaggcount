@@ -65,6 +65,8 @@ export type OverlaySceneItem = {
   counterId: string;
   /** Size of this entry in percent. */
   scale: number;
+  /** Hidden entries stay in the scene but are not shown. Only stored while `true`. */
+  hidden?: boolean;
 };
 
 /** A stable browser-source composition of counters from one profile, shown as a scene in the app. */
@@ -265,7 +267,9 @@ function parseSceneItem(value: unknown, counterIds?: ReadonlySet<string>): Overl
   const { id, counterId, scale } = value;
   if (!isId(id) || !isId(counterId) || (counterIds !== undefined && !counterIds.has(counterId))) return null;
   if (typeof scale !== 'number' || !Number.isInteger(scale) || scale < MIN_SCENE_ITEM_SCALE || scale > MAX_SCENE_ITEM_SCALE) return null;
-  return { id, counterId, scale };
+  const hidden = value['hidden'];
+  if (hidden !== undefined && typeof hidden !== 'boolean') return null;
+  return { id, counterId, scale, ...(hidden ? { hidden: true } : {}) };
 }
 
 /**

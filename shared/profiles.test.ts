@@ -165,6 +165,15 @@ describe('overlay views', () => {
     expect(parseOverlayView(twice, counters)).toEqual(twice);
   });
 
+  it('keeps hidden entries and rejects a hidden flag that is not a boolean', () => {
+    const counters = new Set(['red-flags']);
+    const hidden = { ...view, items: [{ id: 'i-1', counterId: 'red-flags', scale: 100, hidden: true }] };
+
+    expect(parseOverlayView(hidden, counters)).toEqual(hidden);
+    expect(parseOverlayView({ ...view, items: [{ id: 'i-1', counterId: 'red-flags', scale: 100, hidden: false }] }, counters)).toEqual(view);
+    expect(parseOverlayView({ ...view, items: [{ id: 'i-1', counterId: 'red-flags', scale: 100, hidden: 'yes' }] }, counters)).toBeNull();
+  });
+
   it.each([
     ['an unknown counter', [{ id: 'i-1', counterId: 'missing', scale: 100 }]],
     ['duplicate entry ids', [{ id: 'i-1', counterId: 'red-flags', scale: 100 }, { id: 'i-1', counterId: 'red-flags', scale: 80 }]],
