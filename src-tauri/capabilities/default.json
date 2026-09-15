@@ -18,6 +18,10 @@
     "allow-set-target",
     "allow-set-overlay-settings",
     "allow-set-counter-overlay-settings",
+    "allow-create-overlay-view",
+    "allow-update-overlay-view",
+    "allow-delete-overlay-view",
+    "allow-duplicate-overlay-view",
     "allow-import-overlay-asset",
     "allow-clear-history",
     "allow-export-history-csv",
@@ -31,6 +35,8 @@
     "allow-refresh-license",
     "allow-deactivate-license",
     "allow-open-customer-portal",
-    "allow-open-pro-page"
+    "allow-open-pro-page",
+    "allow-start-twitch-auth",
+    "allow-disconnect-twitch-account"
   ]
 }
