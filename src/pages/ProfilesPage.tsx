@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { isProfileUsable, limitFor } from '../../shared/entitlements';
 import { PageHeader } from '../app-shell/PageHeader';
-import { Badge, Button, Callout, IconPlus, useToast } from '../components/ui';
+import { Badge, Button, Callout, IconPlus, ProHint, useToast } from '../components/ui';
 import { CreateProfileDialog } from '../profiles/CreateProfileDialog';
 import { ProfileCard } from '../profiles/ProfileCard';
 import type { PageProps } from './types';
@@ -75,17 +75,16 @@ export function ProfilesPage({ model, pending, error, actions, navigate }: PageP
             </Callout>
           )
         ) : (
-          <Callout
-            tone="pro"
+          <ProHint
             title="Mehrere Profile mit Audience Live Pro"
-            actions={
-              <Button size="sm" onClick={() => navigate({ page: 'license' })}>
+            action={
+              <Button size="sm" variant="ghost" onClick={() => navigate({ page: 'license' })}>
                 Mehr zu Pro
               </Button>
             }
           >
-            Speichere bis zu zehn Profile, zum Beispiel für Quiz-Abende, Turniere oder Just Chatting, und wechsle mit einem Klick.
-          </Callout>
+            Bis zu zehn Profile, etwa für Quiz-Abende, Turniere oder Just Chatting.
+          </ProHint>
         ))}
 
       {hasInactive && (

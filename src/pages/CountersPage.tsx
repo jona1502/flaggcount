@@ -3,7 +3,7 @@ import { duplicateCounter, findCounterProblems } from '../../shared/counterValid
 import { checkCounters, limitFor, missingProFeatures } from '../../shared/entitlements';
 import type { CounterDefinition } from '../../shared/profiles';
 import { PageHeader } from '../app-shell/PageHeader';
-import { Badge, Button, Callout, IconLive, IconOverlays, IconPlus, IconRefresh, useToast, type Tone } from '../components/ui';
+import { Badge, Button, Callout, IconLive, IconOverlays, IconPlus, IconRefresh, ProHint, useToast, type Tone } from '../components/ui';
 import { CounterDetails } from '../counters/CounterDetails';
 import { CounterList, type CounterListItem } from '../counters/CounterList';
 import { CreateCounterWizard } from '../counters/CreateCounterWizard';
@@ -142,17 +142,16 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
       )}
 
       {!isPro && (
-        <Callout
-          tone="pro"
-            title="Mehr mit Audience Live Pro"
-          actions={
-            <Button size="sm" onClick={() => navigate({ page: 'license' })}>
+        <ProHint
+          title="Mehr mit Audience Live Pro"
+          action={
+            <Button size="sm" variant="ghost" onClick={() => navigate({ page: 'license' })}>
               Pro ansehen
             </Button>
           }
         >
-          Abstimmungen mit bis zu sechs Optionen, eigene Emojis und Begriffe sowie bis zu vier Zähler gleichzeitig – jeweils mit eigenem Overlay.
-        </Callout>
+          Abstimmungen mit bis zu sechs Optionen, eigene Emojis und Begriffe sowie bis zu vier Zähler gleichzeitig.
+        </ProHint>
       )}
 
       {createdId && selected?.id === createdId && (

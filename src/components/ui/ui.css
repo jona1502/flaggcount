@@ -988,3 +988,27 @@
     background-position: -200% 0;
   }
 }
+
+/* Pro hints: one calm line instead of a large banner on every setup page. */
+.fc-app .ui-pro-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-2) var(--fc-space-3);
+  padding: var(--fc-space-2) var(--fc-space-2) var(--fc-space-2) var(--fc-space-3);
+  border: 1px solid color-mix(in srgb, var(--fc-pro) 22%, var(--fc-border));
+  border-radius: var(--fc-radius-md);
+  background: linear-gradient(90deg, var(--fc-pro-soft), transparent 70%);
+}
+
+.fc-app .ui-pro-hint-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .ui-pro-hint-text strong {
+  color: var(--fc-text);
+  font-weight: 650;
+}

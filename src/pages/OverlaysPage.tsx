@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { canUse } from '../../shared/entitlements';
 import type { OverlaySettings } from '../../shared/settings';
 import { PageHeader } from '../app-shell/PageHeader';
-import { Button, Callout, ConfirmDialog, IconPlus, useToast } from '../components/ui';
+import { Button, Callout, ConfirmDialog, IconPlus, ProHint, useToast } from '../components/ui';
 import { OverlayComposer } from '../overlays/OverlayComposer';
 import { OverlayEditor } from '../overlays/OverlayEditor';
 import { OverlayTargetCard } from '../overlays/OverlayTargetCard';
@@ -57,18 +57,16 @@ export function OverlaysPage({ model, route, pending, actions, navigate, onCopyT
       />
 
       {desktop && !isPro && (
-        <Callout
-          tone="pro"
+        <ProHint
           title="Ein Overlay pro Element mit Pro"
-          actions={
-            <Button size="sm" onClick={() => navigate({ page: 'license' })}>
+          action={
+            <Button size="sm" variant="ghost" onClick={() => navigate({ page: 'license' })}>
               Pro ansehen
             </Button>
           }
         >
-          Audience Live Free hat ein vollständiges Overlay. Mit Pro bekommt jeder Zähler ein eigenes, dazu eine Gesamtansicht, Premium-Vorlagen und
-          eigenes Branding.
-        </Callout>
+          Jeder Zähler ein eigenes Overlay, dazu Gesamtansichten, Premium-Vorlagen und eigenes Branding.
+        </ProHint>
       )}
 
       {state.overlayUrl === null && (

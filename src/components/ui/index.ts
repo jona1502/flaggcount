@@ -7,6 +7,7 @@ export { cx } from './cx';
 export { ConfirmDialog, Dialog } from './Dialog';
 export { EmptyState } from './EmptyState';
 export { Field, Input, Select, Switch } from './Field';
+export { ProHint } from './ProHint';
 export { Skeleton } from './Skeleton';
 export { TabPanel, Tabs, type TabItem } from './Tabs';
 export { ToastProvider, useToast, type ToastInput } from './Toast';
