@@ -2,6 +2,7 @@
 
 ## Noch nicht veröffentlicht
 
+- Twitch ist in der Desktop-App als zweite, exklusive LIVE-Quelle verfügbar: Device-Code-Anmeldung mit `user:read:chat`, nativer Token-Speicher, EventSub-Chat, Deduplizierung, Reconnect und Streamende-Erkennung. Das Browser-Dashboard kennzeichnet Twitch bis zur mandantenfähigen Web-OAuth-Umsetzung als Desktop-Funktion.
 - Die Desktop-App ist neu gestaltet: Eine Seitenleiste führt zu Übersicht, Live-Steuerung, Zähler & Abstimmungen, Overlays, Profile, Historie, Lizenz & Konto und Einstellungen. Eine Statusleiste zeigt Verbindung, laufendes Profil, Tarif und Version.
 - Die Übersicht führt beim ersten Start durch die Einrichtung und zeigt danach laufende Runden und Schnellaktionen.
 - Zähler und Abstimmungen entstehen mit dem Assistenten „Neues Element“ in höchstens sechs Schritten. Elemente lassen sich duplizieren, sortieren und löschen und werden ausdrücklich gespeichert; ungespeicherte Änderungen gehen beim Verlassen nicht unbemerkt verloren.

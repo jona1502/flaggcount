@@ -112,7 +112,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
           initialPlatform={state.settings.liveSource?.platform}
           twitchAuth={state.twitchAuth}
           twitchAvailable={desktop}
-          onConnect={(username, platform) => void actions.connect(username, platform)}
+          onConnect={(username, platform) => void (platform ? actions.connect(username, platform) : actions.connect(username))}
           onDisconnect={() => void actions.disconnect()}
           onStartTwitchAuth={() => void actions.startTwitchAuth()}
           onDisconnectTwitchAccount={() => void actions.disconnectTwitchAccount()}
