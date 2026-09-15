@@ -21,7 +21,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundles: nsis
           - name: macOS Intel
-            os: macos-13
+            os: macos-15-intel
             target: x86_64-apple-darwin
             bundles: dmg
           - name: macOS Apple Silicon
@@ -95,7 +95,7 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: Audience Live v__VERSION__
           releaseBody: |
-            FlagCount heißt jetzt Audience Live. Einstellungen und Lizenzen bleiben erhalten.
+            Neues Design im Stil des Audience-Live-Logos mit Stream-Cockpit und Kopfleiste. Einstellungen, Profile und Lizenzen bleiben erhalten.
             Weitere Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false
