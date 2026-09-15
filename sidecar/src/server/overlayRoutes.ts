@@ -73,7 +73,7 @@ export function createOverlayHandler(source: OverlaySource, heartbeatMs = HEARTB
           );
           return;
         case 'pro-required':
-          send(response, 403, 'text/html; charset=utf-8', renderOverlayNotice('Dieses Overlay gehört zu FlagCount Pro.'), headers);
+          send(response, 403, 'text/html; charset=utf-8', renderOverlayNotice('Dieses Overlay gehört zu Audience Live Pro.'), headers);
           return;
         case 'not-found':
           send(response, 404, 'text/html; charset=utf-8', renderOverlayNotice('Diesen Zähler gibt es im laufenden Profil nicht.'), headers);

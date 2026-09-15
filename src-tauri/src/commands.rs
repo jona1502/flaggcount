@@ -146,12 +146,12 @@ pub fn set_target<R: Runtime>(
 /// Premium templates and branding stay Pro, whichever counter they are for.
 fn require_overlay_features(license: &LicenseState, overlay: &OverlaySettings) -> Result<(), AppError> {
     if overlay.theme != settings::OverlayTheme::Standard && !has_feature(license, PREMIUM_TEMPLATES) {
-        return Err(profiles::pro_required("Premium overlay templates require FlagCount Pro"));
+        return Err(profiles::pro_required("Premium overlay templates require Audience Live Pro"));
     }
     if (overlay.font != settings::OverlayFont::System || overlay.logo_asset.is_some() || overlay.background_asset.is_some())
         && !has_feature(license, CUSTOM_BRANDING)
     {
-        return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
+        return Err(profiles::pro_required("Custom overlay branding requires Audience Live Pro"));
     }
     Ok(())
 }
@@ -421,7 +421,7 @@ pub fn open_customer_portal(sidecar: State<'_, Sidecar>) -> Result<(), AppError>
 #[tauri::command]
 pub fn import_overlay_asset<R: Runtime>(app: AppHandle<R>, sidecar: State<'_, Sidecar>, kind: String, bytes: Vec<u8>) -> Result<String, AppError> {
     if !has_feature(&sidecar.state().license, CUSTOM_BRANDING) {
-        return Err(profiles::pro_required("Custom overlay branding requires FlagCount Pro"));
+        return Err(profiles::pro_required("Custom overlay branding requires Audience Live Pro"));
     }
     crate::branding::import(&app, &kind, &bytes)
 }
@@ -434,7 +434,7 @@ pub fn clear_history(sidecar: State<'_, Sidecar>) -> Result<(), AppError> {
 #[tauri::command]
 pub fn export_history_csv<R: Runtime>(app: AppHandle<R>, sidecar: State<'_, Sidecar>, csv: String) -> Result<String, AppError> {
     if !has_feature(&sidecar.state().license, CSV_EXPORT) {
-        return Err(profiles::pro_required("CSV export requires FlagCount Pro"));
+        return Err(profiles::pro_required("CSV export requires Audience Live Pro"));
     }
     if !csv.starts_with('\u{feff}') || csv.len() > 10_000_000 {
         return Err(AppError::new("invalid-export", "Invalid history export"));

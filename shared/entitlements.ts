@@ -122,7 +122,7 @@ export class EntitlementError extends Error {
   constructor(readonly violation: EntitlementViolation) {
     super(
       violation.kind === 'feature'
-        ? `The feature ${violation.feature} requires FlagCount Pro`
+        ? `The feature ${violation.feature} requires Audience Live Pro`
         : `The limit ${violation.limit} allows ${violation.allowed}, requested ${violation.requested}`
     );
     this.name = 'EntitlementError';

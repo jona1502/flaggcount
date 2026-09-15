@@ -32,7 +32,7 @@ fn invalid(message: &str) -> AppError {
 fn require_pro(license: &LicenseState) -> Result<(), AppError> {
     has_feature(license, PARALLEL_COUNTERS)
         .then_some(())
-        .ok_or_else(|| pro_required("Custom overlay views require FlagCount Pro"))
+        .ok_or_else(|| pro_required("Custom overlay views require Audience Live Pro"))
 }
 
 pub fn new_view_id() -> String {

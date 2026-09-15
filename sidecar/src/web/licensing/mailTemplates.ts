@@ -8,9 +8,9 @@ export type MailContent = {
 
 function instructions(code: string): string {
   return [
-    'So aktivierst du FlagCount Pro:',
+    'So aktivierst du Audience Live Pro:',
     '',
-    '1. Öffne FlagCount auf deinem Windows-PC.',
+    '1. Öffne Audience Live auf deinem Windows-PC.',
     '2. Wechsle in den Bereich „Pro“.',
     '3. Gib diesen Aktivierungscode ein und klicke auf „Aktivieren“:',
     '',
@@ -26,22 +26,22 @@ function footer(reference: string, supportEmail: string): string {
     `Lizenzreferenz für den Support: ${reference}`,
     `Fragen? Schreib an ${supportEmail}.`,
     '',
-    'FlagCount ist kein offizielles Produkt von TikTok.'
+    'Audience Live ist kein offizielles Produkt von TikTok.'
   ].join('\n');
 }
 
 export function activationMail(code: string, reference: string, supportEmail: string): MailContent {
   return {
-    subject: 'Dein Aktivierungscode für FlagCount Pro',
-    text: ['Danke für deinen Kauf von FlagCount Pro!', '', instructions(code), footer(reference, supportEmail)].join('\n')
+    subject: 'Dein Aktivierungscode für Audience Live Pro',
+    text: ['Danke für deinen Kauf von Audience Live Pro!', '', instructions(code), footer(reference, supportEmail)].join('\n')
   };
 }
 
 export function supportMail(code: string, reference: string, supportEmail: string): MailContent {
   return {
-    subject: 'Neuer Aktivierungscode für FlagCount Pro',
+    subject: 'Neuer Aktivierungscode für Audience Live Pro',
     text: [
-      'Unser Support hat dir einen neuen Aktivierungscode für FlagCount Pro erstellt. Frühere Codes sind damit',
+      'Unser Support hat dir einen neuen Aktivierungscode für Audience Live Pro erstellt. Frühere Codes sind damit',
       'ungültig; bereits aktivierte Computer bleiben aktiv.',
       '',
       instructions(code),
@@ -52,9 +52,9 @@ export function supportMail(code: string, reference: string, supportEmail: strin
 
 export function recoveryMail(code: string, reference: string, supportEmail: string): MailContent {
   return {
-    subject: 'Neuer Aktivierungscode für FlagCount Pro',
+    subject: 'Neuer Aktivierungscode für Audience Live Pro',
     text: [
-      'Du hast einen neuen Aktivierungscode für FlagCount Pro angefordert. Frühere Codes sind damit ungültig;',
+      'Du hast einen neuen Aktivierungscode für Audience Live Pro angefordert. Frühere Codes sind damit ungültig;',
       'bereits aktivierte Computer bleiben aktiv.',
       '',
       'Falls du das nicht warst, kannst du diese E-Mail ignorieren.',

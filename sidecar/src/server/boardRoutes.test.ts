@@ -90,7 +90,7 @@ describe('board overlay routes', () => {
 
     const pro = await get(port, '/overlay/all');
     expect(pro.status).toBe(403);
-    expect(pro.body).toContain('Dieses Overlay gehört zu FlagCount Pro.');
+    expect(pro.body).toContain('Dieses Overlay gehört zu Audience Live Pro.');
     expect((await get(port, '/overlay/counter/missing')).status).toBe(404);
     expect((await get(port, '/overlay/counter/..%2Fsecret')).status).toBe(404);
   });

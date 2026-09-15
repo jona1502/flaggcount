@@ -69,7 +69,7 @@ pub fn effective_profile<'a>(settings: &'a Settings, license: &LicenseState) -> 
 fn require_room(settings: &Settings, license: &LicenseState) -> Result<(), AppError> {
     let limit = profile_limit(license).min(MAX_PROFILES);
     if settings.profiles.len() >= limit {
-        return Err(pro_required("More profiles require FlagCount Pro"));
+        return Err(pro_required("More profiles require Audience Live Pro"));
     }
     Ok(())
 }
@@ -131,7 +131,7 @@ pub fn rename_profile(
     let name = validated_profile_name(name)?;
     let index = index_of(settings, profile_id)?;
     if !is_usable(index, license) {
-        return Err(pro_required("This profile can only be edited with FlagCount Pro"));
+        return Err(pro_required("This profile can only be edited with Audience Live Pro"));
     }
     let profile = &mut settings.profiles[index];
     profile.name = name;
@@ -157,7 +157,7 @@ pub fn delete_profile(settings: &mut Settings, profile_id: &str) -> Result<bool,
 pub fn switch_profile(settings: &mut Settings, license: &LicenseState, profile_id: &str) -> Result<bool, AppError> {
     let index = index_of(settings, profile_id)?;
     if !is_usable(index, license) {
-        return Err(pro_required("This profile requires FlagCount Pro"));
+        return Err(pro_required("This profile requires Audience Live Pro"));
     }
     if settings.active_profile_id == profile_id {
         return Ok(false);
@@ -204,23 +204,23 @@ pub fn replace_counters(
     }
 
     if counters.len() > counter_limit(license) {
-        return Err(pro_required("Parallel counters require FlagCount Pro"));
+        return Err(pro_required("Parallel counters require Audience Live Pro"));
     }
     if counters.iter().any(|counter| counter.mode == CounterMode::Poll) && !has_feature(license, MULTI_OPTION_POLLS) {
-        return Err(pro_required("Polls require FlagCount Pro"));
+        return Err(pro_required("Polls require Audience Live Pro"));
     }
     if counters.iter().any(uses_custom_triggers) && !has_feature(license, CUSTOM_TRIGGERS) {
-        return Err(pro_required("Custom triggers require FlagCount Pro"));
+        return Err(pro_required("Custom triggers require Audience Live Pro"));
     }
     if counters.iter().any(|counter| counter.overlay.theme != crate::settings::OverlayTheme::Standard)
         && !has_feature(license, PREMIUM_TEMPLATES)
     {
-        return Err(pro_required("Premium overlay templates require FlagCount Pro"));
+        return Err(pro_required("Premium overlay templates require Audience Live Pro"));
     }
     if counters.iter().any(|counter| counter.overlay.font != crate::settings::OverlayFont::System || counter.overlay.logo_asset.is_some() || counter.overlay.background_asset.is_some())
         && !has_feature(license, CUSTOM_BRANDING)
     {
-        return Err(pro_required("Custom overlay branding requires FlagCount Pro"));
+        return Err(pro_required("Custom overlay branding requires Audience Live Pro"));
     }
 
     let profile_id = effective_profile(settings, license)

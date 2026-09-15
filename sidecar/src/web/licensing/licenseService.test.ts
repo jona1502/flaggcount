@@ -119,7 +119,7 @@ describe('LicenseService', () => {
     expect(await subscription()).toEqual({ status: 200 });
 
     expect(mails).toHaveLength(1);
-    expect(mails[0]).toMatchObject({ to: 'kunde@example.com', subject: 'Dein Aktivierungscode für FlagCount Pro' });
+    expect(mails[0]).toMatchObject({ to: 'kunde@example.com', subject: 'Dein Aktivierungscode für Audience Live Pro' });
     const code = /FC(-[0-9A-Z]{5}){4}/.exec(mails[0]!.text)?.[0] ?? '';
     const logged = JSON.stringify(logs);
     expect(logged).not.toContain(code.slice(3));
@@ -308,8 +308,8 @@ describe('LicenseService', () => {
     await service.recover('kein-email');
 
     expect(mails.map((mail) => mail.subject)).toEqual([
-      'Dein Aktivierungscode für FlagCount Pro',
-      'Neuer Aktivierungscode für FlagCount Pro'
+      'Dein Aktivierungscode für Audience Live Pro',
+      'Neuer Aktivierungscode für Audience Live Pro'
     ]);
     expect(lastCode()).not.toBe(oldCode);
     expect(await service.activate({ code: oldCode, installationId: INSTALL_A })).toMatchObject({ error: 'invalid-code' });
@@ -340,7 +340,7 @@ describe('LicenseService', () => {
 
     await subscription({ status: 'active' }, 'subscription.updated');
     await subscription({ status: 'active' }, 'subscription.updated');
-    expect(mails.map((mail) => mail.subject)).toEqual(['Dein Aktivierungscode für FlagCount Pro']);
+    expect(mails.map((mail) => mail.subject)).toEqual(['Dein Aktivierungscode für Audience Live Pro']);
   });
 
   it('syncs from the provider state, so late or reordered events cannot undo newer changes', async () => {

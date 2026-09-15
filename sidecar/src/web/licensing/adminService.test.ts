@@ -257,7 +257,7 @@ describe('AdminService', () => {
     if (!manual.ok) throw new Error('manual license failed');
 
     expect(await admin.renewActivationCode(ADMIN, paid.id, 'email')).toEqual({ ok: true, value: { code: null, mailed: true } });
-    expect(mails.map((mail) => [mail.to, mail.subject])).toEqual([['kunde@example.com', 'Neuer Aktivierungscode für FlagCount Pro']]);
+    expect(mails.map((mail) => [mail.to, mail.subject])).toEqual([['kunde@example.com', 'Neuer Aktivierungscode für Audience Live Pro']]);
     expect(mails[0]?.text).toContain('Unser Support');
     expect(await licenses.activate({ code: oldCode ?? '', installationId: INSTALL_A })).toMatchObject({ error: 'invalid-code' });
 

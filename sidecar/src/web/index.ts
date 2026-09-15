@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const jsonLogger = createJsonLogger();
   const licensingConfig = readLicensingConfig(process.env);
   if (licensingConfig.kind === 'invalid') {
-    log('warn', `FlagCount Pro billing is disabled: ${licensingConfig.problems.join('; ')}`);
+    log('warn', `Audience Live Pro billing is disabled: ${licensingConfig.problems.join('; ')}`);
   }
   let licensing: RunningLicensing | null = null;
   const licensingHandler = createLicensingHandler({
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   if (adminApiConfig.kind === 'invalid') {
     log('warn', `The admin API is disabled: ${adminApiConfig.problems.join('; ')}`);
   } else if (adminApiConfig.kind === 'enabled' && licensingConfig.kind !== 'enabled') {
-    log('warn', 'The admin API needs FlagCount Pro billing to be configured; it answers 503 until then');
+    log('warn', 'The admin API needs Audience Live Pro billing to be configured; it answers 503 until then');
   }
   const adminHandler =
     adminApiConfig.kind === 'enabled'
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     port,
     onError: (error) => log('error', `Request failed: ${describeError(error)}`)
   });
-  log('info', `FlagCount web server listening on ${host}:${server.port}`);
+  log('info', `Audience Live web server listening on ${host}:${server.port}`);
 
   let stopping = false;
   const stop = (): void => {
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
     if (licensingConfig.kind !== 'enabled' || stopping) return;
     try {
       licensing = await startLicensing(licensingConfig.settings, jsonLogger);
-      log('info', `FlagCount Pro licensing is enabled (${describeBilling(licensingConfig.settings.billing)})`);
+      log('info', `Audience Live Pro licensing is enabled (${describeBilling(licensingConfig.settings.billing)})`);
     } catch (error) {
       const delayMs = Math.min(60_000, 2_000 * 2 ** (attempt - 1));
       // Only the error class: database errors can contain connection details.
