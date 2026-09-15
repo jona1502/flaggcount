@@ -3,12 +3,12 @@ import type { Navigate } from '../app-shell/navigation';
 import { Button, Card, IconCheck, IconChevronRight } from '../components/ui';
 import { setupSteps, type SetupStepId } from '../pages/setupSteps';
 
-/** Connecting has its own card on the cockpit and a profile always runs, so only these steps remain. */
-const COCKPIT_STEPS = new Set<SetupStepId>(['elements', 'overlay', 'license']);
+/** Connecting has its own card on the overview and a profile always runs, so only these steps remain. */
+const OVERVIEW_STEPS = new Set<SetupStepId>(['elements', 'overlay', 'license']);
 
-/** Open setup steps on the cockpit; disappears once everything is ready. */
+/** Open setup steps on the overview; disappears once everything is ready. */
 export function SetupStrip({ model, onNavigate }: { model: AppModel; onNavigate: Navigate }): React.JSX.Element | null {
-  const steps = setupSteps(model).filter((step) => COCKPIT_STEPS.has(step.id));
+  const steps = setupSteps(model).filter((step) => OVERVIEW_STEPS.has(step.id));
   const done = steps.filter((step) => step.done).length;
   if (done === steps.length) return null;
 

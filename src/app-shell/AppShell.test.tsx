@@ -9,7 +9,7 @@ import type { UpdaterController } from '../updater/useUpdater';
 
 afterEach(cleanup);
 
-const DESKTOP_PAGES = ['Cockpit', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
+const DESKTOP_PAGES = ['Übersicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
 
 function updaterWith(status: UpdaterController['status']): UpdaterController {
   return {
@@ -52,15 +52,15 @@ const pageTitle = () => screen.getByRole('heading', { level: 1 });
 const topBar = () => screen.getByRole('banner', { name: 'Stream-Status' });
 
 describe('App shell', () => {
-  it('groups every desktop area and starts on the cockpit', () => {
+  it('groups every desktop area and starts on the overview', () => {
     renderShell();
 
     expect(within(navigation()).getAllByRole('button').map((button) => button.textContent?.replace(/(Free|Pro)$/, ''))).toEqual(
       DESKTOP_PAGES
     );
     expect(within(navigation()).getAllByRole('list').map((list) => list.getAttribute('aria-labelledby') && document.getElementById(list.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Stream', 'Einrichten', 'Konto']);
-    expect(navItem('Cockpit').getAttribute('aria-current')).toBe('page');
-    expect(pageTitle().textContent).toBe('Cockpit');
+    expect(navItem('Übersicht').getAttribute('aria-current')).toBe('page');
+    expect(pageTitle().textContent).toBe('Übersicht');
   });
 
   it('navigates with the keyboard and moves focus to the new page title', async () => {
@@ -72,15 +72,15 @@ describe('App shell', () => {
     expect(pageTitle().textContent).toBe('Historie');
     expect(document.activeElement).toBe(pageTitle());
     expect(navItem('Historie').getAttribute('aria-current')).toBe('page');
-    expect(navItem('Cockpit').getAttribute('aria-current')).toBeNull();
+    expect(navItem('Übersicht').getAttribute('aria-current')).toBeNull();
   });
 
   it('keeps the browser dashboard to the areas it supports', () => {
     const onLogout = vi.fn();
     renderShell({ desktop: false, onLogout });
 
-    expect(within(navigation()).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cockpit', 'Overlays', 'Einstellungen']);
-    expect(pageTitle().textContent).toBe('Cockpit');
+    expect(within(navigation()).getAllByRole('button').map((button) => button.textContent)).toEqual(['Übersicht', 'Overlays', 'Einstellungen']);
+    expect(pageTitle().textContent).toBe('Übersicht');
     expect(within(topBar()).queryByRole('button', { name: 'Free' })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Abmelden' }).length).toBeGreaterThan(0);
   });
@@ -132,7 +132,7 @@ describe('App shell', () => {
   });
 });
 
-describe('Cockpit', () => {
+describe('Übersicht', () => {
   it('lists open setup steps and links each of them', async () => {
     const { user } = renderShell({ state: createAppState({ license: LICENSES.expired }) });
     const checklist = screen.getByRole('region', { name: 'Einrichtung' });

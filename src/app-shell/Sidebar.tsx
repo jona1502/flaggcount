@@ -9,7 +9,7 @@ type SidebarProps = {
   onToggleCollapsed: () => void;
   /** Short, decorative hints next to entries, e.g. the plan on "Pro & Lizenz". */
   badges?: Partial<Record<PageId, string>>;
-  /** Marks the cockpit while a stream is connected. */
+  /** Marks the overview while a stream is connected. */
   live?: boolean;
   version?: string | null;
   onLogout?: () => void;

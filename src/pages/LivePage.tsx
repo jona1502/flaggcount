@@ -8,7 +8,7 @@ import { SetupStrip } from '../live/SetupStrip';
 import type { PageProps } from './types';
 
 /**
- * The stream cockpit: connecting, the setup steps still open and every running counter at once.
+ * The overview: connecting, the setup steps still open and every running counter at once.
  * Connection and profile stay reachable from the top bar on every other page.
  */
 export function LivePage({ model, pending, error, actions, navigate, desktop }: PageProps): React.JSX.Element {
@@ -39,7 +39,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
 
   return (
     <div className="page live-page">
-      <PageHeader title="Cockpit" description="Verbindung, Stimmen und Runden während des Streams." actions={headerActions} />
+      <PageHeader title="Übersicht" description="Verbindung, Stimmen und Runden während des Streams." actions={headerActions} />
 
       {!state.sidecarRunning && (
         <Callout tone="danger" title="Verbindungsdienst nicht verfügbar">

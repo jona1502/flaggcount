@@ -27,7 +27,7 @@ function renderLive(state: AppState, error: AppError | null = null) {
   return {
     actions,
     user,
-    open: () => user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Cockpit' }))
+    open: () => user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Übersicht' }))
   };
 }
 
@@ -53,7 +53,7 @@ function fourElements(): { counters: CounterDefinition[]; state: AppState } {
   return { counters, state };
 }
 
-describe('Cockpit', () => {
+describe('Übersicht', () => {
   it('controls four elements at once with options, shares, leaders and targets', async () => {
     const { actions, user, open } = renderLive(fourElements().state);
     await open();

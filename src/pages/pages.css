@@ -149,7 +149,7 @@
   font-size: var(--fc-text-sm);
 }
 
-/* Cockpit setup steps sit side by side, so they take little room above the live cards. */
+/* Setup steps of the overview sit side by side, so they take little room above the live cards. */
 .fc-app .setup-strip .setup-list {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
 }

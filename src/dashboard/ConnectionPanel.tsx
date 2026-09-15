@@ -63,7 +63,7 @@ export function ConnectionPanel({
   onStartTwitchAuth = () => undefined,
   onDisconnectTwitchAccount = () => undefined
 }: ConnectionPanelProps): React.JSX.Element {
-  // The cockpit and the drawer can show the form at the same time, so field ids must not collide.
+  // The overview and the drawer can show the form at the same time, so field ids must not collide.
   const fieldId = useId();
   const [platform, setPlatform] = useState<LivePlatform>(connection.platform ?? initialPlatform);
   const [username, setUsername] = useState(connection.username ?? savedUsername);

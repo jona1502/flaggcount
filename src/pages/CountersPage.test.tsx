@@ -103,17 +103,17 @@ describe('Zähler & Abstimmungen', () => {
     await rename(user, 'Neuer Name');
 
     const navigation = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    await user.click(within(navigation).getByRole('button', { name: 'Cockpit' }));
+    await user.click(within(navigation).getByRole('button', { name: 'Übersicht' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Ungespeicherte Änderungen' })).getByRole('button', { name: 'Weiter bearbeiten' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Zähler & Abstimmungen');
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Neuer Name');
 
-    await user.click(within(navigation).getByRole('button', { name: 'Cockpit' }));
+    await user.click(within(navigation).getByRole('button', { name: 'Übersicht' }));
     await user.click(screen.getByRole('button', { name: 'Verwerfen und verlassen' }));
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Cockpit');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Übersicht');
   });
 
-  it('creates a poll from the cockpit shortcut and shows where it appears', async () => {
+  it('creates a poll from the overview shortcut and shows where it appears', async () => {
     const state = createAppState({ license: LICENSES.pro });
     const { actions, user, rerender } = renderCounters(state);
 
@@ -128,8 +128,8 @@ describe('Zähler & Abstimmungen', () => {
     act(() => rerender(createAppState({ license: LICENSES.pro, settings: createSettings(counters) })));
     expect(screen.queryByRole('dialog', { name: 'Neues Element' })).toBeNull();
     const created = screen.getByRole('note', { name: 'Element erstellt und gespeichert' });
-    await user.click(within(created).getByRole('button', { name: 'Cockpit öffnen' }));
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Cockpit');
+    await user.click(within(created).getByRole('button', { name: 'Übersicht öffnen' }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Übersicht');
   });
 
   it('explains paused Pro elements after a downgrade without deleting them', async () => {

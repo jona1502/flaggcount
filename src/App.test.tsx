@@ -57,7 +57,7 @@ type User = ReturnType<typeof userEvent.setup>;
 async function renderApp(): Promise<User> {
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole('heading', { level: 1, name: 'Cockpit' });
+  await screen.findByRole('heading', { level: 1, name: 'Übersicht' });
   return user;
 }
 
@@ -101,7 +101,7 @@ describe('App with the Tauri backend', () => {
     await user.type(screen.getByLabelText('TikTok-Benutzername'), 'streamer');
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
 
-    await openPage(user, 'Cockpit');
+    await openPage(user, 'Übersicht');
     await user.click(screen.getByRole('button', { name: 'Flagge hinzufügen' }));
     await act(() =>
       emit('state-changed', {
@@ -138,7 +138,7 @@ describe('App with the Tauri backend', () => {
 
   it('updates the dashboard as soon as the backend emits a new state', async () => {
     const user = await renderApp();
-    await openPage(user, 'Cockpit');
+    await openPage(user, 'Übersicht');
 
     await act(() =>
       emit('state-changed', {
@@ -222,7 +222,7 @@ describe('Counters in the Tauri app', () => {
 describe('Parallel counters in the Tauri app', () => {
   it('corrects a poll option and resets one counter from the live board', async () => {
     const user = await renderApp();
-    await openPage(user, 'Cockpit');
+    await openPage(user, 'Übersicht');
 
     await act(() =>
       emit('state-changed', {

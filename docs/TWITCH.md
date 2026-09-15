@@ -5,7 +5,7 @@ Die Desktop-App liest den Chat des eigenen Twitch-Kanals über die offizielle Ev
 ## Einrichtung
 
 1. Eine Twitch-Anwendung registrieren und deren Client-ID beim Build als `TWITCH_CLIENT_ID` setzen.
-2. Im Cockpit **Twitch** und **Mit Twitch anmelden** wählen.
+2. In der Übersicht **Twitch** und **Mit Twitch anmelden** wählen.
 3. Den angezeigten Gerätecode bei Twitch bestätigen. Audience Live fordert ausschließlich `user:read:chat` an.
 4. Sobald der eigene Kanal live ist, **Eigenen Kanal verbinden** wählen.
 

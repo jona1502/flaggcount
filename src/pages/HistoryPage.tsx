@@ -132,7 +132,7 @@ export function HistoryPage({ model, pending, error, actions, navigate }: PagePr
             description="Eine Runde landet hier, sobald du sie zurücksetzt, das Profil wechselst oder Audience Live beendest – vorausgesetzt, sie hatte mindestens eine Stimme."
           action={
             <Button icon={IconLive} onClick={() => navigate({ page: 'live' })}>
-              Zum Cockpit
+              Zur Übersicht
             </Button>
           }
         />

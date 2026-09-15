@@ -61,7 +61,7 @@ export function OverlaySetupGuide({ target }: { target: OverlayTarget }): React.
         {guide === 'test' && (
           <ol className="guide-steps">
             <li>Öffne die lokale URL in einem Browser auf diesem Computer.</li>
-            <li>Füge im Cockpit eine Stimme hinzu – das Overlay zeigt sie sofort.</li>
+            <li>Füge in der Übersicht eine Stimme hinzu – das Overlay zeigt sie sofort.</li>
             <li>Erscheint das Overlay abgeblendet, hat es gerade keine Verbindung zu Audience Live. Es verbindet sich von selbst wieder.</li>
           </ol>
         )}

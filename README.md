@@ -8,7 +8,7 @@ Alle Bereiche erreichst du über die Seitenleiste, gruppiert nach **Stream**, **
 
 | Bereich | Wofür |
 | --- | --- |
-| Cockpit | Startseite: LIVE-Verbindung, offene Einrichtungsschritte und alle laufenden Zähler und Abstimmungen mit manuellen Korrekturen, Zielen und Reset |
+| Übersicht | Startseite: LIVE-Verbindung, offene Einrichtungsschritte und alle laufenden Zähler und Abstimmungen mit manuellen Korrekturen, Zielen und Reset |
 | Zähler & Abstimmungen | Elemente mit dem Assistenten **Neues Element** anlegen, bearbeiten, duplizieren, sortieren und löschen |
 | Overlays | Ein Overlay pro Element und die Gesamtansicht: Design, lokale und Online-URL, Einrichtungsanleitung |
 | Profile | Stream-Profile anlegen, wechseln, umbenennen, duplizieren und löschen |
@@ -18,12 +18,12 @@ Alle Bereiche erreichst du über die Seitenleiste, gruppiert nach **Stream**, **
 
 ### Stream starten
 
-1. Audience Live starten und im **Cockpit** TikTok oder Twitch wählen (auf anderen Seiten über **LIVE verbinden** in der Kopfleiste). Für TikTok den Namen beziehungsweise die Profil-/Live-URL eingeben. Für Twitch zuerst **Mit Twitch anmelden**, den Gerätecode bestätigen und danach **Eigenen Kanal verbinden** wählen. Der Stream muss gerade live sein.
+1. Audience Live starten und in der **Übersicht** TikTok oder Twitch wählen (auf anderen Seiten über **LIVE verbinden** in der Kopfleiste). Für TikTok den Namen beziehungsweise die Profil-/Live-URL eingeben. Für Twitch zuerst **Mit Twitch anmelden**, den Gerätecode bestätigen und danach **Eigenen Kanal verbinden** wählen. Der Stream muss gerade live sein.
 2. Zuschauer stimmen ab, indem sie eine Chatnachricht mit `🚩` schreiben. `🚩`, `🚩🚩` und `Bitte 🚩` zählen jeweils genau eine Stimme; jede Person zählt pro Runde nur einmal, egal wie viele Nachrichten sie schreibt. Mit `🏳️` nimmt sie ihre Stimme zurück und kann danach wieder neu abstimmen.
-3. Falls eine Chat-Stimme nicht erkannt wurde, fügt **Flagge hinzufügen** im **Cockpit** genau eine Stimme hinzu; **Flagge abziehen** korrigiert um eine Stimme nach unten. Laufen mehrere Elemente, heißen die Schaltflächen „Stimme für … hinzufügen“ bzw. „… abziehen“. Beides funktioniert auch ohne aktive TikTok-Verbindung und aktualisiert Dashboard sowie Overlay sofort.
-4. Das **Stimmenziel** des ersten Elements änderst du im Cockpit über **Ziel ändern** und speicherst es mit **Übernehmen**; die Ziele weiterer Elemente unter **Zähler & Abstimmungen**. Ist das Ziel erreicht, wird der Fortschrittsbalken grün.
+3. Falls eine Chat-Stimme nicht erkannt wurde, fügt **Flagge hinzufügen** in der **Übersicht** genau eine Stimme hinzu; **Flagge abziehen** korrigiert um eine Stimme nach unten. Laufen mehrere Elemente, heißen die Schaltflächen „Stimme für … hinzufügen“ bzw. „… abziehen“. Beides funktioniert auch ohne aktive TikTok-Verbindung und aktualisiert Dashboard sowie Overlay sofort.
+4. Das **Stimmenziel** des ersten Elements änderst du in der Übersicht über **Ziel ändern** und speicherst es mit **Übernehmen**; die Ziele weiterer Elemente unter **Zähler & Abstimmungen**. Ist das Ziel erreicht, wird der Fortschrittsbalken grün.
 5. **Runde zurücksetzen** öffnet eine Rückfrage; **Ja, zurücksetzen** löscht alle automatischen und manuellen Stimmen der Runde, danach dürfen alle erneut abstimmen. Laufen mehrere Elemente, setzt **Alle Runden zurücksetzen** alle gemeinsam zurück.
-6. Reißt die Verbindung ab, verbindet Audience Live automatisch neu (bis zu acht Versuche mit wachsender Wartezeit). Die Stimmen der Runde bleiben dabei erhalten. **Trennen** (in der Kopfleiste unter **Verbindung verwalten**) beendet die Verbindung und alle weiteren Versuche. Ist der LIVE beendet, bietet das Cockpit **Erneut verbinden** an.
+6. Reißt die Verbindung ab, verbindet Audience Live automatisch neu (bis zu acht Versuche mit wachsender Wartezeit). Die Stimmen der Runde bleiben dabei erhalten. **Trennen** (in der Kopfleiste unter **Verbindung verwalten**) beendet die Verbindung und alle weiteren Versuche. Ist der LIVE beendet, bietet die Übersicht **Erneut verbinden** an.
 
 ### Zähler oder Abstimmung erstellen
 
@@ -32,7 +32,7 @@ Alle Bereiche erreichst du über die Seitenleiste, gruppiert nach **Stream**, **
 3. Name und optional ein Stimmenziel festlegen.
 4. Bei einer Abstimmung zwei bis sechs Optionen benennen und einfärben.
 5. Für jede Option Emoji- oder Text-Auslöser festlegen. Ein Auslöser darf pro Element nur einmal vorkommen, sonst wäre eine Stimme mehrdeutig.
-6. Optional Auslöser zum Zurücknehmen festlegen, die Zusammenfassung prüfen und **Erstellen** klicken. Das Element ist sofort gespeichert und läuft im Cockpit.
+6. Optional Auslöser zum Zurücknehmen festlegen, die Zusammenfassung prüfen und **Erstellen** klicken. Das Element ist sofort gespeichert und läuft in der Übersicht.
 
 Änderungen an bestehenden Elementen übernimmt Audience Live erst mit **Änderungen speichern**; wer die Seite vorher verlässt, wird gefragt. Abstimmungen, eigene Auslöser und mehrere gleichzeitige Elemente gehören zu Audience Live Pro. In Audience Live Free bleiben sie sichtbar und sind als „Pro erforderlich“ markiert. Meldet eine Pro-Lizenz eine erwartete Funktion nicht, erklärt Audience Live das und bietet **Lizenzstatus aktualisieren** an.
 

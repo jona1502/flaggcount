@@ -40,7 +40,7 @@ function expectAccessible(context: string): void {
   }
 }
 
-const PAGES = ['Cockpit', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
+const PAGES = ['Übersicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
 
 function renderApp(state: AppState, desktop = true) {
   render(
@@ -106,7 +106,7 @@ describe('Accessibility of every page', () => {
   it('keeps the browser dashboard accessible', async () => {
     const user = renderApp(createAppState(), false);
 
-    for (const page of ['Cockpit', 'Overlays', 'Einstellungen']) {
+    for (const page of ['Übersicht', 'Overlays', 'Einstellungen']) {
       await openPage(user, page);
       expectAccessible(`web – ${page}`);
     }

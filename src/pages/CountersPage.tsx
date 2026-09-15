@@ -46,7 +46,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
     setCreatedId(created.id);
     setSelectedId(created.id);
     setWizardOpen(false);
-    toast({ title: `„${created.name}“ wurde erstellt`, description: 'Es läuft jetzt im Cockpit.' });
+    toast({ title: `„${created.name}“ wurde erstellt`, description: 'Es läuft jetzt in der Übersicht.' });
   }, [creatingId, saved, toast]);
 
   useEffect(() => {
@@ -161,7 +161,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
           actions={
             <>
               <Button size="sm" icon={IconLive} onClick={() => navigate({ page: 'live' })}>
-                Cockpit öffnen
+                Übersicht öffnen
               </Button>
               <Button size="sm" icon={IconOverlays} onClick={() => navigate({ page: 'overlays', target: createdId })}>
                 Overlay einrichten
@@ -169,7 +169,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
             </>
           }
         >
-          Es erscheint jetzt im Cockpit und hat ein eigenes Overlay.
+          Es erscheint jetzt in der Übersicht und hat ein eigenes Overlay.
         </Callout>
       )}
 
@@ -217,7 +217,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
                 ? violations.map(describeViolation).join(' ')
                 : hasProblems
                   ? 'Bitte korrigiere die markierten Felder.'
-                  : 'Speichere, damit das Cockpit und die Overlays die Änderungen übernehmen.'}
+                  : 'Speichere, damit die Übersicht und die Overlays die Änderungen übernehmen.'}
             </span>
           </div>
           <Button variant="ghost" disabled={pending} onClick={() => setDraft(copyOf(saved))}>

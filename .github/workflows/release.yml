@@ -95,7 +95,7 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: Audience Live v__VERSION__
           releaseBody: |
-            Neues Design im Stil des Audience-Live-Logos mit Stream-Cockpit und Kopfleiste. Einstellungen, Profile und Lizenzen bleiben erhalten.
+            Neues Design im Stil des Audience-Live-Logos mit neuer Übersicht und Kopfleiste. Einstellungen, Profile und Lizenzen bleiben erhalten.
             Weitere Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false

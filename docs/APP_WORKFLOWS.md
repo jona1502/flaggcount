@@ -6,7 +6,7 @@ Dieses Dokument beschreibt die neu gestaltete Desktop-App unter `src/`: wo welch
 
 | Bereich | Inhalt | Primäraktion |
 | --- | --- | --- |
-| Cockpit | Startseite: LIVE-Verbindung solange getrennt, offene Einrichtungsschritte (Element, Overlay, Lizenzstatus), alle laufenden Elemente, manuelle Stimmen, Ziele, Reset je Element und für alle | Verbinden, Live-Aktion |
+| Übersicht | Startseite: LIVE-Verbindung solange getrennt, offene Einrichtungsschritte (Element, Overlay, Lizenzstatus), alle laufenden Elemente, manuelle Stimmen, Ziele, Reset je Element und für alle | Verbinden, Live-Aktion |
 | Zähler & Abstimmungen | Liste und Detailansicht der Elemente des laufenden Profils, Assistent „Neues Element“ | Neues Element |
 | Overlays | Overlay je Element und Gesamtansicht, Design, URLs, Einrichtungsanleitung | Overlay einrichten |
 | Profile | Profile anlegen, wechseln, umbenennen, duplizieren, löschen | Neues Profil |
@@ -16,7 +16,7 @@ Dieses Dokument beschreibt die neu gestaltete Desktop-App unter `src/`: wo welch
 
 Die Seitenleiste gruppiert die Bereiche in Stream, Einrichten und Konto. Die Kopfleiste zeigt auf jeder Seite den Verbindungsstatus mit einem Verbindungs-Drawer, das laufende Profil mit Wechsel und den Tarif.
 
-Callouts führen direkt an die passende Stelle, zum Beispiel „Abstimmung erstellen“ in den Assistenten oder „Overlay öffnen“ zum Overlay eines Elements. Das Browser-Dashboard zeigt bewusst nur Cockpit, Overlays und Einstellungen und gestaltet nur das Overlay des ersten Elements.
+Callouts führen direkt an die passende Stelle, zum Beispiel „Abstimmung erstellen“ in den Assistenten oder „Overlay öffnen“ zum Overlay eines Elements. Das Browser-Dashboard zeigt bewusst nur Übersicht, Overlays und Einstellungen und gestaltet nur das Overlay des ersten Elements.
 
 ## Design
 
@@ -52,7 +52,7 @@ Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für
 ## Automatisierte Abdeckung
 
 - `src/components/ui/ui.test.tsx` – Tastatur, Fokus und Rollen der UI-Primitives
-- `src/app-shell/AppShell.test.tsx`, `src/pages/setupSteps.test.ts` – Navigation, Kopfleiste, Cockpit-Einrichtung
+- `src/app-shell/AppShell.test.tsx`, `src/pages/setupSteps.test.ts` – Navigation, Kopfleiste, Einrichtung in der Übersicht
 - `src/dashboard/proDiscovery.test.tsx` – gemeldetes Auffindbarkeitsproblem und Lizenzdiagnose
 - `src/counters/CreateCounterWizard.test.tsx`, `src/pages/CountersPage.test.tsx` – Assistent, Validierung, Speichern, Sortieren, Downgrade
 - `src/live/liveCounters.test.ts`, `src/pages/LivePage.test.tsx` – bis zu vier Elemente, Führung, Resets, Profilwechsel
@@ -65,7 +65,7 @@ Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für
 
 Diese Schritte brauchen die echte App, einen TikTok-LIVE bzw. Testevents und eine echte oder lokal signierte Pro-Testlizenz. Sie sind vor dem Erhöhen der Version und dem Tag durchzuführen.
 
-- [ ] App ohne Lizenz frisch starten; das Cockpit zeigt die Verbindung und die offenen Einrichtungsschritte.
+- [ ] App ohne Lizenz frisch starten; die Übersicht zeigt die Verbindung und die offenen Einrichtungsschritte.
 - [ ] Free-Zähler verbinden, Overlay-URL kopieren, in OBS einbinden und eine Runde durchführen.
 - [ ] Pro-Lizenz aktivieren; Navigation und Aktionen sind ohne Neustart freigeschaltet.
 - [ ] Profil „A/B Test“ erstellen und dorthin wechseln.

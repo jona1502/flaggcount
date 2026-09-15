@@ -33,7 +33,7 @@ export type PageDescription = {
 };
 
 export const PAGES: Record<PageId, PageDescription> = {
-  live: { id: 'live', label: 'Cockpit', icon: IconLive },
+  live: { id: 'live', label: 'Übersicht', icon: IconLive },
   counters: { id: 'counters', label: 'Zähler & Abstimmungen', icon: IconCounters },
   overlays: { id: 'overlays', label: 'Overlays', icon: IconOverlays },
   profiles: { id: 'profiles', label: 'Profile', icon: IconProfiles },
@@ -48,7 +48,7 @@ export type NavGroup = {
   pages: readonly PageId[];
 };
 
-/** Streaming comes first; setting up and the account stay apart, so the cockpit never drowns in forms. */
+/** Streaming comes first; setting up and the account stay apart, so the overview never drowns in forms. */
 export const NAV_GROUPS: readonly NavGroup[] = [
   { id: 'stream', label: 'Stream', pages: ['live'] },
   { id: 'setup', label: 'Einrichten', pages: ['counters', 'overlays', 'profiles'] },

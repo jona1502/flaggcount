@@ -209,7 +209,7 @@ export function CreateCounterWizard({
       case 'basics':
         return (
           <div className="wizard-fields">
-            <Field id="wizard-name" label="Name" hint="Erscheint im Cockpit und im Overlay." error={fieldProblem(problems, 'invalid-name')}>
+            <Field id="wizard-name" label="Name" hint="Erscheint in der Übersicht und im Overlay." error={fieldProblem(problems, 'invalid-name')}>
               <Input value={draft.name} maxLength={MAX_NAME_LENGTH} data-autofocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
             </Field>
             <Switch
@@ -354,7 +354,7 @@ export function CreateCounterWizard({
                 {getErrorMessage(error.code)}
               </Callout>
             )}
-            <p className="wizard-hint">Nach dem Erstellen wird das Element gespeichert, läuft sofort im Cockpit und bekommt ein eigenes Overlay.</p>
+            <p className="wizard-hint">Nach dem Erstellen wird das Element gespeichert, läuft sofort in der Übersicht und bekommt ein eigenes Overlay.</p>
           </>
         );
     }

@@ -11,7 +11,7 @@ type LiveConnectionProps = {
   bare?: boolean;
 };
 
-/** The connection form wired to the app state, shared by the cockpit and the drawer of the top bar. */
+/** The connection form wired to the app state, shared by the overview and the drawer of the top bar. */
 export function LiveConnection({ model: { state }, pending, actions, desktop, bare }: LiveConnectionProps): React.JSX.Element {
   return (
     <ConnectionPanel
