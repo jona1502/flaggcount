@@ -186,7 +186,7 @@ describe('startWebServer', () => {
     expect((await send(server.port, '/healthz')).body).toBe('ok');
     const overlay = await send(server.port, '/overlay');
     expect(overlay.status).toBe(200);
-    expect(overlay.body).toContain('FlagCount Overlay');
+    expect(overlay.body).toContain('Audience Live Overlay');
   });
 
   it('protects the dashboard API without serving the Next.js page itself', async () => {
