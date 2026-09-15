@@ -39,6 +39,18 @@ export function OverlaysPage({ model, route, pending, actions, navigate, onCopyT
 
   const editable = selected?.kind === 'counter' && (desktop || selected.id === running.counters[0]?.id);
 
+  // Focus the new editor without jumping; scroll only when its title is out of sight, e.g. in a narrow window.
+  const select = (targetId: string): void => {
+    setSelectedId(targetId);
+    requestAnimationFrame(() => {
+      const title = editorTitle.current;
+      if (!title) return;
+      title.focus({ preventScroll: true });
+      const { top } = title.getBoundingClientRect();
+      if (top < 0 || top > window.innerHeight * 0.6) title.closest('.overlay-editor')?.scrollIntoView?.({ block: 'start' });
+    });
+  };
+
   return (
     <div className="page overlays-page">
       <PageHeader
@@ -75,70 +87,77 @@ export function OverlaysPage({ model, route, pending, actions, navigate, onCopyT
         </Callout>
       )}
 
-      <section className="overlay-gallery-section" aria-labelledby="single-overlays-title">
-        <h2 id="single-overlays-title">Einzel-Overlays</h2>
-        <ul className="overlay-gallery" aria-label="Einzel-Overlays">
-        {targets.filter((target) => target.kind === 'counter').map((target) => (
-          <OverlayTargetCard
-            key={target.id}
-            target={target}
-            selected={target.id === selected?.id}
-            isPro={isPro}
-            onSelect={() => {
-              setSelectedId(target.id);
-              requestAnimationFrame(() => editorTitle.current?.focus());
-            }}
-            onCopy={(url) => void copy(url)}
-          />
-        ))}
-        </ul>
-      </section>
+      {/* The list stays next to the editor, so choosing another overlay changes what is on screen right away. */}
+      <div className="overlays-workspace">
+        <div className="overlays-list">
+          <section className="overlay-gallery-section" aria-labelledby="single-overlays-title">
+            <h2 id="single-overlays-title">Einzel-Overlays</h2>
+            <ul className="overlay-gallery" aria-label="Einzel-Overlays">
+              {targets.filter((target) => target.kind === 'counter').map((target) => (
+                <OverlayTargetCard
+                  key={target.id}
+                  target={target}
+                  selected={target.id === selected?.id}
+                  isPro={isPro}
+                  onSelect={() => select(target.id)}
+                  onCopy={(url) => void copy(url)}
+                />
+              ))}
+            </ul>
+          </section>
 
-      <section className="overlay-gallery-section" aria-labelledby="combined-overlays-title">
-        <div className="overlay-gallery-heading">
-          <div><h2 id="combined-overlays-title">Gemeinsame Ansichten</h2><p>Mehrere Elemente über eine einzige Browser-Source anzeigen.</p></div>
-          <span>{running.overlayViews.length} von 4 eigenen Ansichten</span>
+          <section className="overlay-gallery-section" aria-labelledby="combined-overlays-title">
+            <div className="overlay-gallery-heading">
+              <div><h2 id="combined-overlays-title">Gemeinsame Ansichten</h2><p>Mehrere Elemente über eine einzige Browser-Source anzeigen.</p></div>
+              <span>{running.overlayViews.length} von 4 eigenen Ansichten</span>
+            </div>
+            <ul className="overlay-gallery" aria-label="Gemeinsame Overlay-Ansichten">
+              {targets.filter((target) => target.kind !== 'counter').map((target) => (
+                <OverlayTargetCard
+                  key={target.id}
+                  target={target}
+                  selected={target.id === selected?.id}
+                  isPro={isPro}
+                  onSelect={() => {
+                    if (target.kind === 'view') {
+                      setSelectedId(target.id);
+                      setComposer({ mode: 'edit', viewId: target.id });
+                    } else {
+                      select(target.id);
+                    }
+                  }}
+                  onCopy={(url) => void copy(url)}
+                />
+              ))}
+            </ul>
+          </section>
         </div>
-        <ul className="overlay-gallery" aria-label="Gemeinsame Overlay-Ansichten">
-          {targets.filter((target) => target.kind !== 'counter').map((target) => (
-            <OverlayTargetCard
-              key={target.id}
-              target={target}
-              selected={target.id === selected?.id}
+
+        <div className="overlays-detail">
+          {selected?.kind === 'view' && (
+            <div className="overlay-view-actions" aria-label={`Aktionen für ${selected.label}`}>
+              <Button onClick={() => setComposer({ mode: 'edit', viewId: selected.id })}>Bearbeiten</Button>
+              <Button onClick={() => void actions.duplicateOverlayView(selected.id)}>Duplizieren</Button>
+              <Button variant="danger-outline" onClick={() => setDeleteId(selected.id)}>Löschen</Button>
+            </div>
+          )}
+
+          {selected && (
+            <OverlayEditor
+              key={selected.id}
+              ref={editorTitle}
+              target={selected}
               isPro={isPro}
-              onSelect={() => {
-                setSelectedId(target.id);
-                if (target.kind === 'view') setComposer({ mode: 'edit', viewId: target.id });
-                else requestAnimationFrame(() => editorTitle.current?.focus());
-              }}
-              onCopy={(url) => void copy(url)}
+              editable={editable}
+              pending={pending}
+              premiumThemesAllowed={canUse(entitlements, 'premium-templates')}
+              onImportAsset={canUse(entitlements, 'custom-branding') ? actions.importOverlayAsset : undefined}
+              onChange={(overlay) => saveDesign(selected.id, overlay)}
+              onCopy={copy}
             />
-          ))}
-        </ul>
-      </section>
-
-      {selected?.kind === 'view' && (
-        <div className="overlay-view-actions" aria-label={`Aktionen für ${selected.label}`}>
-          <Button onClick={() => setComposer({ mode: 'edit', viewId: selected.id })}>Bearbeiten</Button>
-          <Button onClick={() => void actions.duplicateOverlayView(selected.id)}>Duplizieren</Button>
-          <Button variant="danger-outline" onClick={() => setDeleteId(selected.id)}>Löschen</Button>
+          )}
         </div>
-      )}
-
-      {selected && (
-        <OverlayEditor
-          key={selected.id}
-          ref={editorTitle}
-          target={selected}
-          isPro={isPro}
-          editable={editable}
-          pending={pending}
-          premiumThemesAllowed={canUse(entitlements, 'premium-templates')}
-          onImportAsset={canUse(entitlements, 'custom-branding') ? actions.importOverlayAsset : undefined}
-          onChange={(overlay) => saveDesign(selected.id, overlay)}
-          onCopy={copy}
-        />
-      )}
+      </div>
 
       <OverlayComposer
         open={composer !== null}
