@@ -1,4 +1,4 @@
-import { Button, IconButton, IconFlag, IconLogout, IconSidebar, cx } from '../components/ui';
+import { BrandLogo, Button, IconButton, IconLogout, IconSidebar, cx } from '../components/ui';
 import { PAGES, type Navigate, type PageId } from './navigation';
 
 type SidebarProps = {
@@ -16,9 +16,7 @@ export function Sidebar({ pages, current, onNavigate, collapsed, onToggleCollaps
   return (
     <aside className="shell-sidebar" data-collapsed={collapsed}>
       <div className="shell-brand">
-        <span className="shell-brand-mark" aria-hidden="true">
-          <IconFlag size={18} />
-        </span>
+        <BrandLogo size="md" className="shell-brand-mark" />
         <span className="shell-brand-name">Audience Live</span>
       </div>
 

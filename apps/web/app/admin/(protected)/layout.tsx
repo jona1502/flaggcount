@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
+import icon from '../../icon.png';
 import type { ReactNode } from 'react';
 import { requireAdmin } from '../../../lib/admin/session';
 
@@ -18,7 +20,7 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
       <header className="app-header">
         <div className="app-brand">
           <div className="app-mark" aria-hidden="true">
-            🚩
+            <Image src={icon} alt="" width={32} height={32} unoptimized />
           </div>
           <p className="admin-brand-title">Audience Live Admin</p>
         </div>

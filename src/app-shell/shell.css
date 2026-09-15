@@ -46,17 +46,12 @@
   padding: 0 var(--fc-space-2);
 }
 
+/* The logo is transparent and glows on its own, so it needs no tile behind it. */
 .fc-app .shell-brand-mark {
-  display: grid;
   flex-shrink: 0;
-  width: 2.1rem;
-  height: 2.1rem;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: 9px;
-  background: linear-gradient(145deg, #ef3b4f, #a3172a);
-  box-shadow: 0 8px 22px -10px var(--fc-accent);
-  color: #fff;
+  width: 2.25rem;
+  height: 2.25rem;
+  filter: drop-shadow(0 4px 14px rgb(98 70 234 / 0.45));
 }
 
 .fc-app .shell-brand-name {

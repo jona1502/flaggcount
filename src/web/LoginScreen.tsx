@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { BrandLogo } from '../components/brand/BrandLogo';
 import { Icon } from './Icon';
 import { login } from './webAuth';
 
@@ -127,10 +128,7 @@ export function LoginScreen({ sessionExpired = false, onSignedIn }: LoginScreenP
       <section className="login-card" aria-labelledby="login-title">
         <header className="login-brand">
           <span className="login-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M6 21V3.5" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" />
-              <path d="M6 4.5c2.3-1.5 4.7-1.5 7 0s4.7 1.5 7 0v9c-2.3 1.5-4.7 1.5-7 0s-4.7-1.5-7 0z" fill="currentColor" />
-            </svg>
+            <BrandLogo size="lg" />
           </span>
           <h1 id="login-title">Audience Live</h1>
           <p>Melde dich an, um Livestream, Stimmen und Overlay zu steuern.</p>

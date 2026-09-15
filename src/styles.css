@@ -28,6 +28,13 @@ body {
     #0a0a14;
 }
 
+/* The Audience Live logo keeps its proportions wherever it appears. */
+.brand-logo {
+  display: block;
+  object-fit: contain;
+  user-select: none;
+}
+
 .app {
   display: grid;
   box-sizing: border-box;
@@ -56,11 +63,12 @@ body {
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 0.08);
-  border-radius: 10px;
-  background: linear-gradient(145deg, var(--accent-hover), #a31622);
-  box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--accent) 80%, transparent);
-  font-size: 1.15rem;
+}
+
+.app-mark img {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 14px rgb(98 70 234 / 0.45));
 }
 
 .app h1 {
@@ -748,21 +756,14 @@ input[readonly] {
 
 .login-mark {
   display: grid;
-  width: 64px;
-  height: 64px;
   margin-bottom: 8px;
   place-items: center;
-  border-radius: 18px;
-  background: linear-gradient(145deg, var(--accent-hover), #a3131f);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.25),
-    0 12px 32px -8px color-mix(in srgb, var(--accent) 75%, transparent);
-  color: #fff;
 }
 
-.login-mark svg {
-  width: 32px;
-  height: 32px;
+.login-mark .brand-logo {
+  width: 72px;
+  height: 72px;
+  filter: drop-shadow(0 12px 28px rgb(98 70 234 / 0.5));
 }
 
 .login-brand h1 {

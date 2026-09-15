@@ -1,3 +1,4 @@
+export { BrandLogo } from '../brand/BrandLogo';
 export { Badge, StatusDot, type Tone } from './Badge';
 export { Button, IconButton, type ButtonVariant } from './Button';
 export { Callout } from './Callout';
