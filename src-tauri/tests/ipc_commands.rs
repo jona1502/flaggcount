@@ -38,6 +38,14 @@ fn create_app() -> TestApp {
     }
 }
 
+/// The app's own origin. Tauri treats any other URL as remote content, which may only call
+/// commands granted by a `remote` capability.
+const LOCAL_ORIGIN: &str = if cfg!(any(windows, target_os = "android")) {
+    "http://tauri.localhost"
+} else {
+    "tauri://localhost"
+};
+
 fn invoke(app: &TestApp, cmd: &str, args: Value) -> Result<Value, Value> {
     get_ipc_response(
         &app.webview,
@@ -45,7 +53,7 @@ fn invoke(app: &TestApp, cmd: &str, args: Value) -> Result<Value, Value> {
             cmd: cmd.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "http://tauri.localhost".parse().unwrap(),
+            url: LOCAL_ORIGIN.parse().unwrap(),
             body: InvokeBody::Json(args),
             headers: Default::default(),
             invoke_key: INVOKE_KEY.to_string(),
