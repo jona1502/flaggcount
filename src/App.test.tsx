@@ -57,7 +57,7 @@ type User = ReturnType<typeof userEvent.setup>;
 async function renderApp(): Promise<User> {
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole('heading', { level: 1, name: 'Übersicht' });
+  await screen.findByRole('heading', { level: 1, name: 'Cockpit' });
   return user;
 }
 
@@ -82,7 +82,7 @@ describe('App with the Tauri backend', () => {
 
     expect(commands()).toContain('get_state');
     expect(await screen.findByText('Version 0.1.0')).toBeTruthy();
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Nicht verbunden');
   });
 
   it('checks for updates on demand in the settings', async () => {
@@ -101,7 +101,7 @@ describe('App with the Tauri backend', () => {
     await user.type(screen.getByLabelText('TikTok-Benutzername'), 'streamer');
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
 
-    await openPage(user, 'Live-Steuerung');
+    await openPage(user, 'Cockpit');
     await user.click(screen.getByRole('button', { name: 'Flagge hinzufügen' }));
     await act(() =>
       emit('state-changed', {
@@ -111,6 +111,7 @@ describe('App with the Tauri backend', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Flagge abziehen' }));
 
+    await user.click(screen.getByRole('button', { name: 'Ziel ändern' }));
     const target = screen.getByLabelText('Stimmenziel');
     await user.clear(target);
     await user.type(target, '25');
@@ -137,7 +138,7 @@ describe('App with the Tauri backend', () => {
 
   it('updates the dashboard as soon as the backend emits a new state', async () => {
     const user = await renderApp();
-    await openPage(user, 'Live-Steuerung');
+    await openPage(user, 'Cockpit');
 
     await act(() =>
       emit('state-changed', {
@@ -178,7 +179,7 @@ describe('Audience Live Pro in the Tauri app', () => {
   it('activates a license and opens the Pro page from the license area', async () => {
     const user = await renderApp();
 
-    await openPage(user, 'Lizenz & Konto');
+    await openPage(user, 'Pro & Lizenz');
     await user.type(screen.getByLabelText('Aktivierungscode'), ' FC-7K2QM-9XH4D-PZ1RT-W8C3N ');
     await user.click(screen.getByRole('button', { name: 'Aktivieren' }));
     await user.click(screen.getByRole('button', { name: 'Preise & Pro ansehen' }));
@@ -221,7 +222,7 @@ describe('Counters in the Tauri app', () => {
 describe('Parallel counters in the Tauri app', () => {
   it('corrects a poll option and resets one counter from the live board', async () => {
     const user = await renderApp();
-    await openPage(user, 'Live-Steuerung');
+    await openPage(user, 'Cockpit');
 
     await act(() =>
       emit('state-changed', {

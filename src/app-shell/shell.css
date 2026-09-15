@@ -61,8 +61,37 @@
 }
 
 .fc-app .shell-nav {
+  display: grid;
   flex: 1;
+  align-content: start;
+  gap: var(--fc-space-4);
   overflow-y: auto;
+}
+
+.fc-app .shell-nav-group-label {
+  margin-bottom: var(--fc-space-1);
+  padding: 0 0.65rem;
+  color: var(--fc-text-subtle);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Cyan like the sound wave in the logo: the stream is live. */
+.fc-app .shell-nav-live {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--fc-cyan);
+  box-shadow: 0 0 0 3px rgb(34 211 238 / 0.18);
+}
+
+.fc-app .shell-version {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  white-space: nowrap;
 }
 
 .fc-app .shell-nav ul {
@@ -150,7 +179,7 @@
   width: 4.25rem;
 }
 
-.fc-app .shell-sidebar[data-collapsed='true'] :is(.shell-brand-name, .shell-nav-label, .shell-nav-badge, .shell-logout .ui-button-label) {
+.fc-app .shell-sidebar[data-collapsed='true'] :is(.shell-brand-name, .shell-nav-label, .shell-nav-badge, .shell-nav-group-label, .shell-version, .shell-logout .ui-button-label) {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -167,6 +196,17 @@
 
 .fc-app .shell-sidebar[data-collapsed='true'] .shell-sidebar-footer {
   flex-direction: column;
+}
+
+.fc-app .shell-sidebar[data-collapsed='true'] .shell-nav-group + .shell-nav-group {
+  padding-top: var(--fc-space-3);
+  border-top: 1px solid var(--fc-border);
+}
+
+.fc-app .shell-sidebar[data-collapsed='true'] .shell-nav-live {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.7rem;
 }
 
 /* Main area */
@@ -192,59 +232,116 @@
   box-shadow: none;
 }
 
-/* Status bar */
-.fc-app .shell-statusbar {
+/* Top bar: connection, profile and plan stay visible above every page. */
+.fc-app .shell-topbar {
   position: sticky;
-  z-index: 10;
-  bottom: 0;
+  z-index: 20;
+  top: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--fc-space-1) var(--fc-space-2);
-  padding: 0.3rem var(--fc-space-4);
-  border-top: 1px solid var(--fc-border);
-  background: rgb(10 10 20 / 0.94);
-  color: var(--fc-text-muted);
-  font-size: var(--fc-text-xs);
+  gap: var(--fc-space-2) var(--fc-space-3);
+  min-height: 3.5rem;
+  padding: var(--fc-space-2) var(--fc-space-8);
+  border-bottom: 1px solid var(--fc-border);
+  background: rgb(10 10 20 / 0.82);
+  backdrop-filter: blur(12px);
 }
 
-.fc-app .shell-status-item {
+.fc-app .shell-topbar-connection {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-3);
+  min-width: 0;
+  padding: 0.25rem 0.25rem 0.25rem 0.85rem;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-pill);
+  background: var(--fc-surface);
+}
+
+.fc-app .shell-topbar-connection[data-status='connected'] {
+  border-color: color-mix(in srgb, var(--fc-success) 40%, var(--fc-border));
+}
+
+.fc-app .shell-topbar-connection[data-status='unavailable'] {
+  border-color: color-mix(in srgb, var(--fc-danger) 45%, var(--fc-border));
+}
+
+.fc-app .shell-topbar-connection .ui-button {
+  border-radius: var(--fc-radius-pill);
+}
+
+.fc-app .shell-topbar-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 1.75rem;
-  padding: 0.15rem 0.5rem;
-  border: 0;
-  border-radius: var(--fc-radius-sm);
-  background: transparent;
-  color: inherit;
+  gap: var(--fc-space-2);
+  min-width: 0;
+  font-size: var(--fc-text-sm);
+  font-weight: 600;
+}
+
+.fc-app .shell-topbar-status-text {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fc-app .shell-topbar-spacer {
+  flex: 1;
+}
+
+.fc-app .shell-topbar-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-2);
+  min-width: 0;
+}
+
+.fc-app button.shell-topbar-profile {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.85rem;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-pill);
+  background: var(--fc-surface);
+  color: var(--fc-text);
   cursor: pointer;
 }
 
-.fc-app button.shell-status-item:hover {
-  background: rgb(255 255 255 / 0.05);
-  color: var(--fc-text);
+.fc-app button.shell-topbar-profile:hover {
+  background: var(--fc-surface-hover);
 }
 
-.fc-app .shell-status-item.is-static {
-  cursor: default;
-}
-
-.fc-app .shell-status-muted {
-  color: var(--fc-text-subtle);
-}
-
-.fc-app .shell-status-strong {
+.fc-app .shell-topbar-profile .ui-select {
+  width: auto;
   max-width: 14rem;
+  min-height: 2.25rem;
+}
+
+.fc-app .shell-topbar-muted {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-sm);
+}
+
+.fc-app .shell-topbar-strong {
+  max-width: 12rem;
   overflow: hidden;
-  color: var(--fc-text);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fc-app .shell-status-spacer {
-  flex: 1;
+.fc-app .shell-topbar-plan {
+  display: inline-flex;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: var(--fc-radius-pill);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fc-app .shell-topbar-plan:hover {
+  background: rgb(255 255 255 / 0.05);
 }
 
 /* Existing panels inside the shell keep their compact section headings until they are redesigned. */
@@ -353,7 +450,7 @@
     width: 4.25rem;
   }
 
-  .fc-app .shell-sidebar :is(.shell-brand-name, .shell-nav-label, .shell-nav-badge, .shell-logout .ui-button-label) {
+  .fc-app .shell-sidebar :is(.shell-brand-name, .shell-nav-label, .shell-nav-badge, .shell-nav-group-label, .shell-version, .shell-logout .ui-button-label) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -376,6 +473,21 @@
     display: none;
   }
 
+  .fc-app .shell-nav-group + .shell-nav-group {
+    padding-top: var(--fc-space-3);
+    border-top: 1px solid var(--fc-border);
+  }
+
+  .fc-app .shell-nav-live {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.7rem;
+  }
+
+  .fc-app .shell-topbar {
+    padding-inline: var(--fc-space-5);
+  }
+
   .fc-app .shell-content {
     padding: var(--fc-space-5) var(--fc-space-5) var(--fc-space-8);
   }
@@ -384,5 +496,13 @@
 @media (max-width: 560px) {
   .fc-app .shell-content {
     padding: var(--fc-space-4) var(--fc-space-3) var(--fc-space-8);
+  }
+
+  .fc-app .shell-topbar {
+    padding-inline: var(--fc-space-3);
+  }
+
+  .fc-app .shell-topbar-status-text {
+    max-width: 11rem;
   }
 }

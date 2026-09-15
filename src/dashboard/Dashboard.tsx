@@ -10,7 +10,6 @@ import { HistoryPage } from '../pages/HistoryPage';
 import { LicensePage } from '../pages/LicensePage';
 import { LivePage } from '../pages/LivePage';
 import { OverlaysPage } from '../pages/OverlaysPage';
-import { OverviewPage } from '../pages/OverviewPage';
 import { ProfilesPage } from '../pages/ProfilesPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import type { PageProps } from '../pages/types';
@@ -84,8 +83,6 @@ export function Dashboard({
 
   const renderPage = (props: PageProps): React.JSX.Element => {
     switch (props.route.page) {
-      case 'overview':
-        return <OverviewPage {...props} />;
       case 'live':
         return <LivePage {...props} />;
       case 'counters':
@@ -110,6 +107,8 @@ export function Dashboard({
         current={current.page}
         onNavigate={navigate}
         model={model}
+        pending={pending}
+        actions={actions}
         error={error}
         onDismissError={onDismissError}
         updater={updater}

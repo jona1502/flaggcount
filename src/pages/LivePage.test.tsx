@@ -27,7 +27,7 @@ function renderLive(state: AppState, error: AppError | null = null) {
   return {
     actions,
     user,
-    open: () => user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Live-Steuerung' }))
+    open: () => user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Cockpit' }))
   };
 }
 
@@ -53,7 +53,7 @@ function fourElements(): { counters: CounterDefinition[]; state: AppState } {
   return { counters, state };
 }
 
-describe('Live-Steuerung', () => {
+describe('Cockpit', () => {
   it('controls four elements at once with options, shares, leaders and targets', async () => {
     const { actions, user, open } = renderLive(fourElements().state);
     await open();
@@ -99,7 +99,6 @@ describe('Live-Steuerung', () => {
     await open();
 
     await user.selectOptions(screen.getByLabelText('Profil'), 'quiz');
-    await user.click(button('Wechseln'));
     expect(actions.switchProfile).not.toHaveBeenCalled();
     await user.click(within(screen.getByRole('dialog', { name: 'Zu „Quiz-Abend“ wechseln?' })).getByRole('button', { name: 'Ja, wechseln' }));
 

@@ -38,7 +38,7 @@ export function setupSteps(model: AppModel): SetupStep[] {
       detail: connected
         ? `Verbunden mit @${state.connection.username ?? ''}`
         : 'Gib deinen TikTok-Namen ein und verbinde dich, sobald dein LIVE läuft.',
-      action: { label: 'Zur Live-Steuerung', route: { page: 'live' } }
+      action: { label: 'Zum Cockpit', route: { page: 'live' } }
     },
     {
       id: 'profile',

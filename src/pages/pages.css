@@ -149,46 +149,19 @@
   font-size: var(--fc-text-sm);
 }
 
-.fc-app .summary-list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* Cockpit setup steps sit side by side, so they take little room above the live cards. */
+.fc-app .setup-strip .setup-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
 }
 
-.fc-app .summary-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--fc-space-3);
-  padding: var(--fc-space-3) 0;
-  border-bottom: 1px solid var(--fc-border);
+.fc-app .setup-strip .setup-step {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
 }
 
-.fc-app .summary-item:last-child {
-  border-bottom: 0;
-}
-
-.fc-app .summary-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.fc-app .summary-detail {
-  color: var(--fc-text-subtle);
-  font-size: var(--fc-text-sm);
-}
-
-.fc-app .summary-count {
-  font-size: var(--fc-text-2xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.fc-app .quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--fc-space-2);
+.fc-app .setup-strip .setup-step > .ui-button {
+  grid-column: 2;
+  justify-self: start;
 }
 
 @media (max-width: 640px) {

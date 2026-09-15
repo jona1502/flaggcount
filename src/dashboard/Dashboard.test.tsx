@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FREE_LICENSE_STATE } from '../../shared/licensing';
@@ -98,7 +98,7 @@ describe('Dashboard', () => {
       await user.click(button('Verbinden'));
 
       expect(actions.connect).toHaveBeenCalledWith('@streamer');
-      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.getByRole('status').textContent).toBe('Nicht verbunden');
     });
 
     it('asks for a username before connecting', async () => {
@@ -117,9 +117,11 @@ describe('Dashboard', () => {
 
       expect(screen.getByRole('status').textContent).toBe('Verbunden mit @streamer');
       expect(screen.getByRole('status').getAttribute('data-status')).toBe('connected');
-      expect((screen.getByLabelText('TikTok-Benutzername') as HTMLInputElement).disabled).toBe(true);
+      await user.click(button('Verbindung verwalten'));
+      const drawer = screen.getByRole('dialog', { name: 'LIVE-Verbindung' });
+      expect((within(drawer).getByLabelText('TikTok-Benutzername') as HTMLInputElement).disabled).toBe(true);
 
-      await user.click(button('Trennen'));
+      await user.click(within(drawer).getByRole('button', { name: 'Trennen' }));
 
       expect(actions.disconnect).toHaveBeenCalledTimes(1);
     });
@@ -130,7 +132,8 @@ describe('Dashboard', () => {
       });
 
       expect(screen.getByRole('status').textContent).toBe('Verbinde mit @streamer …');
-      await user.click(button('Abbrechen'));
+      await user.click(button('Verbindung verwalten'));
+      await user.click(within(screen.getByRole('dialog', { name: 'LIVE-Verbindung' })).getByRole('button', { name: 'Abbrechen' }));
 
       expect(actions.disconnect).toHaveBeenCalledTimes(1);
     });
@@ -150,7 +153,8 @@ describe('Dashboard', () => {
       expect(screen.getByRole('status').textContent).toBe(
         'Verbindung zu @streamer unterbrochen – neuer Versuch 2 von 8 in 4 s'
       );
-      await user.click(button('Trennen'));
+      await user.click(button('Verbindung verwalten'));
+      await user.click(within(screen.getByRole('dialog', { name: 'LIVE-Verbindung' })).getByRole('button', { name: 'Trennen' }));
 
       expect(actions.disconnect).toHaveBeenCalledTimes(1);
       expect(actions.connect).not.toHaveBeenCalled();
@@ -161,7 +165,7 @@ describe('Dashboard', () => {
 
       expect(screen.getByRole('status').textContent).toBe('Verbindungsdienst nicht verfügbar');
       expect(button('Verbinden').disabled).toBe(true);
-      expect(button('Übernehmen').disabled).toBe(true);
+      expect(button('Ziel ändern').disabled).toBe(true);
       expect(button('Runde zurücksetzen').disabled).toBe(true);
     });
   });
@@ -198,6 +202,7 @@ describe('Dashboard', () => {
 
     it('changes the target', async () => {
       const { actions, user } = renderDashboard();
+      await user.click(button('Ziel ändern'));
       const input = screen.getByLabelText('Stimmenziel');
 
       await user.clear(input);
@@ -224,6 +229,7 @@ describe('Dashboard', () => {
 
     it.each(['0', '2.5', '100001', ''])('rejects the target %j with a German message', async (value) => {
       const { actions, user } = renderDashboard();
+      await user.click(button('Ziel ändern'));
       const input = screen.getByLabelText('Stimmenziel');
 
       await user.clear(input);

@@ -172,7 +172,7 @@ export function CounterDetails({
           title="Dieses Element braucht Audience Live Pro"
           actions={
             <Button size="sm" onClick={onShowLicense}>
-              Lizenz & Konto
+              Pro & Lizenz
             </Button>
           }
         >

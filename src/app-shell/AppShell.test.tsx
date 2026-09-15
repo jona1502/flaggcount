@@ -4,21 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '../../shared/appState';
 import { Dashboard } from '../dashboard/Dashboard';
-import { LICENSES, createActions, createAppState, createSettings, teamPoll } from '../test/appStateFixtures';
+import { LICENSES, createActions, createAppState } from '../test/appStateFixtures';
 import type { UpdaterController } from '../updater/useUpdater';
 
 afterEach(cleanup);
 
-const DESKTOP_PAGES = [
-  'Übersicht',
-  'Live-Steuerung',
-  'Zähler & Abstimmungen',
-  'Overlays',
-  'Profile',
-  'Historie',
-  'Lizenz & Konto',
-  'Einstellungen'
-];
+const DESKTOP_PAGES = ['Cockpit', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
 
 function updaterWith(status: UpdaterController['status']): UpdaterController {
   return {
@@ -37,12 +28,13 @@ function renderShell({
   updater,
   onLogout
 }: { state?: AppState; desktop?: boolean; updater?: UpdaterController; onLogout?: () => void } = {}) {
+  const actions = createActions();
   render(
     <Dashboard
       state={state}
       error={null}
       pending={false}
-      actions={createActions()}
+      actions={actions}
       onDismissError={() => undefined}
       onCopyText={async () => undefined}
       version="0.4.0"
@@ -51,26 +43,28 @@ function renderShell({
       proAvailable={desktop}
     />
   );
-  return userEvent.setup();
+  return { actions, user: userEvent.setup() };
 }
 
 const navigation = () => screen.getByRole('navigation', { name: 'Hauptnavigation' });
 const navItem = (name: string) => within(navigation()).getByRole('button', { name });
 const pageTitle = () => screen.getByRole('heading', { level: 1 });
+const topBar = () => screen.getByRole('banner', { name: 'Stream-Status' });
 
 describe('App shell', () => {
-  it('lists every desktop area and marks the current page', () => {
+  it('groups every desktop area and starts on the cockpit', () => {
     renderShell();
 
     expect(within(navigation()).getAllByRole('button').map((button) => button.textContent?.replace(/(Free|Pro)$/, ''))).toEqual(
       DESKTOP_PAGES
     );
-    expect(navItem('Übersicht').getAttribute('aria-current')).toBe('page');
-    expect(pageTitle().textContent).toBe('Übersicht');
+    expect(within(navigation()).getAllByRole('list').map((list) => list.getAttribute('aria-labelledby') && document.getElementById(list.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Stream', 'Einrichten', 'Konto']);
+    expect(navItem('Cockpit').getAttribute('aria-current')).toBe('page');
+    expect(pageTitle().textContent).toBe('Cockpit');
   });
 
   it('navigates with the keyboard and moves focus to the new page title', async () => {
-    const user = renderShell();
+    const { user } = renderShell();
 
     navItem('Historie').focus();
     await user.keyboard('{Enter}');
@@ -78,39 +72,46 @@ describe('App shell', () => {
     expect(pageTitle().textContent).toBe('Historie');
     expect(document.activeElement).toBe(pageTitle());
     expect(navItem('Historie').getAttribute('aria-current')).toBe('page');
-    expect(navItem('Übersicht').getAttribute('aria-current')).toBeNull();
+    expect(navItem('Cockpit').getAttribute('aria-current')).toBeNull();
   });
 
   it('keeps the browser dashboard to the areas it supports', () => {
     const onLogout = vi.fn();
     renderShell({ desktop: false, onLogout });
 
-    expect(within(navigation()).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Live-Steuerung',
-      'Overlays',
-      'Einstellungen'
-    ]);
-    expect(pageTitle().textContent).toBe('Live-Steuerung');
+    expect(within(navigation()).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cockpit', 'Overlays', 'Einstellungen']);
+    expect(pageTitle().textContent).toBe('Cockpit');
+    expect(within(topBar()).queryByRole('button', { name: 'Free' })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Abmelden' }).length).toBeGreaterThan(0);
   });
 
-  it('shows connection, running profile, plan and version in the status bar', async () => {
-    const user = renderShell({
+  it('shows connection, running profile and plan in the top bar and the version in the sidebar', async () => {
+    const { user } = renderShell({
       state: createAppState({ license: LICENSES.pro, connection: { status: 'connected', username: 'streamer' } })
     });
-    const statusBar = screen.getByRole('contentinfo', { name: 'Statusleiste' });
 
-    expect(statusBar.textContent).toContain('Verbunden mit @streamer');
-    expect(statusBar.textContent).toContain('Standard');
-    expect(statusBar.textContent).toContain('1 Element aktiv');
-    expect(statusBar.textContent).toContain('Version 0.4.0');
+    expect(within(topBar()).getByRole('status').textContent).toBe('Verbunden mit @streamer');
+    expect(topBar().textContent).toContain('Standard');
+    expect(screen.getByText('Version 0.4.0')).toBeTruthy();
 
-    await user.click(within(statusBar).getByRole('button', { name: 'Pro' }));
-    expect(pageTitle().textContent).toBe('Lizenz & Konto');
+    await user.click(within(topBar()).getByRole('button', { name: 'Pro' }));
+    expect(pageTitle().textContent).toBe('Pro & Lizenz');
+  });
+
+  it('connects from the top bar on any page', async () => {
+    const { actions, user } = renderShell();
+
+    await user.click(navItem('Overlays'));
+    await user.click(within(topBar()).getByRole('button', { name: 'LIVE verbinden' }));
+    const drawer = screen.getByRole('dialog', { name: 'LIVE-Verbindung' });
+    await user.type(within(drawer).getByLabelText('TikTok-Benutzername'), 'streamer');
+    await user.click(within(drawer).getByRole('button', { name: 'Verbinden' }));
+
+    expect(actions.connect).toHaveBeenCalledWith('streamer');
   });
 
   it('collapses the sidebar without losing the names of its entries', async () => {
-    const user = renderShell();
+    const { user } = renderShell();
     const toggle = screen.getByRole('button', { name: 'Seitenleiste einklappen' });
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -121,7 +122,7 @@ describe('App shell', () => {
   });
 
   it('keeps an available update visible on every page and the manual check in the settings', async () => {
-    const user = renderShell({ updater: updaterWith('available') });
+    const { user } = renderShell({ updater: updaterWith('available') });
 
     expect(screen.getByText('Update 9.9.9 verfügbar')).toBeTruthy();
     await user.click(navItem('Einstellungen'));
@@ -131,29 +132,22 @@ describe('App shell', () => {
   });
 });
 
-describe('Overview', () => {
-  it('guides a first start through the setup and links each open step', async () => {
-    const user = renderShell({ state: createAppState({ license: LICENSES.expired }) });
+describe('Cockpit', () => {
+  it('lists open setup steps and links each of them', async () => {
+    const { user } = renderShell({ state: createAppState({ license: LICENSES.expired }) });
     const checklist = screen.getByRole('region', { name: 'Einrichtung' });
 
-    expect(within(checklist).getByText('3 von 5 Schritten erledigt')).toBeTruthy();
+    expect(within(checklist).getByText('2 von 3 Schritten erledigt')).toBeTruthy();
     await user.click(within(checklist).getByRole('button', { name: 'Lizenz prüfen' }));
 
-    expect(pageTitle().textContent).toBe('Lizenz & Konto');
+    expect(pageTitle().textContent).toBe('Pro & Lizenz');
   });
 
-  it('shows running rounds and shortcuts to a returning streamer', async () => {
-    const poll = teamPoll();
-    const settings = { ...createSettings([poll]), username: 'streamer' };
-    const state = createAppState({ license: LICENSES.pro, settings });
-    const user = renderShell({ state: { ...state, counters: [{ ...state.counters[0]!, totalCount: 3, options: [{ optionId: 'red', label: 'Rot', count: 1 }, { optionId: 'blue', label: 'Blau', count: 2 }] }] } });
+  it('hides the setup once everything is ready and the connection form while live', () => {
+    renderShell({ state: createAppState({ license: LICENSES.pro, connection: { status: 'connected', username: 'streamer' } }) });
 
-    const rounds = screen.getByRole('region', { name: 'Laufende Runden' });
-    expect(within(rounds).getByText('Team-Wahl')).toBeTruthy();
-    expect(within(rounds).getByText('Vorne: Blau')).toBeTruthy();
-    expect(screen.queryByRole('region', { name: 'Einrichtung' })).toBeTruthy();
-
-    await user.click(screen.getByRole('button', { name: 'Overlay einrichten' }));
-    expect(pageTitle().textContent).toBe('Overlays');
+    expect(screen.queryByRole('region', { name: 'Einrichtung' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'LIVE-Verbindung' })).toBeNull();
+    expect(screen.getByRole('article', { name: 'Rote Flaggen' })).toBeTruthy();
   });
 });

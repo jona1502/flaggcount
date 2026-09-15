@@ -1,84 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { isProfileUsable } from '../../shared/entitlements';
-import type { AppModel } from '../app-shell/appModel';
+import { useState } from 'react';
 import { PageHeader } from '../app-shell/PageHeader';
-import { Button, Callout, Card, ConfirmDialog, EmptyState, Field, IconPlus, IconPoll, IconRefresh, Select } from '../components/ui';
-import { ConnectionPanel } from '../dashboard/ConnectionPanel';
+import { Button, Callout, Card, ConfirmDialog, EmptyState, IconPlus, IconPoll, IconRefresh } from '../components/ui';
+import { LiveConnection } from '../dashboard/LiveConnection';
 import { LiveCounterCard } from '../live/LiveCounterCard';
 import { liveCounters } from '../live/liveCounters';
+import { SetupStrip } from '../live/SetupStrip';
 import type { PageProps } from './types';
 
-type ProfileSwitcherProps = {
-  model: AppModel;
-  disabled: boolean;
-  onSwitch: (profileId: string) => void;
-  onManage: () => void;
-};
-
-function ProfileSwitcher({ model, disabled, onSwitch, onManage }: ProfileSwitcherProps): React.JSX.Element {
-  const { state, entitlements, running } = model;
-  const usable = state.settings.profiles.filter((profile) => isProfileUsable(state.settings, profile.id, entitlements));
-  const [choice, setChoice] = useState(running.id);
-  const [confirming, setConfirming] = useState(false);
-  const chosen = usable.find((profile) => profile.id === choice);
-
-  useEffect(() => setChoice(running.id), [running.id]);
-
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    if (choice !== running.id) setConfirming(true);
-  };
-
-  return (
-    <Card
-      title="Aktives Profil"
-      className="live-profile"
-      actions={
-        <Button variant="ghost" size="sm" onClick={onManage}>
-          Profile verwalten
-        </Button>
-      }
-    >
-      {usable.length > 1 ? (
-        <form className="live-profile-form" onSubmit={submit}>
-          <Field id="live-profile" label="Profil">
-            <Select value={choice} onChange={(event) => setChoice(event.target.value)}>
-              {usable.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Button type="submit" disabled={disabled || choice === running.id}>
-            Wechseln
-          </Button>
-        </form>
-      ) : (
-        <p className="live-profile-name">
-          <strong>{running.name}</strong>
-          <span>
-            {running.counters.length} {running.counters.length === 1 ? 'Element' : 'Elemente'}
-          </span>
-        </p>
-      )}
-      <ConfirmDialog
-        open={confirming}
-        title={`Zu „${chosen?.name ?? ''}“ wechseln?`}
-        message="Laufende Runden werden beim Wechsel beendet. Danach laufen die Zähler und Abstimmungen des neuen Profils."
-        confirmLabel="Ja, wechseln"
-        tone="primary"
-        onCancel={() => setConfirming(false)}
-        onConfirm={() => {
-          setConfirming(false);
-          onSwitch(choice);
-        }}
-      />
-    </Card>
-  );
-}
-
-/** Everything needed during a stream: connection, profile and all running counters at once. */
+/**
+ * The stream cockpit: connecting, the setup steps still open and every running counter at once.
+ * Connection and profile stay reachable from the top bar on every other page.
+ */
 export function LivePage({ model, pending, error, actions, navigate, desktop }: PageProps): React.JSX.Element {
   const { state, running, runningCounters, isPro } = model;
   const counters = liveCounters(model);
@@ -86,46 +18,28 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
   const alone = counters.length === 1;
   const [confirmAll, setConfirmAll] = useState(false);
   const paused = running.counters.filter((counter) => !runningCounters.some((candidate) => candidate.id === counter.id));
-  const streamEnded = (error?.code === 'stream-ended' || error?.code === 'reconnect-failed') && state.connection.status === 'disconnected';
+  const disconnected = state.connection.status === 'disconnected';
+  const streamEnded = (error?.code === 'stream-ended' || error?.code === 'reconnect-failed') && disconnected;
   const firstStored = running.counters[0]?.id;
+
+  const headerActions = (desktop || counters.length > 1) && (
+    <>
+      {desktop && (
+        <Button icon={IconPlus} onClick={() => navigate({ page: 'counters', create: true })}>
+          Neues Element
+        </Button>
+      )}
+      {counters.length > 1 && (
+        <Button variant="danger-outline" icon={IconRefresh} disabled={disabled} onClick={() => setConfirmAll(true)}>
+          Alle Runden zurücksetzen
+        </Button>
+      )}
+    </>
+  );
 
   return (
     <div className="page live-page">
-      <PageHeader
-        title="Live-Steuerung"
-        description="Stimmen, Ziele und Runden während des Streams."
-        actions={
-          counters.length > 1 && (
-            <Button variant="danger-outline" icon={IconRefresh} disabled={disabled} onClick={() => setConfirmAll(true)}>
-              Alle Runden zurücksetzen
-            </Button>
-          )
-        }
-      />
-
-      <div className="live-toolbar" data-desktop={desktop}>
-        <ConnectionPanel
-          connection={state.connection}
-          savedUsername={state.settings.username}
-          sidecarRunning={state.sidecarRunning}
-          pending={pending}
-          initialPlatform={state.settings.liveSource?.platform}
-          twitchAuth={state.twitchAuth}
-          twitchAvailable={desktop}
-          onConnect={(username, platform) => void (platform ? actions.connect(username, platform) : actions.connect(username))}
-          onDisconnect={() => void actions.disconnect()}
-          onStartTwitchAuth={() => void actions.startTwitchAuth()}
-          onDisconnectTwitchAccount={() => void actions.disconnectTwitchAccount()}
-        />
-        {desktop && (
-          <ProfileSwitcher
-            model={model}
-            disabled={disabled}
-            onSwitch={(profileId) => void actions.switchProfile(profileId)}
-            onManage={() => navigate({ page: 'profiles' })}
-          />
-        )}
-      </div>
+      <PageHeader title="Cockpit" description="Verbindung, Stimmen und Runden während des Streams." actions={headerActions} />
 
       {!state.sidecarRunning && (
         <Callout tone="danger" title="Verbindungsdienst nicht verfügbar">
@@ -155,7 +69,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
           title={paused.length === 1 ? '1 Element läuft gerade nicht' : `${paused.length} Elemente laufen gerade nicht`}
           actions={
             <Button size="sm" onClick={() => navigate({ page: 'license' })}>
-              Lizenz & Konto
+              Pro & Lizenz
             </Button>
           }
         >
@@ -166,6 +80,15 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
         </Callout>
       )}
 
+      {/* Connecting is the first thing to do before a stream; once live, the top bar keeps the status. */}
+      {disconnected && (
+        <div className="live-connect">
+          <LiveConnection model={model} pending={pending} actions={actions} desktop={desktop} />
+        </div>
+      )}
+
+      {desktop && <SetupStrip model={model} onNavigate={navigate} />}
+
       {counters.length === 0 ? (
         <EmptyState
           icon={IconPoll}
@@ -174,7 +97,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
           action={
             desktop && (
               <Button variant="primary" icon={IconPlus} onClick={() => navigate({ page: 'counters', create: true })}>
-                Abstimmung erstellen
+                Erstes Element erstellen
               </Button>
             )
           }

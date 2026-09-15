@@ -44,7 +44,7 @@ describe('Profile', () => {
     expect(screen.queryByRole('button', { name: 'Standard löschen' })).toBeNull();
 
     await user.click(within(screen.getByRole('note', { name: 'Mehrere Profile mit Audience Live Pro' })).getByRole('button', { name: 'Mehr zu Pro' }));
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Lizenz & Konto');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pro & Lizenz');
   });
 
   it('creates a profile with a trimmed name and confirms it once it exists', async () => {

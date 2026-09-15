@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
 import { MAX_TARGET, MIN_TARGET, isValidTarget } from '../../shared/voting';
-import { Badge, Button, ConfirmDialog, Field, IconMinus, IconPlus, IconRefresh, IconTarget, Input } from '../components/ui';
+import { Badge, Button, ConfirmDialog, Field, IconButton, IconMinus, IconPlus, IconRefresh, IconTarget, Input } from '../components/ui';
 import { COUNTER_TYPE_LABELS } from '../counters/counterText';
 import { getErrorMessage } from '../dashboard/errorMessages';
 import type { LiveCounter } from './liveCounters';
@@ -15,9 +15,11 @@ type TargetFormProps = {
   labelSuffix?: string;
   disabled: boolean;
   onSubmit: (target: number) => void;
+  /** Closes the form after a valid target or Escape. */
+  onDone: () => void;
 };
 
-function TargetForm({ id, target, labelSuffix, disabled, onSubmit }: TargetFormProps): React.JSX.Element {
+function TargetForm({ id, target, labelSuffix, disabled, onSubmit, onDone }: TargetFormProps): React.JSX.Element {
   const [draft, setDraft] = useState(target === null ? '' : String(target));
   const [validation, setValidation] = useState<string | null>(null);
 
@@ -36,10 +38,18 @@ function TargetForm({ id, target, labelSuffix, disabled, onSubmit }: TargetFormP
     }
     setValidation(null);
     if (next !== target) onSubmit(next);
+    onDone();
   };
 
   return (
-    <form className="live-target-form" onSubmit={submit} noValidate>
+    <form
+      className="live-target-form"
+      onSubmit={submit}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onDone();
+      }}
+      noValidate
+    >
       <Field
         id={id}
         label={
@@ -58,13 +68,29 @@ function TargetForm({ id, target, labelSuffix, disabled, onSubmit }: TargetFormP
           step={1}
           value={draft}
           disabled={disabled}
+          autoFocus
           onChange={(event) => setDraft(event.target.value)}
         />
       </Field>
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" variant="primary" disabled={disabled}>
         Übernehmen
       </Button>
     </form>
+  );
+}
+
+/** Chat words or emojis shown as small chips, so they are quick to read aloud during a stream. */
+function ChatTriggers({ label, values }: { label: string; values: string[] }): React.JSX.Element | null {
+  if (values.length === 0) return null;
+  return (
+    <p className="live-chat">
+      <span className="live-chat-label">{label}</span>
+      {values.map((value, index) => (
+        <span key={`${index}-${value}`} className="live-chip">
+          {value}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -94,6 +120,7 @@ export function LiveCounterCard({
 }: LiveCounterCardProps): React.JSX.Element {
   const headingId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [editingTarget, setEditingTarget] = useState(false);
   const { definition } = counter;
   const tie = counter.leaders.length > 1;
   const single = counter.options[0];
@@ -112,12 +139,38 @@ export function LiveCounterCard({
           </h2>
           <p className="live-card-type">{COUNTER_TYPE_LABELS[counter.mode]}</p>
         </div>
-        {counter.targetReached ? (
-          <Badge tone="success">Ziel erreicht!</Badge>
-        ) : (
-          <Badge tone="neutral">{counter.target === null ? 'Ohne Ziel' : `Ziel ${numberFormat.format(counter.target)}`}</Badge>
-        )}
+        <div className="live-card-tools">
+          {counter.targetReached && <Badge tone="success">Ziel erreicht!</Badge>}
+          {(onSetTarget || onEditTarget) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={IconTarget}
+              disabled={Boolean(onSetTarget) && disabled}
+              aria-label={alone ? undefined : `Ziel von ${counter.name} ändern`}
+              aria-expanded={onSetTarget ? editingTarget : undefined}
+              onClick={() => {
+                if (onSetTarget) setEditingTarget((open) => !open);
+                else onEditTarget?.();
+              }}
+            >
+              Ziel ändern
+            </Button>
+          )}
+          <IconButton variant="danger-outline" icon={IconRefresh} label={resetLabel} disabled={disabled} onClick={() => setConfirmReset(true)} />
+        </div>
       </header>
+
+      {editingTarget && onSetTarget && (
+        <TargetForm
+          id={alone ? 'target' : `target-${counter.counterId}`}
+          target={counter.target}
+          labelSuffix={alone ? undefined : `von ${counter.name}`}
+          disabled={disabled}
+          onSubmit={onSetTarget}
+          onDone={() => setEditingTarget(false)}
+        />
+      )}
 
       <p className="live-total">
         <strong data-testid={counter.primary ? 'vote-count' : undefined}>{numberFormat.format(counter.total)}</strong>
@@ -140,45 +193,42 @@ export function LiveCounterCard({
 
       {counter.mode === 'poll' ? (
         <ul className="live-options">
-          {counter.options.map((option) => {
-            const triggers = triggersOf(option.optionId);
-            return (
-              <li key={option.optionId} className="live-option" data-leading={option.leading} style={{ '--option-color': option.color } as CSSProperties}>
-                <div className="live-option-head">
-                  <span className="option-dot" aria-hidden="true" />
-                  <span className="live-option-label">{option.label}</span>
-                  {option.leading && <Badge tone="success">{tie ? 'Gleichstand' : 'Führt'}</Badge>}
-                  <span className="live-option-count">
-                    {numberFormat.format(option.count)} · {percentFormat.format(option.share)}
-                  </span>
-                </div>
-                <div className="live-option-bar" aria-hidden="true">
-                  <div style={{ width: `${Math.round(option.share * 100)}%` }} />
-                </div>
-                <div className="live-option-actions">
-                  {triggers.length > 0 && <span className="live-chat-hint">Im Chat: {triggers.join(' · ')}</span>}
-                  <Button
-                    size="lg"
-                    icon={IconPlus}
-                    disabled={disabled}
-                    aria-label={`Stimme für ${option.label} hinzufügen`}
-                    onClick={() => onAddVote(option.optionId)}
-                  >
-                    1
-                  </Button>
-                  <Button
-                    size="lg"
-                    icon={IconMinus}
-                    disabled={disabled || option.count === 0}
-                    aria-label={`Stimme für ${option.label} abziehen`}
-                    onClick={() => onRemoveVote(option.optionId)}
-                  >
-                    1
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
+          {counter.options.map((option) => (
+            <li key={option.optionId} className="live-option" data-leading={option.leading} style={{ '--option-color': option.color } as CSSProperties}>
+              <div className="live-option-head">
+                <span className="option-dot" aria-hidden="true" />
+                <span className="live-option-label">{option.label}</span>
+                {option.leading && <Badge tone="success">{tie ? 'Gleichstand' : 'Führt'}</Badge>}
+                <span className="live-option-count">
+                  {numberFormat.format(option.count)} · {percentFormat.format(option.share)}
+                </span>
+              </div>
+              <div className="live-option-bar" aria-hidden="true">
+                <div style={{ width: `${Math.round(option.share * 100)}%` }} />
+              </div>
+              <div className="live-option-actions">
+                <ChatTriggers label="Im Chat" values={triggersOf(option.optionId)} />
+                <Button
+                  size="lg"
+                  icon={IconPlus}
+                  disabled={disabled}
+                  aria-label={`Stimme für ${option.label} hinzufügen`}
+                  onClick={() => onAddVote(option.optionId)}
+                >
+                  1
+                </Button>
+                <Button
+                  size="lg"
+                  icon={IconMinus}
+                  disabled={disabled || option.count === 0}
+                  aria-label={`Stimme für ${option.label} abziehen`}
+                  onClick={() => onRemoveVote(option.optionId)}
+                >
+                  1
+                </Button>
+              </div>
+            </li>
+          ))}
         </ul>
       ) : (
         single && (
@@ -204,38 +254,12 @@ export function LiveCounterCard({
                 {voteWord} abziehen
               </Button>
             </div>
-            {triggersOf(single.optionId).length > 0 && (
-              <p className="live-chat-hint">
-                Im Chat: {triggersOf(single.optionId).join(' · ')} Stimme abgeben
-                {withdrawal.length > 0 && ` · ${withdrawal.join(' · ')} Stimme zurücknehmen`}
-              </p>
-            )}
+            <ChatTriggers label="Im Chat abstimmen" values={triggersOf(single.optionId)} />
           </>
         )
       )}
 
-      {counter.mode === 'poll' && withdrawal.length > 0 && <p className="live-chat-hint">Zurücknehmen im Chat: {withdrawal.join(' · ')}</p>}
-
-      <footer className="live-card-footer">
-        {onSetTarget ? (
-          <TargetForm
-            id={alone ? 'target' : `target-${counter.counterId}`}
-            target={counter.target}
-            labelSuffix={alone ? undefined : `von ${counter.name}`}
-            disabled={disabled}
-            onSubmit={onSetTarget}
-          />
-        ) : (
-          onEditTarget && (
-            <Button variant="ghost" size="sm" icon={IconTarget} onClick={onEditTarget} aria-label={`Ziel von ${counter.name} ändern`}>
-              Ziel ändern
-            </Button>
-          )
-        )}
-        <Button variant="danger-outline" icon={IconRefresh} disabled={disabled} onClick={() => setConfirmReset(true)}>
-          {resetLabel}
-        </Button>
-      </footer>
+      <ChatTriggers label="Im Chat zurücknehmen" values={withdrawal} />
 
       <ConfirmDialog
         open={confirmReset}

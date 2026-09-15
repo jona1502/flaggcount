@@ -67,7 +67,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
   return (
     <div className="page license-page">
       <PageHeader
-        title="Lizenz & Konto"
+        title="Pro & Lizenz"
         badge={<Badge tone={isPro ? 'pro' : 'neutral'}>{isPro ? 'Audience Live Pro' : 'Audience Live Free'}</Badge>}
         description="Tarif, freigeschaltete Funktionen, Aktivierung und Abo-Verwaltung."
         actions={

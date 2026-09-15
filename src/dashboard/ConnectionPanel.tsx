@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import type { ConnectionState } from '../../shared/appState';
 import type { LivePlatform, TwitchAuthState } from '../../shared/live';
 import { Button, Card, ConfirmDialog, Field, IconLink, Input, Select, StatusDot, type Tone } from '../components/ui';
@@ -12,6 +12,8 @@ type ConnectionPanelProps = {
   initialPlatform?: LivePlatform;
   twitchAuth?: TwitchAuthState;
   twitchAvailable?: boolean;
+  /** Without the card frame, e.g. inside the connection drawer that has its own title. */
+  bare?: boolean;
   onConnect: (username: string, platform?: LivePlatform) => void;
   onDisconnect: () => void;
   onStartTwitchAuth?: () => void;
@@ -55,11 +57,14 @@ export function ConnectionPanel({
   initialPlatform = 'tiktok',
   twitchAuth = { status: 'signed-out' },
   twitchAvailable = true,
+  bare = false,
   onConnect,
   onDisconnect,
   onStartTwitchAuth = () => undefined,
   onDisconnectTwitchAccount = () => undefined
 }: ConnectionPanelProps): React.JSX.Element {
+  // The cockpit and the drawer can show the form at the same time, so field ids must not collide.
+  const fieldId = useId();
   const [platform, setPlatform] = useState<LivePlatform>(connection.platform ?? initialPlatform);
   const [username, setUsername] = useState(connection.username ?? savedUsername);
   const [validation, setValidation] = useState<string | null>(null);
@@ -92,21 +97,17 @@ export function ConnectionPanel({
   if (connection.status === 'connecting') buttonLabel = 'Abbrechen';
   if (connection.status === 'connected' || connection.status === 'reconnecting') buttonLabel = 'Trennen';
 
-  return (
-    <Card
-      className="connection-card"
-      title="LIVE-Verbindung"
-      description={active ? undefined : 'Verbinde dich, sobald dein LIVE läuft. Manuelle Stimmen funktionieren auch ohne Verbindung.'}
-    >
+  const content = (
+    <>
       <form className="connection-form" onSubmit={submit} noValidate>
-        <Field id="live-platform" label="Plattform">
+        <Field id={`${fieldId}-platform`} label="Plattform">
           <Select value={platform} disabled={active} onChange={(event) => { setPlatform(event.target.value as LivePlatform); setValidation(null); }}>
             <option value="tiktok">TikTok</option>
             <option value="twitch" disabled={!twitchAvailable}>Twitch{twitchAvailable ? '' : ' (nur Desktop-App)'}</option>
           </Select>
         </Field>
         {!twitchAvailable && <p className="field-hint">Twitch ist derzeit ausschließlich in der Desktop-App verfügbar.</p>}
-        {platform === 'tiktok' ? <Field id="username" label="TikTok-Benutzername" error={validation}>
+        {platform === 'tiktok' ? <Field id={`${fieldId}-username`} label="TikTok-Benutzername" error={validation}>
           <Input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
@@ -128,13 +129,26 @@ export function ConnectionPanel({
           {platform === 'twitch' && !active ? 'Eigenen Kanal verbinden' : buttonLabel}
         </Button>
       </form>
+      {/* The top bar announces status changes; this line only repeats them next to the form. */}
       {status.key !== 'disconnected' && (
-        <p className="connection-status" data-status={status.key} role="status">
+        <p className="connection-status" data-status={status.key}>
           <StatusDot tone={STATUS_TONES[status.key] ?? 'neutral'} pulse={status.key === 'connecting' || status.key === 'reconnecting'} />
           {status.text}
         </p>
       )}
       <ConfirmDialog open={confirmUnlink} title="Twitch-Konto trennen?" message="Die lokale Twitch-Autorisierung wird gelöscht und bei Twitch widerrufen." confirmLabel="Konto trennen" onCancel={() => setConfirmUnlink(false)} onConfirm={() => { setConfirmUnlink(false); onDisconnectTwitchAccount(); }} />
+    </>
+  );
+
+  if (bare) return <div className="connection-panel">{content}</div>;
+
+  return (
+    <Card
+      className="connection-card"
+      title="LIVE-Verbindung"
+      description={active ? undefined : 'Verbinde dich, sobald dein LIVE läuft. Manuelle Stimmen funktionieren auch ohne Verbindung.'}
+    >
+      {content}
     </Card>
   );
 }

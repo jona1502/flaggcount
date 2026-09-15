@@ -196,7 +196,7 @@ export function CreateCounterWizard({
                       {TYPE_DESCRIPTIONS[mode]}
                       {locked &&
                         (isPro
-                          ? ' Deine Lizenz enthält diese Funktion gerade nicht – aktualisiere den Lizenzstatus unter „Lizenz & Konto“.'
+                          ? ' Deine Lizenz enthält diese Funktion gerade nicht – aktualisiere den Lizenzstatus unter „Pro & Lizenz“.'
                           : ' Abstimmungen gibt es mit Audience Live Pro.')}
                     </p>
                     {locked && <Badge tone="pro">{isPro ? 'Nicht freigegeben' : 'Pro erforderlich'}</Badge>}
@@ -209,7 +209,7 @@ export function CreateCounterWizard({
       case 'basics':
         return (
           <div className="wizard-fields">
-            <Field id="wizard-name" label="Name" hint="Erscheint in der Live-Steuerung und im Overlay." error={fieldProblem(problems, 'invalid-name')}>
+            <Field id="wizard-name" label="Name" hint="Erscheint im Cockpit und im Overlay." error={fieldProblem(problems, 'invalid-name')}>
               <Input value={draft.name} maxLength={MAX_NAME_LENGTH} data-autofocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
             </Field>
             <Switch
@@ -354,7 +354,7 @@ export function CreateCounterWizard({
                 {getErrorMessage(error.code)}
               </Callout>
             )}
-            <p className="wizard-hint">Nach dem Erstellen wird das Element gespeichert, läuft sofort in der Live-Steuerung und bekommt ein eigenes Overlay.</p>
+            <p className="wizard-hint">Nach dem Erstellen wird das Element gespeichert, läuft sofort im Cockpit und bekommt ein eigenes Overlay.</p>
           </>
         );
     }

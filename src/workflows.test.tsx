@@ -60,7 +60,7 @@ async function publish(next: AppState): Promise<void> {
 async function start(): Promise<User> {
   const user = userEvent.setup();
   render(<App autoCheckUpdates={false} />);
-  await screen.findByRole('heading', { level: 1, name: 'Übersicht' });
+  await screen.findByRole('heading', { level: 1, name: 'Cockpit' });
   return user;
 }
 
@@ -75,9 +75,9 @@ describe('Redesigned workflows', () => {
     await user.click(screen.getByRole('button', { name: 'Verbinden' }));
     expect(lastPayload('connect')).toEqual({ username: 'streamer' });
     await publish({ ...backend, connection: { status: 'connected', username: 'streamer' } });
-    expect(screen.getByRole('contentinfo', { name: 'Statusleiste' }).textContent).toContain('Verbunden mit @streamer');
+    expect(screen.getByRole('status').textContent).toBe('Verbunden mit @streamer');
 
-    await openPage(user, 'Live-Steuerung');
+    await openPage(user, 'Cockpit');
     await user.click(screen.getByRole('button', { name: 'Flagge hinzufügen' }));
     expect(lastPayload('add_manual_vote')).toEqual({ counterId: 'red-flags', optionId: 'red-flag' });
     await publish({ ...backend, counters: [snapshotOf(backend.settings.profiles[0]!.counters[0]!, [1])] });
@@ -97,7 +97,7 @@ describe('Redesigned workflows', () => {
   it('activates Pro, creates a poll, controls it live and designs its own overlay', async () => {
     const user = await start();
 
-    await openPage(user, 'Lizenz & Konto');
+    await openPage(user, 'Pro & Lizenz');
     await user.type(screen.getByLabelText('Aktivierungscode'), 'FC-TEST-CODE');
     await user.click(screen.getByRole('button', { name: 'Aktivieren' }));
     expect(lastPayload('activate_license')).toEqual({ code: 'FC-TEST-CODE', replaceInstallationId: null });
@@ -118,7 +118,7 @@ describe('Redesigned workflows', () => {
       counterOverlayUrls: { [poll.id]: 'https://overlay.example.test/c/poll' }
     });
 
-    await user.click(within(screen.getByRole('note', { name: 'Element erstellt und gespeichert' })).getByRole('button', { name: 'Live-Steuerung öffnen' }));
+    await user.click(within(screen.getByRole('note', { name: 'Element erstellt und gespeichert' })).getByRole('button', { name: 'Cockpit öffnen' }));
     const card = screen.getAllByRole('article').find((article) => within(article).queryByRole('heading', { name: poll.name }));
     await user.click(within(card!).getByRole('button', { name: 'Stimme für B hinzufügen' }));
     expect(lastPayload('add_manual_vote')).toEqual({ counterId: poll.id, optionId: poll.options[1]!.id });
@@ -138,7 +138,7 @@ describe('Redesigned workflows', () => {
     const user = await start();
 
     await publish({ ...backend, license: LICENSES.expired, counters: [snapshotOf(flags)] });
-    await openPage(user, 'Live-Steuerung');
+    await openPage(user, 'Cockpit');
     expect(screen.getByRole('note', { name: '1 Element läuft gerade nicht' })).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Flagge hinzufügen' }) as HTMLButtonElement).disabled).toBe(false);
 

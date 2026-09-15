@@ -17,7 +17,7 @@ async function renderLicense(state: AppState) {
   );
   const view = render(element(state));
   const user = userEvent.setup();
-  await user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Lizenz & Konto' }));
+  await user.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('button', { name: 'Pro & Lizenz' }));
   return { actions, user, rerender: (next: AppState) => act(() => view.rerender(element(next))) };
 }
 
@@ -27,7 +27,7 @@ const featureStates = () =>
     .getAllByRole('listitem')
     .map((item) => [item.querySelector('strong')?.textContent, item.querySelector('.ui-badge')?.textContent]);
 
-describe('Lizenz & Konto', () => {
+describe('Pro & Lizenz', () => {
   it('explains Free and activates a trimmed code', async () => {
     const { actions, user } = await renderLicense(createAppState());
 

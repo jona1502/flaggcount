@@ -25,42 +25,6 @@
   color: var(--fc-danger);
 }
 
-.fc-app .live-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
-  gap: var(--fc-space-4);
-}
-
-.fc-app .live-toolbar[data-desktop='true'] {
-  grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 1fr);
-}
-
-.fc-app .live-profile-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--fc-space-2) var(--fc-space-3);
-}
-
-.fc-app .live-profile-form .ui-field {
-  flex: 1 1 10rem;
-}
-
-.fc-app .live-profile-name {
-  display: grid;
-}
-
-.fc-app .live-profile-name strong {
-  font-size: var(--fc-text-lg);
-  overflow-wrap: anywhere;
-}
-
-.fc-app .live-profile-name span {
-  color: var(--fc-text-subtle);
-  font-size: var(--fc-text-sm);
-}
-
 .fc-app .live-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
@@ -73,6 +37,8 @@
 }
 
 .fc-app .live-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
   align-content: start;
   gap: var(--fc-space-4);
@@ -82,6 +48,16 @@
   border-radius: var(--fc-radius-lg);
   background: var(--fc-surface);
   box-shadow: var(--fc-shadow-sm);
+}
+
+/* A thin line in the logo gradient marks every running element. */
+.fc-app .live-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--fc-brand-gradient);
+  opacity: 0.8;
+  content: '';
 }
 
 .fc-app .live-card[data-reached='true'] {
@@ -164,9 +140,26 @@
   min-height: 3.5rem;
 }
 
-.fc-app .live-chat-hint {
+.fc-app .live-chat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-1) var(--fc-space-2);
   color: var(--fc-text-subtle);
   font-size: var(--fc-text-sm);
+}
+
+.fc-app .live-chat-label {
+  margin-right: var(--fc-space-1);
+}
+
+.fc-app .live-chip {
+  padding: 0.05rem 0.55rem;
+  border: 1px solid var(--fc-border-strong);
+  border-radius: var(--fc-radius-pill);
+  background: var(--fc-surface-raised);
+  color: var(--fc-text);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -232,7 +225,7 @@
   gap: var(--fc-space-2);
 }
 
-.fc-app .live-option-actions .live-chat-hint {
+.fc-app .live-option-actions .live-chat {
   flex: 1 1 8rem;
 }
 
@@ -240,14 +233,12 @@
   min-width: 4.25rem;
 }
 
-.fc-app .live-card-footer {
+.fc-app .live-card-tools {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--fc-space-3);
-  padding-top: var(--fc-space-4);
-  border-top: 1px solid var(--fc-border);
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fc-space-2);
 }
 
 .fc-app .live-target-form {
@@ -255,6 +246,10 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--fc-space-2);
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
 }
 
 .fc-app .live-target-form .ui-field {
@@ -265,8 +260,13 @@
   margin-top: 1.55rem;
 }
 
-@media (max-width: 900px) {
-  .fc-app .live-toolbar[data-desktop='true'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
+/* Inside the drawer of the top bar the form needs no card around it. */
+.fc-app .connection-panel {
+  display: grid;
+  gap: var(--fc-space-4);
+}
+
+.fc-app .live-connect .connection-card {
+  border-color: color-mix(in srgb, var(--fc-accent) 40%, var(--fc-border));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fc-accent) 10%, var(--fc-surface)), var(--fc-surface) 65%);
 }

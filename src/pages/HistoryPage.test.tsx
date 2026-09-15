@@ -49,7 +49,7 @@ describe('Historie', () => {
     expect(screen.getByRole('heading', { name: 'Rundenhistorie mit Audience Live Pro' })).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Pro ansehen' }));
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Lizenz & Konto');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pro & Lizenz');
   });
 
   it('diagnoses a Pro license without the history feature', async () => {
