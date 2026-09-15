@@ -70,7 +70,7 @@ impl LicenseState {
 #[serde(rename_all = "camelCase")]
 pub struct LicenseCredentials {
     pub license_id: String,
-    /// Proves this installation to the license service; stored in the Windows Credential Manager.
+    /// Proves this installation to the license service; stored in the operating system's credential store.
     pub secret: String,
 }
 

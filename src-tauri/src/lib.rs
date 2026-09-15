@@ -47,9 +47,9 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::refresh_license,
             commands::deactivate_license,
             commands::open_customer_portal,
-            commands::open_pro_page
-            ,commands::start_twitch_auth
-            ,commands::disconnect_twitch_account
+            commands::open_pro_page,
+            commands::start_twitch_auth,
+            commands::disconnect_twitch_account
         ])
 }
 

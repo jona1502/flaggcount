@@ -2,10 +2,10 @@
 
 [[permission]]
 identifier = "allow-import-overlay-asset"
-description = "Enables importing a validated overlay raster image."
+description = "Enables the import_overlay_asset command without any pre-configured scope."
 commands.allow = ["import_overlay_asset"]
 
 [[permission]]
 identifier = "deny-import-overlay-asset"
-description = "Denies importing an overlay image."
+description = "Denies the import_overlay_asset command without any pre-configured scope."
 commands.deny = ["import_overlay_asset"]

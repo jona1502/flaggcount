@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-twitch-auth"
+description = "Enables the start_twitch_auth command without any pre-configured scope."
+commands.allow = ["start_twitch_auth"]
+
+[[permission]]
+identifier = "deny-start-twitch-auth"
+description = "Denies the start_twitch_auth command without any pre-configured scope."
+commands.deny = ["start_twitch_auth"]

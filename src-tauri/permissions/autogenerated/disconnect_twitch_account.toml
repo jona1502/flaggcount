@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-disconnect-twitch-account"
+description = "Enables the disconnect_twitch_account command without any pre-configured scope."
+commands.allow = ["disconnect_twitch_account"]
+
+[[permission]]
+identifier = "deny-disconnect-twitch-account"
+description = "Denies the disconnect_twitch_account command without any pre-configured scope."
+commands.deny = ["disconnect_twitch_account"]

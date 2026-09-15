@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-duplicate-overlay-view"
+description = "Enables the duplicate_overlay_view command without any pre-configured scope."
+commands.allow = ["duplicate_overlay_view"]
+
+[[permission]]
+identifier = "deny-duplicate-overlay-view"
+description = "Denies the duplicate_overlay_view command without any pre-configured scope."
+commands.deny = ["duplicate_overlay_view"]

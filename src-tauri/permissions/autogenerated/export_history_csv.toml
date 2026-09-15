@@ -1,5 +1,11 @@
 # Automatically generated - DO NOT EDIT!
+
 [[permission]]
 identifier = "allow-export-history-csv"
-description = "Allows writing an aggregated history CSV to Downloads."
+description = "Enables the export_history_csv command without any pre-configured scope."
 commands.allow = ["export_history_csv"]
+
+[[permission]]
+identifier = "deny-export-history-csv"
+description = "Denies the export_history_csv command without any pre-configured scope."
+commands.deny = ["export_history_csv"]

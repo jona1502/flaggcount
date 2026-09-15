@@ -15,6 +15,13 @@ fn main() {
             "set_target",
             "set_overlay_settings",
             "set_counter_overlay_settings",
+            "create_overlay_view",
+            "update_overlay_view",
+            "delete_overlay_view",
+            "duplicate_overlay_view",
+            "import_overlay_asset",
+            "clear_history",
+            "export_history_csv",
             "create_profile",
             "duplicate_profile",
             "rename_profile",
@@ -26,6 +33,8 @@ fn main() {
             "deactivate_license",
             "open_customer_portal",
             "open_pro_page",
+            "start_twitch_auth",
+            "disconnect_twitch_account",
         ]),
     ))
     .expect("failed to run tauri-build");
