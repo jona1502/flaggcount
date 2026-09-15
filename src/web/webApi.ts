@@ -15,7 +15,7 @@ let lastState: AppState | null = null;
 const STREAM_RETRY_MS = 3000;
 const SERVER_UNAVAILABLE: AppError = { code: 'sidecar-unavailable', message: 'The server is not reachable' };
 const SESSION_EXPIRED: AppError = { code: 'unknown', message: 'The session has expired' };
-const DESKTOP_ONLY: AppError = { code: 'unknown', message: 'FlagCount Pro is managed in the desktop app' };
+const DESKTOP_ONLY: AppError = { code: 'unknown', message: 'Audience Live Pro is managed in the desktop app' };
 
 /** Notifies when the server no longer accepts the session, e.g. after it expired or the password changed. */
 export function onUnauthorized(handler: () => void): () => void {
@@ -169,7 +169,7 @@ export const webApi: FlagCountApi = {
   deleteProfile: () => Promise.reject(DESKTOP_ONLY),
   switchProfile: () => Promise.reject(DESKTOP_ONLY),
   saveCounters: () => Promise.reject(DESKTOP_ONLY),
-  // FlagCount Pro is managed in the desktop app.
+  // Audience Live Pro is managed in the desktop app.
   activateLicense: () => Promise.reject(DESKTOP_ONLY),
   refreshLicense: () => Promise.reject(DESKTOP_ONLY),
   deactivateLicense: () => Promise.reject(DESKTOP_ONLY),

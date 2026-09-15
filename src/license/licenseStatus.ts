@@ -21,37 +21,37 @@ export function describeLicense(license: LicenseState): LicenseDescription {
   switch (license.status) {
     case 'active':
       return {
-        title: 'FlagCount Pro ist aktiv',
-        detail: until ? `Auf diesem Computer bestätigt bis ${until}. FlagCount verlängert das automatisch, solange das Abo läuft.` : '',
+        title: 'Audience Live Pro ist aktiv',
+        detail: until ? `Auf diesem Computer bestätigt bis ${until}. Audience Live verlängert das automatisch, solange das Abo läuft.` : '',
         badge: license.needsRefresh ? { tone: 'warning', label: 'Aktualisierung nötig' } : { tone: 'success', label: 'Aktiv' }
       };
     case 'grace':
       return {
-        title: 'FlagCount Pro ist aktiv – Zahlung offen',
+        title: 'Audience Live Pro ist aktiv – Zahlung offen',
         detail: 'Die letzte Zahlung konnte nicht eingezogen werden. Bitte prüfe deine Zahlungsmethode unter „Abo verwalten“.',
         badge: { tone: 'warning', label: 'Zahlung offen' }
       };
     case 'expired':
       return {
         title: 'Pro ist auf diesem Computer nicht mehr aktiv',
-        detail: 'FlagCount läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
+        detail: 'Audience Live läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
         badge: { tone: 'danger', label: 'Abgelaufen' }
       };
     case 'invalid':
       return {
         title: 'Die Lizenz konnte nicht bestätigt werden',
-        detail: 'FlagCount läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
+        detail: 'Audience Live läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
         badge: { tone: 'danger', label: 'Nicht bestätigt' }
       };
     case 'none':
       return license.lastError === 'license-inactive'
         ? {
             title: 'Diese Lizenz ist nicht aktiv',
-            detail: 'FlagCount läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
+            detail: 'Audience Live läuft im Free-Modus weiter. Deine Profile und Designs bleiben erhalten.',
             badge: { tone: 'danger', label: 'Gesperrt' }
           }
         : {
-            title: 'Du nutzt FlagCount Free',
+            title: 'Du nutzt Audience Live Free',
             detail: 'Rote Flaggen zählen, lokales und Online-Overlay sowie der Designer bleiben dauerhaft kostenlos – ohne Konto.',
             badge: { tone: 'neutral', label: 'Free' }
           };

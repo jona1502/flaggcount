@@ -39,7 +39,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
     if (previousPlan.current === license.plan) return;
     previousPlan.current = license.plan;
     setUnlocked(license.plan === 'pro');
-    if (license.plan === 'pro') toast({ title: 'FlagCount Pro ist aktiv', description: 'Alle Pro-Funktionen sind ohne Neustart freigeschaltet.' });
+    if (license.plan === 'pro') toast({ title: 'Audience Live Pro ist aktiv', description: 'Alle Pro-Funktionen sind ohne Neustart freigeschaltet.' });
   }, [license.plan, toast]);
 
   // A refresh is confirmed when it finished without an error.
@@ -58,8 +58,8 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
     void actions.refreshLicense();
   };
 
-  const supportHref = `mailto:support@flagcount.app?subject=${encodeURIComponent('FlagCount Pro Support')}&body=${encodeURIComponent(
-    `Hallo FlagCount-Team,\n\nBitte helft mir bei folgendem Anliegen:\n\n\nLizenzreferenz: ${license.reference ?? 'keine'}\nPlan: ${license.plan}\nStatus: ${license.status}\n\nIch habe keine Logs angehängt.`
+  const supportHref = `mailto:support@flagcount.app?subject=${encodeURIComponent('Audience Live Pro Support')}&body=${encodeURIComponent(
+    `Hallo Audience-Live-Team,\n\nBitte helft mir bei folgendem Anliegen:\n\n\nLizenzreferenz: ${license.reference ?? 'keine'}\nPlan: ${license.plan}\nStatus: ${license.status}\n\nIch habe keine Logs angehängt.`
   )}`;
   const nextCheck = isPro ? formatDate(license.refreshAfter) : null;
   const validUntil = isPro ? formatDate(license.expiresAt) : null;
@@ -68,7 +68,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
     <div className="page license-page">
       <PageHeader
         title="Lizenz & Konto"
-        badge={<Badge tone={isPro ? 'pro' : 'neutral'}>{isPro ? 'FlagCount Pro' : 'FlagCount Free'}</Badge>}
+        badge={<Badge tone={isPro ? 'pro' : 'neutral'}>{isPro ? 'Audience Live Pro' : 'Audience Live Free'}</Badge>}
         description="Tarif, freigeschaltete Funktionen, Aktivierung und Abo-Verwaltung."
         actions={
           (isPro || license.reference) && (
@@ -114,7 +114,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
             </>
           }
         >
-          <p>Deine Lizenz meldet FlagCount Pro, diese Funktionen sind aber nicht freigegeben:</p>
+          <p>Deine Lizenz meldet Audience Live Pro, diese Funktionen sind aber nicht freigegeben:</p>
           <ul>
             {missing.map((feature) => (
               <li key={feature}>{describeFeature(feature).title}</li>
@@ -142,7 +142,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
           <dl className="detail-list">
             <div>
               <dt>Tarif</dt>
-              <dd>{isPro ? 'FlagCount Pro' : 'FlagCount Free'}</dd>
+              <dd>{isPro ? 'Audience Live Pro' : 'Audience Live Free'}</dd>
             </div>
             {license.reference && (
               <div>
@@ -165,7 +165,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
               </div>
             )}
           </dl>
-          {isPro && license.needsRefresh && <p className="card-text">Die Lizenz wird erneut bestätigt, sobald FlagCount den Lizenzserver erreicht.</p>}
+          {isPro && license.needsRefresh && <p className="card-text">Die Lizenz wird erneut bestätigt, sobald Audience Live den Lizenzserver erreicht.</p>}
 
           {isPro ? (
             <>
@@ -194,12 +194,12 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
           )}
         </Card>
 
-        <Card title="Funktionen" description={isPro ? 'Was deine Lizenz freischaltet.' : 'Was FlagCount Pro zusätzlich bietet.'}>
+        <Card title="Funktionen" description={isPro ? 'Was deine Lizenz freischaltet.' : 'Was Audience Live Pro zusätzlich bietet.'}>
           <FeatureMatrix entitlements={entitlements} />
           {!isPro && (
             <>
               <p className="card-text">
-                Preis, Abrechnungszeitraum, automatische Verlängerung und Kündigung siehst du vor dem Kauf auf der Pro-Seite. FlagCount Free bleibt
+                Preis, Abrechnungszeitraum, automatische Verlängerung und Kündigung siehst du vor dem Kauf auf der Pro-Seite. Audience Live Free bleibt
                 ohne Konto und ohne Kauf nutzbar.
               </p>
               <div className="card-row">
@@ -219,7 +219,7 @@ export function LicensePage({ model, pending, error, actions, navigate }: PagePr
       <ConfirmDialog
         open={confirmDeactivate}
         title="Pro auf diesem Computer deaktivieren?"
-        message="FlagCount läuft danach im Free-Modus weiter. Profile, Zähler und Designs bleiben erhalten, und du kannst diesen Computer später mit deinem Code wieder aktivieren."
+        message="Audience Live läuft danach im Free-Modus weiter. Profile, Zähler und Designs bleiben erhalten, und du kannst diesen Computer später mit deinem Code wieder aktivieren."
         confirmLabel="Ja, deaktivieren"
         onCancel={() => setConfirmDeactivate(false)}
         onConfirm={() => {

@@ -17,12 +17,12 @@ function licenseStep({ state }: AppModel): Pick<SetupStep, 'done' | 'detail'> {
   if (license.plan === 'pro') {
     return license.needsRefresh
       ? { done: false, detail: 'Die Pro-Lizenz sollte online bestätigt werden. Pro funktioniert bis dahin weiter.' }
-      : { done: true, detail: 'FlagCount Pro ist auf diesem Computer bestätigt.' };
+      : { done: true, detail: 'Audience Live Pro ist auf diesem Computer bestätigt.' };
   }
   if (license.status === 'expired' || license.status === 'invalid') {
-    return { done: false, detail: 'Pro ist auf diesem Computer nicht aktiv. FlagCount läuft als Free weiter.' };
+    return { done: false, detail: 'Pro ist auf diesem Computer nicht aktiv. Audience Live läuft als Free weiter.' };
   }
-  return { done: true, detail: 'FlagCount Free – ohne Konto und ohne Lizenz nutzbar.' };
+  return { done: true, detail: 'Audience Live Free – ohne Konto und ohne Lizenz nutzbar.' };
 }
 
 /** The first-start checklist of the overview. */

@@ -6,8 +6,8 @@ import { pageMetadata } from '../../lib/site';
 export const revalidate = 300;
 
 export const metadata = pageMetadata({
-  title: 'FlagCount herunterladen',
-  description: 'Den kostenlosen FlagCount-Installer für Windows 10 und 11 herunterladen. Updates kommen automatisch.',
+  title: 'Audience Live herunterladen',
+  description: 'Den kostenlosen Audience-Live-Installer für Windows 10 und 11 herunterladen. Updates kommen automatisch.',
   path: '/herunterladen'
 });
 
@@ -16,7 +16,7 @@ export default function DownloadPage() {
     <PageShell>
       <section className="landing-section" aria-labelledby="download-title">
         <p className="eyebrow">Download</p>
-        <h1 id="download-title">FlagCount für Windows</h1>
+        <h1 id="download-title">Audience Live für Windows</h1>
         <p className="lead">Kostenlos, ohne Konto. Die App prüft beim Start auf Updates und installiert sie auf Wunsch automatisch.</p>
         <div className="download-row">
           <DownloadButton />

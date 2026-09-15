@@ -82,7 +82,7 @@ export function ProfileCard({
           {running && <Badge tone="success">Läuft</Badge>}
           {chosen && !running && <Badge tone="warning">Gewählt</Badge>}
           {!usable && (
-            <Badge tone="pro" srLabel="Nutzbar mit FlagCount Pro">
+            <Badge tone="pro" srLabel="Nutzbar mit Audience Live Pro">
               Pro
             </Badge>
           )}
@@ -93,7 +93,7 @@ export function ProfileCard({
         {counters.length} {counters.length === 1 ? 'Element' : 'Elemente'}: {counters.map((counter) => counter.name).join(', ')}
       </p>
       {!Number.isNaN(updated.getTime()) && <p className="profile-card-date">Geändert am {dateFormat.format(updated)}</p>}
-      {!usable && <p className="profile-card-note">Bleibt gespeichert und ist wieder nutzbar, sobald FlagCount Pro aktiv ist.</p>}
+      {!usable && <p className="profile-card-note">Bleibt gespeichert und ist wieder nutzbar, sobald Audience Live Pro aktiv ist.</p>}
 
       {!editing && (
         <div className="profile-card-actions">

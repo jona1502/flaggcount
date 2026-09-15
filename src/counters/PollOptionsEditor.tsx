@@ -87,7 +87,7 @@ export function PollOptionsEditor({
                   max={triggerLimit}
                   editable={triggersEditable}
                   problems={triggerProblems(problems, { kind: 'option', optionId: option.id })}
-                  lockedHint="Eigene Emojis und Begriffe gibt es mit FlagCount Pro."
+                  lockedHint="Eigene Emojis und Begriffe gibt es mit Audience Live Pro."
                   onChange={(triggers) => updateOption(index, (current) => ({ ...current, triggers }))}
                 />
               )}

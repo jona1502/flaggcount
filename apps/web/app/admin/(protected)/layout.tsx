@@ -5,7 +5,7 @@ import { requireAdmin } from '../../../lib/admin/session';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: { default: 'Admin', template: '%s · FlagCount Admin' },
+  title: { default: 'Admin', template: '%s · Audience Live Admin' },
   robots: { index: false, follow: false }
 };
 
@@ -20,7 +20,7 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
           <div className="app-mark" aria-hidden="true">
             🚩
           </div>
-          <p className="admin-brand-title">FlagCount Admin</p>
+          <p className="admin-brand-title">Audience Live Admin</p>
         </div>
         <div className="admin-account">
           <span>Angemeldet als {admin.login}</span>

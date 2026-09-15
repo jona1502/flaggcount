@@ -70,12 +70,12 @@ export function HistoryPage({ model, pending, error, actions, navigate }: PagePr
               </Button>
             }
           >
-            Deine Lizenz meldet FlagCount Pro, enthält die Rundenhistorie aber gerade nicht. Aktualisiere den Lizenzstatus.
+            Deine Lizenz meldet Audience Live Pro, enthält die Rundenhistorie aber gerade nicht. Aktualisiere den Lizenzstatus.
           </Callout>
         ) : (
           <EmptyState
             icon={IconLock}
-            title="Rundenhistorie mit FlagCount Pro"
+            title="Rundenhistorie mit Audience Live Pro"
             description="Speichere bis zu 500 abgeschlossene Runden ausschließlich lokal: Ergebnisse, Ziele und Abstimmungen – ohne Zuschauernamen oder Chatnachrichten. Mit CSV-Export für Excel."
             action={
               <Button variant="primary" onClick={() => navigate({ page: 'license' })}>
@@ -129,7 +129,7 @@ export function HistoryPage({ model, pending, error, actions, navigate }: PagePr
         <EmptyState
           icon={IconHistory}
           title="Noch keine abgeschlossene Runde"
-          description="Eine Runde landet hier, sobald du sie zurücksetzt, das Profil wechselst oder FlagCount beendest – vorausgesetzt, sie hatte mindestens eine Stimme."
+            description="Eine Runde landet hier, sobald du sie zurücksetzt, das Profil wechselst oder Audience Live beendest – vorausgesetzt, sie hatte mindestens eine Stimme."
           action={
             <Button icon={IconLive} onClick={() => navigate({ page: 'live' })}>
               Zur Live-Steuerung

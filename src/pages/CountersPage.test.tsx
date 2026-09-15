@@ -60,7 +60,7 @@ describe('Zähler & Abstimmungen', () => {
     expect(items[1]?.textContent).toContain('Abstimmung · 2 Optionen · 2 Auslöser · ohne Ziel');
     expect(items[1]?.textContent).toContain('Läuft');
     expect(items[1]?.textContent).toContain('Eigenes Overlay');
-    expect(screen.queryByRole('note', { name: 'Mehr mit FlagCount Pro' })).toBeNull();
+    expect(screen.queryByRole('note', { name: 'Mehr mit Audience Live Pro' })).toBeNull();
   });
 
   it('saves edits explicitly and confirms them once the backend applied them', async () => {
@@ -138,13 +138,13 @@ describe('Zähler & Abstimmungen', () => {
     );
     await open();
 
-    expect(screen.getByRole('note', { name: 'Mehr mit FlagCount Pro' })).toBeTruthy();
+    expect(screen.getByRole('note', { name: 'Mehr mit Audience Live Pro' })).toBeTruthy();
     const items = within(list()).getAllByRole('listitem');
     expect(items[1]?.textContent).toContain('Pausiert');
     expect(items[1]?.textContent).toContain('Overlay mit Pro');
 
     await user.click(selectButton('Team-Wahl'));
-    const hint = screen.getByRole('note', { name: 'Dieses Element braucht FlagCount Pro' });
-    expect(hint.textContent).toContain('Abstimmungen mit bis zu sechs Optionen gibt es mit FlagCount Pro.');
+    const hint = screen.getByRole('note', { name: 'Dieses Element braucht Audience Live Pro' });
+    expect(hint.textContent).toContain('Abstimmungen mit bis zu sechs Optionen gibt es mit Audience Live Pro.');
   });
 });

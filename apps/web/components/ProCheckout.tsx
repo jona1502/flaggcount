@@ -13,7 +13,7 @@ export function checkoutError(status: number): string {
     case 429:
       return 'Zu viele Versuche. Bitte warte kurz und versuche es dann erneut.';
     case 503:
-      return 'Der Kauf von FlagCount Pro ist gerade nicht möglich. Bitte versuche es später erneut.';
+      return 'Der Kauf von Audience Live Pro ist gerade nicht möglich. Bitte versuche es später erneut.';
     default:
       return 'Der Checkout konnte nicht geöffnet werden. Bitte versuche es später erneut.';
   }
@@ -66,7 +66,7 @@ export function ProCheckout({ navigate = (url: string) => window.location.assign
   };
 
   return (
-    <div className="planned-price" aria-label="FlagCount Pro Preise">
+    <div className="planned-price" aria-label="Audience Live Pro Preise">
       <strong>{price('monthly')} / Monat</strong>
       <span>oder {price('yearly')} / Jahr</span>
       <small>Endgültiger Preis inkl. Steuer wird im Checkout von Stripe berechnet.</small>

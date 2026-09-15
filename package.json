@@ -1,8 +1,8 @@
 {
-  "name": "flagcount",
-  "version": "0.5.0",
+  "name": "audience-live",
+  "version": "0.6.0",
   "private": true,
-  "description": "Zählt rote Flaggen im TikTok-Live-Chat",
+  "description": "Live-Zuschauerinteraktion und Counter für Streams",
   "author": "jona1502",
   "type": "module",
   "workspaces": [

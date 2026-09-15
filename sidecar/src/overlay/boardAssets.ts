@@ -6,7 +6,7 @@ function escapeAttribute(value: string): string {
 
 const HEAD = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FlagCount Overlay</title>
+<title>Audience Live Overlay</title>
 <link rel="stylesheet" href="/overlay/board.css">`;
 
 /**
@@ -27,7 +27,7 @@ ${HEAD}
 `;
 }
 
-/** A calm page instead of a broken overlay, e.g. when the overlay needs FlagCount Pro. */
+/** A calm page instead of a broken overlay, e.g. when the overlay needs Audience Live Pro. */
 export function renderOverlayNotice(message: string): string {
   return `<!doctype html>
 <html lang="de">

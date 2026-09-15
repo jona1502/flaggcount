@@ -52,3 +52,8 @@
 - Manuelles Hinzufügen von Flaggen ermöglicht, auch ohne aktive TikTok-Verbindung.
 - Verbindungsstatus vereinfacht und erfolgreichen Verbindungen einen grünen Leuchteffekt gegeben.
 - „OBS-Overlay“ in „Streaming-Overlay“ umbenannt.
+## Audience Live 0.6.0
+
+- FlagCount wird zu Audience Live umbenannt.
+- Bestehende Einstellungen, Lizenzen und lokale Daten bleiben beim Update erhalten.
+- Neues Audience-Live-App-Icon sowie aktualisierte Website- und Release-Metadaten.

@@ -43,7 +43,7 @@ describe('Profile', () => {
     expect(screen.queryByRole('button', { name: 'Standard duplizieren' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Standard löschen' })).toBeNull();
 
-    await user.click(within(screen.getByRole('note', { name: 'Mehrere Profile mit FlagCount Pro' })).getByRole('button', { name: 'Mehr zu Pro' }));
+    await user.click(within(screen.getByRole('note', { name: 'Mehrere Profile mit Audience Live Pro' })).getByRole('button', { name: 'Mehr zu Pro' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Lizenz & Konto');
   });
 
@@ -103,7 +103,7 @@ describe('Profile', () => {
 
     expect(screen.getByText('3 von 1 Profil')).toBeTruthy();
     expect(screen.getByRole('note', { name: 'Einige Profile sind pausiert' })).toBeTruthy();
-    expect(screen.getAllByText('Nutzbar mit FlagCount Pro')).toHaveLength(2);
+    expect(screen.getAllByText('Nutzbar mit Audience Live Pro')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'Zu Quiz wechseln' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Quiz umbenennen' })).toBeNull();
     expect(button('Quiz löschen')).toBeTruthy();

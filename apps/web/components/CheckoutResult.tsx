@@ -15,8 +15,8 @@ function NextSteps() {
           </p>
         </li>
         <li className="step">
-          <h3>Code in FlagCount eingeben</h3>
-          <p>Öffne FlagCount auf deinem Windows-PC, wechsle zu „Pro“ und aktiviere den Code.</p>
+          <h3>Code in Audience Live eingeben</h3>
+          <p>Öffne Audience Live auf deinem Windows-PC, wechsle zu „Pro“ und aktiviere den Code.</p>
         </li>
         <li className="step">
           <h3>Abo verwalten</h3>
@@ -32,7 +32,7 @@ function NextSteps() {
   );
 }
 
-function BackToPro({ label = 'Zurück zu FlagCount Pro' }: { label?: string }) {
+function BackToPro({ label = 'Zurück zu Audience Live Pro' }: { label?: string }) {
   return (
     <div className="pro-checkout-actions">
       <Link className="button primary" href="/pro">

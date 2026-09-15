@@ -53,7 +53,7 @@ export function OverlaySetupGuide({ target }: { target: OverlayTarget }): React.
             </ol>
             {!target.publicUrl && (
               <Callout tone="warning" title="Die Online-URL ist gerade nicht verfügbar">
-                Sie erscheint, sobald FlagCount den Online-Dienst erreicht. Das lokale Overlay funktioniert davon unabhängig.
+                Sie erscheint, sobald Audience Live den Online-Dienst erreicht. Das lokale Overlay funktioniert davon unabhängig.
               </Callout>
             )}
           </>
@@ -62,7 +62,7 @@ export function OverlaySetupGuide({ target }: { target: OverlayTarget }): React.
           <ol className="guide-steps">
             <li>Öffne die lokale URL in einem Browser auf diesem Computer.</li>
             <li>Füge in der Live-Steuerung eine Stimme hinzu – das Overlay zeigt sie sofort.</li>
-            <li>Erscheint das Overlay abgeblendet, hat es gerade keine Verbindung zu FlagCount. Es verbindet sich von selbst wieder.</li>
+            <li>Erscheint das Overlay abgeblendet, hat es gerade keine Verbindung zu Audience Live. Es verbindet sich von selbst wieder.</li>
           </ol>
         )}
       </TabPanel>

@@ -42,7 +42,7 @@ export function renderOverlayPage(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FlagCount Overlay</title>
+<title>Audience Live Overlay</title>
 <link rel="stylesheet" href="/overlay/overlay.css">
 <script src="/overlay/overlay.js" defer></script>
 </head>

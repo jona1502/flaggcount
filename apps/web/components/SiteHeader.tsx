@@ -7,7 +7,7 @@ export function SiteHeader() {
     <header className="landing-inner landing-nav">
       <Link className="landing-logo" href="/">
         <Image src={icon} alt="" width={28} height={28} unoptimized />
-        FlagCount
+        Audience Live
       </Link>
       <nav className="landing-nav-links" aria-label="Hauptnavigation">
         <Link className="nav-link" href="/pro">

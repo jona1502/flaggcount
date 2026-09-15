@@ -31,7 +31,7 @@ export function WaitlistForm() {
       setConsent(false);
       setStatus({
         kind: 'success',
-        message: unsubscribe ? 'Die Adresse wurde aus der Warteliste entfernt.' : 'Danke! Du bist unverbindlich für FlagCount Pro vorgemerkt.'
+        message: unsubscribe ? 'Die Adresse wurde aus der Warteliste entfernt.' : 'Danke! Du bist unverbindlich für Audience Live Pro vorgemerkt.'
       });
     } catch {
       setStatus({ kind: 'error', message: 'Das hat gerade nicht funktioniert. Bitte versuche es später erneut.' });
@@ -43,7 +43,7 @@ export function WaitlistForm() {
   return (
     <div className="waitlist-card">
       <h3>Unverbindlich vormerken</h3>
-      <p>Trag dich ein, wenn du über Neuigkeiten zu FlagCount Pro informiert werden möchtest. Das ist keine Bestellung und es entstehen keine Kosten.</p>
+      <p>Trag dich ein, wenn du über Neuigkeiten zu Audience Live Pro informiert werden möchtest. Das ist keine Bestellung und es entstehen keine Kosten.</p>
       <form className="waitlist-form" onSubmit={(event) => void submit(event)}>
         <label htmlFor="waitlist-email">E-Mail-Adresse</label>
         <input
@@ -58,7 +58,7 @@ export function WaitlistForm() {
         />
         <label className="checkbox waitlist-consent">
           <input type="checkbox" checked={consent} disabled={pending} onChange={(event) => setConsent(event.currentTarget.checked)} />
-          Ich möchte per E-Mail Neuigkeiten zu FlagCount Pro erhalten. Meine Adresse wird nur dafür gespeichert; ich kann mich jederzeit austragen.
+          Ich möchte per E-Mail Neuigkeiten zu Audience Live Pro erhalten. Meine Adresse wird nur dafür gespeichert; ich kann mich jederzeit austragen.
         </label>
         <div className="waitlist-actions">
           <button className="button primary" type="submit" value="subscribe" disabled={pending}>

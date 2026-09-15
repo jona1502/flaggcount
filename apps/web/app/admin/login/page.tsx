@@ -18,7 +18,7 @@ export default async function AdminLoginPage() {
   return (
     <main className="admin-login">
       <section className="panel admin-login-card" aria-labelledby="admin-login-title">
-        <h1 id="admin-login-title">FlagCount Admin</h1>
+        <h1 id="admin-login-title">Audience Live Admin</h1>
         {runtime ? (
           <>
             <p>Die Sitzung endet nach 30 Minuten ohne Aktivität und spätestens nach 8 Stunden.</p>

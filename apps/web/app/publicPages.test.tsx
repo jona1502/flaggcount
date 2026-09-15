@@ -43,10 +43,10 @@ describe('public pages', () => {
     noBackend();
     render(<ProPage />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'FlagCount Pro' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Audience Live Pro' })).toBeTruthy();
     expect(screen.getByText('6,99 € / Monat')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Jährlich starten' })).toBeTruthy();
-    expect(screen.getByText(/ein FlagCount-Konto brauchst du nicht/)).toBeTruthy();
+    expect(screen.getByText(/Ein Audience-Live-Konto brauchst du nicht/)).toBeTruthy();
     expect(proMetadata).toMatchObject({ alternates: { canonical: '/pro' }, openGraph: { url: '/pro', locale: 'de_DE' } });
   });
 
@@ -62,11 +62,11 @@ describe('public pages', () => {
   it('renders the download, recovery, legal and 404 pages', () => {
     noBackend();
     for (const [Page, heading] of [
-      [DownloadPage, 'FlagCount für Windows'],
+      [DownloadPage, 'Audience Live für Windows'],
       [RecoveryPage, 'Lizenz wiederherstellen'],
       [ImprintPage, 'Impressum'],
       [PrivacyPage, 'Datenschutzerklärung'],
-      [TermsPage, 'Allgemeine Geschäftsbedingungen für FlagCount Pro'],
+      [TermsPage, 'Allgemeine Geschäftsbedingungen für Audience Live Pro'],
       [NotFound, 'Diese Seite gibt es nicht']
     ] as const) {
       render(<Page />);
@@ -93,7 +93,7 @@ describe('public pages', () => {
     await user.click(screen.getByRole('button', { name: 'Neuen Code anfordern' }));
 
     expect(fetcher).toHaveBeenCalledWith('/api/v1/licenses/recover', expect.objectContaining({ body: JSON.stringify({ email: 'kunde@example.com' }) }));
-    expect((await screen.findByRole('status')).textContent).toContain('Wenn zu dieser Adresse ein aktives FlagCount Pro gehört');
+    expect((await screen.findByRole('status')).textContent).toContain('Wenn zu dieser Adresse ein aktives Audience Live Pro gehört');
   });
 });
 

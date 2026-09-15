@@ -141,7 +141,7 @@ describe('Overlays', () => {
     expect(cards[2]?.textContent).toContain('Pro erforderlich');
 
     await user.click(screen.getByRole('button', { name: 'Gesamtansicht ansehen' }));
-    expect(screen.getAllByText('Dieses Overlay gehört zu FlagCount Pro.')).toHaveLength(2);
+    expect(screen.getAllByText('Dieses Overlay gehört zu Audience Live Pro.')).toHaveLength(2);
   });
 
   it('explains the setup in OBS and TikTok LIVE Studio with a recommended size', async () => {

@@ -132,7 +132,7 @@ export function LoginScreen({ sessionExpired = false, onSignedIn }: LoginScreenP
               <path d="M6 4.5c2.3-1.5 4.7-1.5 7 0s4.7 1.5 7 0v9c-2.3 1.5-4.7 1.5-7 0s-4.7-1.5-7 0z" fill="currentColor" />
             </svg>
           </span>
-          <h1 id="login-title">FlagCount</h1>
+          <h1 id="login-title">Audience Live</h1>
           <p>Melde dich an, um Livestream, Stimmen und Overlay zu steuern.</p>
         </header>
 
@@ -149,7 +149,7 @@ export function LoginScreen({ sessionExpired = false, onSignedIn }: LoginScreenP
             type="text"
             name="username"
             autoComplete="username"
-            value="FlagCount"
+            value="Audience Live"
             readOnly
             tabIndex={-1}
             aria-hidden="true"

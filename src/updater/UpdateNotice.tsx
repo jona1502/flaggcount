@@ -45,7 +45,7 @@ export function UpdateNotice({ updater }: UpdateNoticeProps): React.JSX.Element 
     updater.status === 'checking'
       ? 'Updates werden gesucht …'
       : updater.status === 'up-to-date'
-        ? 'FlagCount ist aktuell.'
+        ? 'Audience Live ist aktuell.'
         : 'Die Updateprüfung ist fehlgeschlagen. Bitte versuche es später erneut.';
 
   return (

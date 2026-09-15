@@ -17,12 +17,12 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   'invalid-target': 'Das Stimmenziel muss eine ganze Zahl zwischen 1 und 100.000 sein.',
   'invalid-overlay-settings': 'Die Overlay-Einstellungen sind ungültig. Bitte prüfe Farben, Größe und Deckkraft.',
   'invalid-code': 'Dieser Aktivierungscode ist ungültig. Bitte prüfe ihn in deiner Kauf-E-Mail.',
-  'invalid-installation': 'Dieser Computer konnte der Lizenz nicht zugeordnet werden. Bitte starte FlagCount neu.',
+  'invalid-installation': 'Dieser Computer konnte der Lizenz nicht zugeordnet werden. Bitte starte Audience Live neu.',
   'invalid-profile': 'Dieses Profil konnte nicht geändert werden. Profilnamen brauchen 1 bis 60 Zeichen, und ein Profil muss bleiben.',
   'invalid-counters': 'Die Zähler konnten nicht gespeichert werden. Bitte prüfe Namen, Optionen und Auslöser.',
   'invalid-overlay-view': 'Die Overlay-Ansicht konnte nicht gespeichert werden. Bitte prüfe Elemente, Reihenfolge und Layout.',
-  'pro-required': 'Diese Funktion gehört zu FlagCount Pro. Unter „Pro“ erfährst du mehr – deine Einstellungen bleiben erhalten.',
-  'sidecar-unavailable': 'Der Verbindungsdienst läuft nicht. Bitte starte FlagCount neu.',
+  'pro-required': 'Diese Funktion gehört zu Audience Live Pro. Unter „Pro“ erfährst du mehr – deine Einstellungen bleiben erhalten.',
+  'sidecar-unavailable': 'Der Verbindungsdienst läuft nicht. Bitte starte Audience Live neu.',
   unknown: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.'
 };
 

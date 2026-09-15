@@ -17,7 +17,7 @@ export function SettingsPage({ desktop, updater, version, onLogout }: SettingsPa
     <div className="page">
       <PageHeader title="Einstellungen" description="App-Version, Updates und Hilfe." />
       <div className="page-grid">
-        <Card title="App & Updates" description="FlagCount sucht beim Start automatisch nach Updates.">
+        <Card title="App & Updates" description="Audience Live sucht beim Start automatisch nach Updates.">
           <dl className="detail-list">
             <div>
               <dt>Installierte Version</dt>
@@ -40,10 +40,10 @@ export function SettingsPage({ desktop, updater, version, onLogout }: SettingsPa
         </Card>
 
         {desktop && (
-          <Card title="Hilfe & Support" description="Fragen zu FlagCount, Overlays oder deiner Lizenz.">
+          <Card title="Hilfe & Support" description="Fragen zu Audience Live, Overlays oder deiner Lizenz.">
             <p className="card-text">Schreib uns eine E-Mail. Logs, Chatinhalte oder Zuschauernamen werden dabei nie automatisch gesendet.</p>
             <div className="card-row">
-              <a className="ui-button ui-button--secondary ui-button--md" href="mailto:support@flagcount.app?subject=FlagCount%20Support">
+              <a className="ui-button ui-button--secondary ui-button--md" href="mailto:support@flagcount.app?subject=Audience%20Live%20Support">
                 <IconMail size={16} />
                 <span className="ui-button-label">Support kontaktieren</span>
               </a>

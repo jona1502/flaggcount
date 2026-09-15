@@ -19,7 +19,7 @@ export function Sidebar({ pages, current, onNavigate, collapsed, onToggleCollaps
         <span className="shell-brand-mark" aria-hidden="true">
           <IconFlag size={18} />
         </span>
-        <span className="shell-brand-name">FlagCount</span>
+        <span className="shell-brand-name">Audience Live</span>
       </div>
 
       <nav aria-label="Hauptnavigation" className="shell-nav">

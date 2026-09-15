@@ -77,7 +77,7 @@ export function ProfilesPage({ model, pending, error, actions, navigate }: PageP
         ) : (
           <Callout
             tone="pro"
-            title="Mehrere Profile mit FlagCount Pro"
+            title="Mehrere Profile mit Audience Live Pro"
             actions={
               <Button size="sm" onClick={() => navigate({ page: 'license' })}>
                 Mehr zu Pro
@@ -90,7 +90,7 @@ export function ProfilesPage({ model, pending, error, actions, navigate }: PageP
 
       {hasInactive && (
         <Callout tone="warning" title="Einige Profile sind pausiert">
-          Profile mit Pro-Kennzeichnung bleiben gespeichert und sind wieder nutzbar, sobald FlagCount Pro aktiv ist.
+          Profile mit Pro-Kennzeichnung bleiben gespeichert und sind wieder nutzbar, sobald Audience Live Pro aktiv ist.
         </Callout>
       )}
 

@@ -124,7 +124,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
 
       {!state.sidecarRunning && (
         <Callout tone="danger" title="Verbindungsdienst nicht verfügbar">
-          FlagCount startet den Dienst automatisch neu. Bis dahin lassen sich keine Stimmen zählen oder korrigieren.
+          Audience Live startet den Dienst automatisch neu. Bis dahin lassen sich keine Stimmen zählen oder korrigieren.
         </Callout>
       )}
 
@@ -157,7 +157,7 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
           {paused.map((counter) => `„${counter.name}“`).join(', ')}{' '}
           {isPro
             ? 'wird von deiner Lizenz gerade nicht freigegeben. Aktualisiere den Lizenzstatus.'
-            : `${paused.length === 1 ? 'braucht' : 'brauchen'} FlagCount Pro. Alles bleibt gespeichert und läuft wieder, sobald Pro aktiv ist.`}
+            : `${paused.length === 1 ? 'braucht' : 'brauchen'} Audience Live Pro. Alles bleibt gespeichert und läuft wieder, sobald Pro aktiv ist.`}
         </Callout>
       )}
 

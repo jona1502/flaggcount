@@ -20,7 +20,7 @@ export function FeatureMatrix({ entitlements }: { entitlements: Entitlements }):
             {isPro ? (
               <Badge tone={active ? 'success' : 'warning'}>{active ? 'aktiv' : 'nicht freigegeben'}</Badge>
             ) : (
-              <Badge tone="pro" srLabel="Mit FlagCount Pro">
+              <Badge tone="pro" srLabel="Mit Audience Live Pro">
                 Pro
               </Badge>
             )}

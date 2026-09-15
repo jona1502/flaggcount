@@ -27,7 +27,7 @@ type DashboardProps = {
   updater?: UpdaterController;
   /** Only the web version has a login to sign out of. */
   onLogout?: () => void;
-  /** Profiles, counters and FlagCount Pro are managed in the desktop app only. */
+  /** Profiles, counters and Audience Live Pro are managed in the desktop app only. */
   proAvailable?: boolean;
 };
 

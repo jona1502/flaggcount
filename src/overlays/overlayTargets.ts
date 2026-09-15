@@ -21,7 +21,7 @@ export type OverlayTarget = {
   publicUrl: string | null;
   available: boolean;
   status: OverlayTargetStatus;
-  /** The address of FlagCount 0.2, kept for the first counter so existing OBS sources keep working. */
+  /** The legacy address from version 0.2, kept for the first counter so existing OBS sources keep working. */
   classic: boolean;
   view: OverlayView | null;
 };

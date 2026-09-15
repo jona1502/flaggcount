@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/site';
 
 export const metadata = pageMetadata({
   title: 'AGB',
-  description: 'Allgemeine Geschäftsbedingungen für FlagCount Pro.',
+  description: 'Allgemeine Geschäftsbedingungen für Audience Live Pro.',
   path: '/agb'
 });
 
@@ -12,19 +12,19 @@ export default function TermsPage() {
   return (
     <PageShell>
       <article className="landing-section legal-page" aria-labelledby="terms-title">
-        <h1 id="terms-title">Allgemeine Geschäftsbedingungen für FlagCount Pro</h1>
+        <h1 id="terms-title">Allgemeine Geschäftsbedingungen für Audience Live Pro</h1>
         <LegalDraftNotice />
 
         <h2>1. Geltungsbereich und Vertragspartner</h2>
         <p>
-          Diese Bedingungen gelten für das Abonnement FlagCount Pro. Vertragspartner ist [Anbieter laut Impressum]. [Bei Verkauf über Stripe
-          Managed Payments: Angaben zur Rolle von Stripe als Verkäufer ergänzen.] Die kostenlose Nutzung von FlagCount ist davon nicht
+          Diese Bedingungen gelten für das Abonnement Audience Live Pro. Vertragspartner ist [Anbieter laut Impressum]. [Bei Verkauf über Stripe
+          Managed Payments: Angaben zur Rolle von Stripe als Verkäufer ergänzen.] Die kostenlose Nutzung von Audience Live ist davon nicht
           betroffen.
         </p>
 
         <h2>2. Leistungen</h2>
         <p>
-          FlagCount Pro schaltet in der Windows-App zusätzliche Funktionen frei, wie auf der Pro-Seite beschrieben. Eine Lizenz kann auf bis zu
+          Audience Live Pro schaltet in der Windows-App zusätzliche Funktionen frei, wie auf der Pro-Seite beschrieben. Eine Lizenz kann auf bis zu
           drei Computern gleichzeitig aktiviert werden. Die App funktioniert nach der Aktivierung bis zu 30 Tage ohne Internetverbindung.
         </p>
 

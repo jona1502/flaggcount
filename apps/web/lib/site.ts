@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 /** Public origin for canonical URLs, Open Graph and the sitemap; set `SITE_URL` at build time for other hosts. */
 export const SITE_URL = (process.env['SITE_URL'] ?? 'https://overlay.muhrindustries.com').replace(/\/+$/, '');
-export const SITE_NAME = 'FlagCount';
+export const SITE_NAME = 'Audience Live';
 export const RELEASES_URL = 'https://github.com/jona1502/flaggcount/releases';
 
 /** Public pages listed in the sitemap. The checkout return page, the dashboard and the admin area are not. */

@@ -95,7 +95,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building FlagCount")
+        .expect("error while building Audience Live")
         .run(|app, event| {
             if let RunEvent::Exit = event {
                 app.state::<Sidecar>().stop();

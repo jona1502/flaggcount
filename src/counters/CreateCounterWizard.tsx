@@ -38,7 +38,7 @@ const TYPE_DESCRIPTIONS: Record<CounterMode, string> = {
   poll: 'Zwei bis sechs Optionen wie A/B oder Team Rot/Blau. Jede Person hat eine Stimme und kann umentscheiden.'
 };
 
-const LOCKED_TRIGGERS = 'Eigene Emojis und Begriffe gibt es mit FlagCount Pro. Free zählt 🚩 und nimmt mit 🏳️ zurück.';
+const LOCKED_TRIGGERS = 'Eigene Emojis und Begriffe gibt es mit Audience Live Pro. Free zählt 🚩 und nimmt mit 🏳️ zurück.';
 
 function stepsFor(mode: CounterMode): Step[] {
   return mode === 'poll' ? ['type', 'basics', 'options', 'triggers', 'withdrawal', 'summary'] : ['type', 'basics', 'triggers', 'withdrawal', 'summary'];
@@ -160,7 +160,7 @@ export function CreateCounterWizard({
               >
                 {isPro
                   ? 'Lösche ein Element dieses Profils oder lege für weitere Elemente ein neues Profil an.'
-                  : 'FlagCount Free zählt ein Element. Bearbeite den bestehenden Zähler oder hol dir Pro für bis zu vier Zähler und Abstimmungen gleichzeitig.'}
+                  : 'Audience Live Free zählt ein Element. Bearbeite den bestehenden Zähler oder hol dir Pro für bis zu vier Zähler und Abstimmungen gleichzeitig.'}
               </Callout>
             )}
             <fieldset className="type-choice">
@@ -197,7 +197,7 @@ export function CreateCounterWizard({
                       {locked &&
                         (isPro
                           ? ' Deine Lizenz enthält diese Funktion gerade nicht – aktualisiere den Lizenzstatus unter „Lizenz & Konto“.'
-                          : ' Abstimmungen gibt es mit FlagCount Pro.')}
+                          : ' Abstimmungen gibt es mit Audience Live Pro.')}
                     </p>
                     {locked && <Badge tone="pro">{isPro ? 'Nicht freigegeben' : 'Pro erforderlich'}</Badge>}
                   </div>
@@ -341,7 +341,7 @@ export function CreateCounterWizard({
             </dl>
             {listProblems(problems)}
             {violations.length > 0 && (
-              <Callout tone="pro" title="Dafür brauchst du FlagCount Pro">
+              <Callout tone="pro" title="Dafür brauchst du Audience Live Pro">
                 <ul>
                   {violations.map((violation) => (
                     <li key={JSON.stringify(violation)}>{describeViolation(violation)}</li>

@@ -131,7 +131,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
             </>
           }
         >
-          <p>Deine Lizenz meldet FlagCount Pro, diese Funktionen sind aber nicht freigegeben:</p>
+          <p>Deine Lizenz meldet Audience Live Pro, diese Funktionen sind aber nicht freigegeben:</p>
           <ul>
             {missing.map((feature) => (
               <li key={feature}>{describeFeature(feature).title}</li>
@@ -144,7 +144,7 @@ export function CountersPage({ model, route, pending, error, actions, navigate, 
       {!isPro && (
         <Callout
           tone="pro"
-          title="Mehr mit FlagCount Pro"
+            title="Mehr mit Audience Live Pro"
           actions={
             <Button size="sm" onClick={() => navigate({ page: 'license' })}>
               Pro ansehen

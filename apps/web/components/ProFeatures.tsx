@@ -37,14 +37,14 @@ export function ProFaq() {
     <div className="pro-faq">
       <h3>Häufige Fragen</h3>
       <details>
-        <summary>Bleibt FlagCount kostenlos nutzbar?</summary>
+        <summary>Bleibt Audience Live kostenlos nutzbar?</summary>
         <p>Ja. Der rote/weiße Flaggenzähler, das Standard-Overlay und die grundlegende Gestaltung bleiben Free.</p>
       </details>
       <details>
         <summary>Wie läuft der Kauf ab?</summary>
         <p>
           Bezahlt wird über Stripe. Nach der Zahlung bekommst du einen Aktivierungscode per E-Mail und aktivierst Pro damit in der App – ein
-          FlagCount-Konto brauchst du nicht. Rechnungen, Zahlungsmethode und Kündigung verwaltest du im Kundenportal von Stripe.
+          Ein Audience-Live-Konto brauchst du nicht. Rechnungen, Zahlungsmethode und Kündigung verwaltest du im Kundenportal von Stripe.
         </p>
       </details>
       <details>
@@ -52,10 +52,10 @@ export function ProFaq() {
         <p>Auf bis zu drei Computern gleichzeitig. Einen alten Computer kannst du beim Aktivieren eines neuen ersetzen.</p>
       </details>
       <details>
-        <summary>Welche Daten speichert FlagCount für Pro?</summary>
+        <summary>Welche Daten speichert Audience Live für Pro?</summary>
         <p>
           Nur Kennungen des Stripe-Kunden und Abos, den Abo-Status und pseudonyme Kennungen deiner aktivierten Computer. Namen, E-Mail- und
-          Zahlungsdaten verarbeitet Stripe; FlagCount speichert sie nicht.
+          Zahlungsdaten verarbeitet Stripe; Audience Live speichert sie nicht.
         </p>
       </details>
       <details>

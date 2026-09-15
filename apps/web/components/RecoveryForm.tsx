@@ -6,7 +6,7 @@ type Status = { kind: 'sent' } | { kind: 'error'; message: string } | null;
 
 /** The same text for every address, so the page never reveals whether an address has bought Pro. */
 export const RECOVERY_SENT_MESSAGE =
-  'Wenn zu dieser Adresse ein aktives FlagCount Pro gehört, ist ein neuer Aktivierungscode unterwegs. Bitte schau auch im Spam-Ordner nach.';
+  'Wenn zu dieser Adresse ein aktives Audience Live Pro gehört, ist ein neuer Aktivierungscode unterwegs. Bitte schau auch im Spam-Ordner nach.';
 
 export function RecoveryForm() {
   const [email, setEmail] = useState('');

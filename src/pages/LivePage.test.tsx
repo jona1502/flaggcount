@@ -117,7 +117,7 @@ describe('Live-Steuerung', () => {
     await open();
 
     const paused = screen.getByRole('note', { name: '1 Element läuft gerade nicht' });
-    expect(paused.textContent).toContain('„Team-Wahl“ braucht FlagCount Pro');
+    expect(paused.textContent).toContain('„Team-Wahl“ braucht Audience Live Pro');
     await user.click(button('Flagge hinzufügen'));
     expect(actions.addManualVote).toHaveBeenCalledWith('red-flags', 'red-flag');
   });

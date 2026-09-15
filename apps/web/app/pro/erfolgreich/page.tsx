@@ -6,7 +6,7 @@ import { fetchCheckoutStatus } from '../../../lib/backend';
 
 export const metadata: Metadata = {
   title: 'Dein Kauf',
-  description: 'Status deines Kaufs von FlagCount Pro.',
+  description: 'Status deines Kaufs von Audience Live Pro.',
   alternates: { canonical: '/pro/erfolgreich' },
   robots: { index: false, follow: false }
 };
@@ -23,7 +23,7 @@ export default async function CheckoutReturnPage({ searchParams }: { searchParam
   return (
     <PageShell>
       <section className="landing-section checkout-success" aria-labelledby="checkout-result-title">
-        <p className="eyebrow">FlagCount Pro</p>
+        <p className="eyebrow">Audience Live Pro</p>
         <CheckoutResult result={result} />
       </section>
     </PageShell>

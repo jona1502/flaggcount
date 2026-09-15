@@ -31,7 +31,7 @@ describe('Lizenz & Konto', () => {
   it('explains Free and activates a trimmed code', async () => {
     const { actions, user } = await renderLicense(createAppState());
 
-    expect(screen.getByText('Du nutzt FlagCount Free')).toBeTruthy();
+    expect(screen.getByText('Du nutzt Audience Live Free')).toBeTruthy();
     await user.click(button('Aktivieren'));
     expect(screen.getByText('Bitte gib deinen Aktivierungscode ein.')).toBeTruthy();
     expect(actions.activateLicense).not.toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe('Lizenz & Konto', () => {
   it('shows the Pro benefits, limits and terms without a dialog', async () => {
     const { actions, user } = await renderLicense(createAppState());
 
-    expect(featureStates()).toContainEqual(['Bis zu vier Zähler gleichzeitig', 'ProMit FlagCount Pro']);
+    expect(featureStates()).toContainEqual(['Bis zu vier Zähler gleichzeitig', 'ProMit Audience Live Pro']);
     const limits = screen.getByRole('table', { name: 'Grenzen deines Tarifs' });
     expect(within(limits).getByRole('row', { name: 'Gespeicherte Profile 1 10' })).toBeTruthy();
     expect(within(limits).getByRole('row', { name: 'Optionen pro Abstimmung keine Abstimmungen bis 6' })).toBeTruthy();
@@ -76,7 +76,7 @@ describe('Lizenz & Konto', () => {
   it('manages an active license and shows what it unlocks', async () => {
     const { actions, user } = await renderLicense(createAppState({ license: LICENSES.pro }));
 
-    expect(screen.getByText('FlagCount Pro ist aktiv')).toBeTruthy();
+    expect(screen.getByText('Audience Live Pro ist aktiv')).toBeTruthy();
     expect(screen.getByText('FC-TESTLICENSE')).toBeTruthy();
     expect(screen.getByText('Nächste Online-Prüfung')).toBeTruthy();
     expect(screen.getByText('Offline gültig bis')).toBeTruthy();
@@ -117,9 +117,9 @@ describe('Lizenz & Konto', () => {
 
     const grace: LicenseState = { ...LICENSES.grace, needsRefresh: true, lastError: 'network' };
     rerender({ ...state, license: grace });
-    expect(screen.getByText('FlagCount Pro ist aktiv – Zahlung offen')).toBeTruthy();
+    expect(screen.getByText('Audience Live Pro ist aktiv – Zahlung offen')).toBeTruthy();
     expect(screen.getByText('Zahlung offen')).toBeTruthy();
-    expect(screen.getByText(/erneut bestätigt, sobald FlagCount den Lizenzserver erreicht/)).toBeTruthy();
+    expect(screen.getByText(/erneut bestätigt, sobald Audience Live den Lizenzserver erreicht/)).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toContain('offline');
   });
 
@@ -136,7 +136,7 @@ describe('Lizenz & Konto', () => {
 
     rerender({ ...state, license: LICENSES.pro });
 
-    expect(screen.getByRole('region', { name: 'Benachrichtigungen' }).textContent).toContain('FlagCount Pro ist aktiv');
+    expect(screen.getByRole('region', { name: 'Benachrichtigungen' }).textContent).toContain('Audience Live Pro ist aktiv');
     await user.click(within(screen.getByRole('note', { name: 'Pro ist freigeschaltet' })).getByRole('button', { name: 'Abstimmung erstellen' }));
     const poll = within(screen.getByRole('dialog', { name: 'Neues Element' })).getByRole('radio', { name: 'Abstimmung' }) as HTMLInputElement;
     expect(poll.disabled).toBe(false);

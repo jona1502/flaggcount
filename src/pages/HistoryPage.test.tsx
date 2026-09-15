@@ -46,7 +46,7 @@ describe('Historie', () => {
   it('explains the Pro history on Free instead of an empty page', async () => {
     const { user } = await renderHistory(createAppState({ history }));
 
-    expect(screen.getByRole('heading', { name: 'Rundenhistorie mit FlagCount Pro' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Rundenhistorie mit Audience Live Pro' })).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Pro ansehen' }));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Lizenz & Konto');

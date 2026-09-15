@@ -50,7 +50,7 @@ export function describeProblem(problem: CounterProblem): string {
 
 export function describeViolation(violation: EntitlementViolation): string {
   return violation.kind === 'feature'
-    ? `${describeFeature(violation.feature).title} gibt es mit FlagCount Pro.`
+    ? `${describeFeature(violation.feature).title} gibt es mit Audience Live Pro.`
     : `Dein Tarif erlaubt höchstens ${violation.allowed} ${LIMIT_NAMES[violation.limit]}.`;
 }
 

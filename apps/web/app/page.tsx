@@ -8,7 +8,7 @@ import { pageMetadata } from '../lib/site';
 export const revalidate = 300;
 
 export const metadata = pageMetadata({
-  title: 'FlagCount – Flaggen im TikTok-Live zählen',
+  title: 'Audience Live – Zuschauerreaktionen im Livestream zählen',
   description: 'Kostenlose Windows-App, die rote Flaggen im TikTok-Live-Chat zählt und als Overlay in OBS oder TikTok LIVE Studio zeigt.',
   path: '/'
 });
@@ -20,7 +20,7 @@ export default function HomePage() {
         <div>
           <h1 className="landing-title">Flaggen im TikTok-Live zählen</h1>
           <p className="lead">
-            FlagCount zählt rote Flaggen im Chat deines Lives, jede Person einmal pro Runde, und zeigt den Stand als Overlay in OBS oder TikTok LIVE
+            Audience Live zählt Zuschauerreaktionen im Chat deines Lives, jede Person einmal pro Runde, und zeigt den Stand als Overlay in OBS oder TikTok LIVE
             Studio.
           </p>
           <div className="download-row">
@@ -74,7 +74,7 @@ export default function HomePage() {
 
       <section className="landing-section pro-teaser" aria-labelledby="pro-teaser-title">
         <p className="eyebrow">Für Creator</p>
-        <h2 id="pro-teaser-title">FlagCount Pro</h2>
+        <h2 id="pro-teaser-title">Audience Live Pro</h2>
         <p className="lead">
           Mehrere Zähler gleichzeitig, eigene Umfragen, Premium-Overlays mit deinem Branding und eine Auswertung deiner Runden. Der Flaggenzähler
           bleibt kostenlos.

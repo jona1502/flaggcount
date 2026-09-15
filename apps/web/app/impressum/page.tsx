@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/site';
 
 export const metadata = pageMetadata({
   title: 'Impressum',
-  description: 'Anbieterkennzeichnung von FlagCount.',
+  description: 'Anbieterkennzeichnung von Audience Live.',
   path: '/impressum'
 });
 

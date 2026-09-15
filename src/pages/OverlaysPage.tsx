@@ -66,7 +66,7 @@ export function OverlaysPage({ model, route, pending, actions, navigate, onCopyT
             </Button>
           }
         >
-          FlagCount Free hat ein vollständiges Overlay. Mit Pro bekommt jeder Zähler ein eigenes, dazu eine Gesamtansicht, Premium-Vorlagen und
+          Audience Live Free hat ein vollständiges Overlay. Mit Pro bekommt jeder Zähler ein eigenes, dazu eine Gesamtansicht, Premium-Vorlagen und
           eigenes Branding.
         </Callout>
       )}

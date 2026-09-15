@@ -42,7 +42,7 @@ describe('UpdateNotice', () => {
 
   it('shows manual check results', () => {
     const { rerender } = render(<UpdateNotice updater={controller({ status: 'up-to-date', update: null })} />);
-    expect(screen.getByRole('status').textContent).toBe('FlagCount ist aktuell.');
+    expect(screen.getByRole('status').textContent).toBe('Audience Live ist aktuell.');
 
     rerender(<UpdateNotice updater={controller({ status: 'error', update: null })} />);
     expect(screen.getByRole('status').textContent).toContain('fehlgeschlagen');

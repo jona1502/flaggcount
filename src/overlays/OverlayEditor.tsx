@@ -23,7 +23,7 @@ type OverlayEditorProps = {
 
 const UNAVAILABLE: Record<OverlayTarget['status'], string> = {
   ready: 'Noch nicht verfügbar.',
-  'pro-required': 'Dieses Overlay gehört zu FlagCount Pro.',
+  'pro-required': 'Dieses Overlay gehört zu Audience Live Pro.',
   paused: 'Das Element läuft mit deinem Tarif gerade nicht.',
   'service-unavailable': 'Verfügbar, sobald der Verbindungsdienst läuft.'
 };

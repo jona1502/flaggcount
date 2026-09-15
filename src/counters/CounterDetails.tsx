@@ -21,7 +21,7 @@ import { COUNTER_TYPE_LABELS, describeViolation, fieldProblem, triggerProblems }
 import { PollOptionsEditor } from './PollOptionsEditor';
 import { TriggerEditor } from './TriggerEditor';
 
-const LOCKED_TRIGGERS = 'Eigene Emojis und Begriffe gibt es mit FlagCount Pro.';
+const LOCKED_TRIGGERS = 'Eigene Emojis und Begriffe gibt es mit Audience Live Pro.';
 
 type CounterDetailsProps = {
   counter: CounterDefinition;
@@ -82,7 +82,7 @@ export function CounterDetails({
             <Field id={id('name')} label="Name" error={fieldProblem(problems, 'invalid-name')}>
               <Input value={counter.name} maxLength={MAX_NAME_LENGTH} onChange={(event) => onChange({ ...counter, name: event.target.value })} />
             </Field>
-            <Field id={id('mode')} label="Typ" hint={pollsAllowed ? undefined : 'Abstimmungen gibt es mit FlagCount Pro.'}>
+            <Field id={id('mode')} label="Typ" hint={pollsAllowed ? undefined : 'Abstimmungen gibt es mit Audience Live Pro.'}>
               <Select value={counter.mode} onChange={(event) => onChange(changeCounterMode(counter, event.target.value as CounterMode))}>
                 <option value="single">{COUNTER_TYPE_LABELS.single}</option>
                 <option value="poll" disabled={!pollsAllowed && counter.mode !== 'poll'}>
@@ -169,7 +169,7 @@ export function CounterDetails({
       {violations.length > 0 && (
         <Callout
           tone="pro"
-          title="Dieses Element braucht FlagCount Pro"
+          title="Dieses Element braucht Audience Live Pro"
           actions={
             <Button size="sm" onClick={onShowLicense}>
               Lizenz & Konto

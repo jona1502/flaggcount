@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/site';
 
 export const metadata = pageMetadata({
   title: 'Datenschutz',
-  description: 'Welche Daten FlagCount, die Website und FlagCount Pro verarbeiten.',
+  description: 'Welche Daten Audience Live, die Website und Audience Live Pro verarbeiten.',
   path: '/datenschutz'
 });
 
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
         <h2>Desktop-App</h2>
         <p>
           Die App verbindet sich mit dem TikTok-Live, das du eingibst, und zählt Stimmen lokal auf deinem Computer. Chatnachrichten und
-          Zuschauernamen werden nicht an FlagCount übertragen. Nutzt du das Online-Overlay, überträgt die App nur Zählerstand, Ziel und
+          Zuschauernamen werden nicht an Audience Live übertragen. Nutzt du das Online-Overlay, überträgt die App nur Zählerstand, Ziel und
           Darstellung. Für Updates fragt die App die neueste Version bei GitHub ab.
         </p>
 
@@ -37,10 +37,10 @@ export default function PrivacyPage() {
           Trägst du dich in die Warteliste ein, speichern wir deine E-Mail-Adresse auf Grundlage deiner Einwilligung, bis du dich austrägst.
         </p>
 
-        <h2>FlagCount Pro</h2>
+        <h2>Audience Live Pro</h2>
         <p>
           Bezahlung, Belege, Kundenportal und Steuerberechnung übernimmt Stripe. Stripe verarbeitet dafür Name, E-Mail-Adresse, Rechnungsadresse
-          und Zahlungsdaten. FlagCount speichert für die Lizenz nur Kennungen des Stripe-Kunden und Abos, den Abo-Status und das Ende der
+          und Zahlungsdaten. Audience Live speichert für die Lizenz nur Kennungen des Stripe-Kunden und Abos, den Abo-Status und das Ende der
           bezahlten Periode, den Hash des Aktivierungscodes sowie pseudonyme Kennungen der aktivierten Computer mit Aktivierungszeit und letztem
           Kontakt. Die E-Mail-Adresse wird nur zum Versand des Aktivierungscodes bei Stripe abgefragt und über [E-Mail-Anbieter] versendet.
           Rechtsgrundlage ist die Erfüllung des Vertrags.

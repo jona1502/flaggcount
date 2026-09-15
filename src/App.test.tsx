@@ -92,7 +92,7 @@ describe('App with the Tauri backend', () => {
     await user.click(screen.getByRole('button', { name: 'Nach Updates suchen' }));
 
     expect(commands()).toContain('plugin:updater|check');
-    expect(await screen.findByText('FlagCount ist aktuell.')).toBeTruthy();
+    expect(await screen.findByText('Audience Live ist aktuell.')).toBeTruthy();
   });
 
   it('sends every dashboard action as the matching Tauri command', async () => {
@@ -174,7 +174,7 @@ describe('App with the Tauri backend', () => {
   });
 });
 
-describe('FlagCount Pro in the Tauri app', () => {
+describe('Audience Live Pro in the Tauri app', () => {
   it('activates a license and opens the Pro page from the license area', async () => {
     const user = await renderApp();
 
