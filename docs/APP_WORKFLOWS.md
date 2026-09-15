@@ -7,6 +7,7 @@ Dieses Dokument beschreibt die neu gestaltete Desktop-App unter `src/`: wo welch
 | Bereich | Inhalt | Primäraktion |
 | --- | --- | --- |
 | Übersicht | Startseite: LIVE-Verbindung solange getrennt, offene Einrichtungsschritte (Element, Overlay, Lizenzstatus), alle laufenden Elemente, manuelle Stimmen, Ziele, Reset je Element und für alle | Verbinden, Live-Aktion |
+| Live-Ansicht | Live-URL, Bühne mit echter Overlay-Darstellung, Szenen erstellen, bearbeiten, duplizieren, löschen und live schalten, Live-Overlay ausblenden | Live schalten |
 | Zähler & Abstimmungen | Liste und Detailansicht der Elemente des laufenden Profils, Assistent „Neues Element“ | Neues Element |
 | Overlays | Overlay je Element und Gesamtansicht, Design, URLs, Einrichtungsanleitung | Overlay einrichten |
 | Profile | Profile anlegen, wechseln, umbenennen, duplizieren, löschen | Neues Profil |
@@ -46,8 +47,11 @@ Nach Aktivieren oder Aktualisieren sendet das Backend den neuen Zustand; die Obe
 | Erstes Element, einfacher Zähler | `/overlay` (unverändert seit 0.2) | bisherige öffentliche URL | eigenes |
 | Weitere Elemente und Abstimmungen | `/overlay/counter/<id>` | `counterOverlayUrls[<id>]` | eigenes |
 | Gesamtansicht (Pro) | `/overlay/all` | `counterOverlayUrls.all` | festes Raster aus den Designs der Elemente |
+| Live-Overlay | `/overlay/live` | `counterOverlayUrls.live` | die Szene aus `liveSceneId`, leer bei `liveHidden`, sonst die automatische Szene |
+| Szene (Pro) | `/overlay/view/<id>` | `counterOverlayUrls[<id>]` | Einträge mit eigener Größe, Layout, Position; Größe bezogen auf 1280 × 720 |
+| Vorschau der App | `/overlay/preview` | – | leer; die App schickt ungespeicherte Szenen per `postMessage` |
 
-Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für das gewählte Element gespeichert. Der Befehl prüft Premium-Vorlagen und Branding wie `set_overlay_settings`, das für das Browser-Dashboard und ältere Aufrufer bestehen bleibt. Das gespeicherte Schema ändert sich nicht, eine Migration ist nicht nötig.
+Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für das gewählte Element gespeichert. Der Befehl prüft Premium-Vorlagen und Branding wie `set_overlay_settings`, das für das Browser-Dashboard und ältere Aufrufer bestehen bleibt. Szenen speichern seit Schema 5 Einträge (`items`) mit eigener ID und Größe, sodass dasselbe Element mehrfach vorkommen darf. Ansichten aus Schema 4 werden beim Laden zu `i-1`, `i-2`, … migriert (Backup `settings.v4.backup.json`). `set_live_scene(sceneId)` und `set_live_hidden(hidden)` steuern das Live-Overlay unter `/overlay/live`, ohne dass OBS die Quelle wechselt. Die Online-Live-URL setzt einen Web-Server voraus, der den Relay-Scope `live` kennt.
 
 ## Automatisierte Abdeckung
 
@@ -59,6 +63,7 @@ Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für
 - `src/overlays/overlayTargets.test.ts`, `src/pages/OverlaysPage.test.tsx`, `src-tauri/tests/ipc_commands.rs` – URLs und Design je Element
 - `src/pages/ProfilesPage.test.tsx`, `src/pages/HistoryPage.test.tsx`, `src/pages/LicensePage.test.tsx`
 - `src/app-shell/accessibility.test.tsx` – Seitentitel, benannte Bedienelemente, eindeutige IDs und gültige ARIA-Verweise auf allen Seiten
+- `src/pages/LiveViewPage.test.tsx`, `sidecar/src/app.test.ts`, `sidecar/src/overlay/boardAssets.test.ts`, `src-tauri/src/overlay_views.rs` – Szenen, Live-Umschaltung, Vorschau und Rendering
 - `src/workflows.test.tsx` – Free-Stream, Pro-Aktivierung bis zum eigenen Overlay, Downgrade, Profile, Historie gegen die Tauri-Mocks
 
 ## Manuelle Abnahme vor einem Release
@@ -73,6 +78,7 @@ Diese Schritte brauchen die echte App, einen TikTok-LIVE bzw. Testevents und ein
 - [ ] Einen zweiten parallelen Zähler erstellen.
 - [ ] Für beide unterschiedliche Farben, Vorlagen und URLs konfigurieren.
 - [ ] Beide Einzel-Overlays und die Gesamtansicht im Browser und in OBS prüfen.
+- [ ] Live-URL einmal in OBS einrichten, Szenen „Abstimmung + Emoji-Ziel“ und „gleiches Element zweimal“ erstellen und live umschalten, ohne die OBS-Quelle zu ändern; Overlay aus- und einblenden.
 - [ ] Stimmen manuell und über Chat bzw. Testevents auslösen.
 - [ ] Einzelne und alle Runden zurücksetzen.
 - [ ] Historie prüfen und CSV exportieren; die Datei enthält keine Zuschauer- oder Chatdaten.

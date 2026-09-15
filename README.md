@@ -9,6 +9,7 @@ Alle Bereiche erreichst du über die Seitenleiste, gruppiert nach **Stream**, **
 | Bereich | Wofür |
 | --- | --- |
 | Übersicht | Startseite: LIVE-Verbindung, offene Einrichtungsschritte und alle laufenden Zähler und Abstimmungen mit manuellen Korrekturen, Zielen und Reset |
+| Live-Ansicht | Eine feste Live-URL für OBS und TikTok LIVE Studio, Bühne mit der echten Overlay-Darstellung, Szenen zusammenstellen und mit einem Klick live schalten |
 | Zähler & Abstimmungen | Elemente mit dem Assistenten **Neues Element** anlegen, bearbeiten, duplizieren, sortieren und löschen |
 | Overlays | Ein Overlay pro Element und die Gesamtansicht: Design, lokale und Online-URL, Einrichtungsanleitung |
 | Profile | Stream-Profile anlegen, wechseln, umbenennen, duplizieren und löschen |
@@ -41,6 +42,16 @@ Benutzername, Profile, Zähler, Ziele und Overlay-Designs bleiben nach einem Neu
 Weitere Abläufe, Lizenzzustände und die Abnahme-Checkliste beschreibt [docs/APP_WORKFLOWS.md](docs/APP_WORKFLOWS.md).
 
 ## Streaming-Overlay einrichten
+
+### Live-URL und Szenen
+
+1. **Live-Ansicht** öffnen und die **Lokale Live-URL** (`http://127.0.0.1:3847/overlay/live`) oder mit Pro die **Online-Live-URL** kopieren.
+2. Die URL einmal in OBS als **Browser**-Quelle mit **1280 × 720** einfügen beziehungsweise in TikTok LIVE Studio als Link-Quelle. Mehr ist in OBS nicht nötig.
+3. Mit Pro unter **Neue Szene** Elemente zusammenstellen: eine Abstimmung und das Emoji-Ziel nebeneinander, zwei Abstimmungen oder dasselbe Element zweimal in unterschiedlicher Größe. Layout, Position im Bild, Gesamtgröße und Abstand legst du in der Szene fest. Die Bühne zeigt schon vor dem Speichern genau, was im Stream erscheint.
+4. **Live** auf einer Szenen-Karte schaltet die Szene sofort in den Stream, ohne OBS anzufassen. **Overlay ausblenden** blendet das Live-Overlay aus. Beides geht während des Streams auch in der **Übersicht** unter **Im Live**.
+5. Ohne eigene Szene zeigt die Live-URL die Szene **Automatisch** mit allen laufenden Elementen, in Audience Live Free das Free-Element.
+
+### Einzelne Overlays
 
 1. **Overlays** öffnen und das Element wählen. Jedes Element hat ein eigenes Overlay; mit Pro gibt es zusätzlich die **Gesamtansicht** aller Elemente.
 2. **Lokale URL kopieren** (für OBS auf diesem PC) oder **Online-URL kopieren** (für TikTok LIVE Studio und andere Geräte) klicken. Das erste Element behält die bekannte Adresse `http://127.0.0.1:3847/overlay`; weitere Elemente nutzen `…/overlay/counter/<id>`, die Gesamtansicht `…/overlay/all`.
