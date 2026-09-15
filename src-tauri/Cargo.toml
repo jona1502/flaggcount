@@ -26,8 +26,14 @@ tauri-plugin-store = "2.4"
 tauri = { version = "2.11", features = ["test"] }
 
 [target.'cfg(windows)'.dependencies]
-# The activation secret of FlagCount Pro lives in the Windows Credential Manager.
 keyring = { version = "3.6", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Persistent Secret Service storage plus Linux kernel keyutils; never a plaintext fallback.
+keyring = { version = "3.6", features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

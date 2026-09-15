@@ -149,10 +149,10 @@ pub trait SecretStore: Send + Sync {
     fn delete(&self, installation_id: &str) -> Result<(), ()>;
 }
 
-/// The Windows Credential Manager.
+/// Native credential store: Windows Credential Manager, macOS Keychain or Linux Secret Service.
 pub struct SystemSecretStore;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 impl SecretStore for SystemSecretStore {
     fn get(&self, installation_id: &str) -> Result<Option<String>, ()> {
         let entry = keyring::Entry::new(SECRET_SERVICE, installation_id).map_err(|_| ())?;
@@ -178,8 +178,7 @@ impl SecretStore for SystemSecretStore {
     }
 }
 
-/// FlagCount only ships for Windows; elsewhere Pro cannot be activated.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 impl SecretStore for SystemSecretStore {
     fn get(&self, _installation_id: &str) -> Result<Option<String>, ()> {
         Ok(None)
