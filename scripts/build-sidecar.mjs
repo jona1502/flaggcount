@@ -15,14 +15,24 @@ const SIDECAR_NAME = 'flagcount-sidecar';
 const NODE_TARGET = 'node24';
 
 const bundlePath = join(projectRoot, 'sidecar', 'dist', 'index.cjs');
-const targetTriple = execSync('rustc --print host-tuple').toString().trim();
-const extension = process.platform === 'win32' ? '.exe' : '';
+const targetIndex = process.argv.indexOf('--target');
+const requestedTarget = targetIndex >= 0 ? process.argv[targetIndex + 1] : undefined;
+if (targetIndex >= 0 && !requestedTarget) throw new Error('--target requires a Rust target triple');
+const targetTriple = requestedTarget ?? execSync('rustc --print host-tuple').toString().trim();
+const TARGETS = {
+  'x86_64-pc-windows-msvc': { platform: 'win', arch: 'x64', extension: '.exe' },
+  'aarch64-pc-windows-msvc': { platform: 'win', arch: 'arm64', extension: '.exe' },
+  'x86_64-apple-darwin': { platform: 'macos', arch: 'x64', extension: '' },
+  'aarch64-apple-darwin': { platform: 'macos', arch: 'arm64', extension: '' },
+  'x86_64-unknown-linux-gnu': { platform: 'linux', arch: 'x64', extension: '' },
+  'aarch64-unknown-linux-gnu': { platform: 'linux', arch: 'arm64', extension: '' }
+};
+const selected = TARGETS[targetTriple];
+if (!selected) throw new Error(`Unsupported Rust target: ${targetTriple}`);
+const extension = selected.extension;
 const outputPath = join(projectRoot, 'src-tauri', 'binaries', `${SIDECAR_NAME}-${targetTriple}${extension}`);
 
-const pkgPlatform = { win32: 'win', darwin: 'macos', linux: 'linux' }[process.platform];
-if (!pkgPlatform) {
-  throw new Error(`Unsupported platform: ${process.platform}`);
-}
+const pkgPlatform = selected.platform;
 
 function newestModifiedTime(path) {
   const stat = statSync(path);
@@ -51,7 +61,7 @@ if (process.argv.includes('--if-needed')) {
 await build({
   // esbuild captures the working directory when it is imported, before the chdir above.
   absWorkingDir: projectRoot,
-  entryPoints: ['./sidecar/src/index.ts'],
+  entryPoints: [join(projectRoot, 'sidecar', 'src', 'index.ts')],
   outfile: bundlePath,
   bundle: true,
   platform: 'node',
@@ -64,7 +74,7 @@ mkdirSync('src-tauri/binaries', { recursive: true });
 
 execFileSync(
   process.execPath,
-  [pkgCli, bundlePath, '--targets', `${NODE_TARGET}-${pkgPlatform}-${process.arch}`, '--output', outputPath],
+  [pkgCli, bundlePath, '--targets', `${NODE_TARGET}-${pkgPlatform}-${selected.arch}`, '--output', outputPath],
   { stdio: 'inherit' }
 );
 
