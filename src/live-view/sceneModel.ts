@@ -42,6 +42,26 @@ export function nextItemId(items: readonly OverlaySceneItem[]): string {
   return `i-${highest + 1}`;
 }
 
+/** Hides or shows one entry. A shown entry carries no flag, exactly like the stored scene. */
+export function toggleItem(items: readonly OverlaySceneItem[], id: string): OverlaySceneItem[] {
+  return items.map((item) => {
+    if (item.id !== id) return item;
+    if (!item.hidden) return { ...item, hidden: true };
+    const { hidden: _hidden, ...shown } = item;
+    return shown;
+  });
+}
+
+/** Moves one entry up or down; at either end nothing changes. */
+export function moveItem<Item extends { id: string }>(items: readonly Item[], id: string, offset: -1 | 1): Item[] {
+  const from = items.findIndex((item) => item.id === id);
+  const to = from + offset;
+  if (from < 0 || to < 0 || to >= items.length) return [...items];
+  const moved = [...items];
+  [moved[from], moved[to]] = [moved[to] as Item, moved[from] as Item];
+  return moved;
+}
+
 /** Counters without a running round yet still show up in the preview, at zero. */
 function withEmptyRounds(snapshots: readonly CounterSnapshot[], counters: readonly CounterDefinition[]): CounterSnapshot[] {
   return counters.map(
@@ -61,7 +81,7 @@ function withEmptyRounds(snapshots: readonly CounterSnapshot[], counters: readon
 
 /**
  * The board of a scene, built exactly like the sidecar builds it for `/overlay/live`. Without a draft it is
- * the automatic scene: every counter below each other, or only the first one on Free.
+ * the automatic scene: every counter below each other, or only the first one on Free. Hidden entries stay out.
  */
 export function sceneBoard(
   draft: SceneDraft | null,
@@ -78,7 +98,7 @@ export function sceneBoard(
   }
   return {
     counters: draft.items.flatMap((item) => {
-      const view = views.find((candidate) => candidate.counterId === item.counterId);
+      const view = item.hidden ? undefined : views.find((candidate) => candidate.counterId === item.counterId);
       return view ? [{ ...view, itemId: item.id, itemScale: item.scale }] : [];
     }),
     layout: {

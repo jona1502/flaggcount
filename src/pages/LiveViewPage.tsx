@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { canUse } from '../../shared/entitlements';
-import { AUTO_SCENE_ID, MAX_OVERLAY_VIEWS } from '../../shared/profiles';
+import { DEFAULT_BOARD_LAYOUT } from '../../shared/overlayBoard';
+import { AUTO_SCENE_ID, MAX_OVERLAY_VIEWS, type OverlaySceneItem } from '../../shared/profiles';
 import { PageHeader } from '../app-shell/PageHeader';
 import { Button, Card, ConfirmDialog, IconPlus, ProHint, useToast } from '../components/ui';
+import { COUNTER_TYPE_LABELS } from '../counters/counterText';
 import { LiveStage, type StageState } from '../live-view/LiveStage';
 import { SceneEditor } from '../live-view/SceneEditor';
+import { SceneItemList } from '../live-view/SceneItemList';
 import { SceneStrip, type SceneCard } from '../live-view/SceneStrip';
-import { draftOf, inputOf, newSceneDraft, sameScene, sceneBoard, type SceneDraft } from '../live-view/sceneModel';
+import { draftOf, inputOf, moveItem, newSceneDraft, sameScene, sceneBoard, toggleItem, type SceneDraft } from '../live-view/sceneModel';
 import { OverlayUrlField } from '../overlays/OverlayUrlField';
 import type { PageProps } from './types';
 
@@ -15,7 +18,7 @@ import type { PageProps } from './types';
  * live with one click and an editor for their entries and arrangement.
  */
 export function LiveViewPage({ model, route, pending, actions, navigate, onCopyText, onUnsavedChanges }: PageProps): React.JSX.Element {
-  const { state, entitlements, running, isPro } = model;
+  const { state, entitlements, running, runningCounters, isPro } = model;
   const scenesAllowed = canUse(entitlements, 'parallel-counters');
   const scenes = scenesAllowed ? running.overlayViews : [];
   const liveId = scenesAllowed ? running.liveSceneId : AUTO_SCENE_ID;
@@ -58,6 +61,33 @@ export function LiveViewPage({ model, route, pending, actions, navigate, onCopyT
   const startNew = (): void => {
     setSelectedId('');
     setDraft(newSceneDraft(running.counters, scenes.length + 1));
+  };
+
+  // The automatic scene lists every running element. Hiding or moving one keeps that choice as the scene
+  // "Alle Elemente", which takes over the live overlay if the automatic scene was live.
+  const automaticItems: OverlaySceneItem[] = (scenesAllowed ? runningCounters : runningCounters.slice(0, 1)).map((counter, index) => ({
+    id: `i-${index + 1}`,
+    counterId: counter.id,
+    scale: 100
+  }));
+  const customizeAutomatic = (items: OverlaySceneItem[]): void => {
+    const wasLive = liveId === AUTO_SCENE_ID;
+    void actions
+      .createOverlayView({
+        name: 'Alle Elemente',
+        items,
+        layout: 'vertical',
+        gap: DEFAULT_BOARD_LAYOUT.gap,
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+        scale: DEFAULT_BOARD_LAYOUT.scale
+      })
+      .then((id) => {
+        if (!id) return;
+        setSelectedId(id);
+        toast({ title: '„Alle Elemente“ als Szene gespeichert' });
+        if (wasLive) void actions.setLiveScene(id);
+      });
   };
 
   const save = (): void => {
@@ -186,6 +216,7 @@ export function LiveViewPage({ model, route, pending, actions, navigate, onCopyT
               dirty={dirty}
               pending={pending}
               onChange={setDraft}
+              onQuickItems={draft.id && !dirty ? (items) => void actions.updateOverlayView(draft.id as string, inputOf({ ...draft, items })) : undefined}
               onSave={save}
               onDiscard={() => (draft.id && saved ? setDraft(draftOf(saved)) : select(liveId))}
               onDuplicate={
@@ -199,7 +230,24 @@ export function LiveViewPage({ model, route, pending, actions, navigate, onCopyT
               onDelete={draft.id ? () => setConfirmDelete(true) : undefined}
             />
           ) : (
-            <Card title="Automatische Szene" description="Zeigt alle laufenden Zähler und Abstimmungen untereinander, jedes mit seinem eigenen Design.">
+            <Card
+              title="Automatische Szene"
+              description={
+                scenesAllowed
+                  ? 'Zeigt alle laufenden Elemente untereinander. Blendest du eins aus oder änderst die Reihenfolge, wird daraus die Szene „Alle Elemente“.'
+                  : 'Zeigt dein Free-Element.'
+              }
+            >
+              <SceneItemList
+                rows={automaticItems.map((item) => {
+                  const counter = runningCounters.find((candidate) => candidate.id === item.counterId);
+                  return { id: item.id, label: counter?.name ?? '', detail: counter ? COUNTER_TYPE_LABELS[counter.mode] : '', hidden: false };
+                })}
+                disabled={!canCreate || pending}
+                onToggle={(id) => customizeAutomatic(toggleItem(automaticItems, id))}
+                onMove={(id, offset) => customizeAutomatic(moveItem(automaticItems, id, offset))}
+              />
+              {scenesAllowed && !canCreate && <p className="ui-field-hint">Alle {MAX_OVERLAY_VIEWS} Szenen sind belegt.</p>}
               {scenesAllowed ? (
                 <div className="card-row">
                   <Button icon={IconPlus} disabled={!canCreate || pending} onClick={startNew}>

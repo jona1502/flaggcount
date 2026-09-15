@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '../../shared/appState';
 import { createRedFlagCounter, type OverlayView, type StreamProfile } from '../../shared/profiles';
 import { Dashboard } from '../dashboard/Dashboard';
@@ -107,6 +107,57 @@ describe('Live-Ansicht', () => {
     await user.click(screen.getByRole('button', { name: 'Team-Wahl entfernen' }));
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(actions.updateOverlayView).toHaveBeenCalledWith('v-main', expect.objectContaining({ items: [{ id: 'i-2', counterId: 'red-flags', scale: 60 }] }));
+  });
+
+  it('hides an element of a saved scene and changes the order right away', async () => {
+    const { actions, user, open } = renderLiveView(proState({ overlayViews: [scene], liveSceneId: 'v-main' }));
+    await open();
+
+    await user.click(screen.getByRole('button', { name: 'Rote Flaggen ausblenden' }));
+    expect(actions.updateOverlayView).toHaveBeenLastCalledWith(
+      'v-main',
+      expect.objectContaining({
+        items: [
+          { id: 'i-1', counterId: 'teams', scale: 100 },
+          { id: 'i-2', counterId: 'red-flags', scale: 60, hidden: true }
+        ]
+      })
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Rote Flaggen nach oben' }));
+    expect(actions.updateOverlayView).toHaveBeenLastCalledWith(
+      'v-main',
+      expect.objectContaining({
+        items: [
+          { id: 'i-2', counterId: 'red-flags', scale: 60 },
+          { id: 'i-1', counterId: 'teams', scale: 100 }
+        ]
+      })
+    );
+    expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('lists every running element of the automatic scene and keeps a change as a live scene', async () => {
+    const { actions, user, open } = renderLiveView(proState());
+    await open();
+
+    const card = screen.getByRole('region', { name: 'Automatische Szene' });
+    expect(within(card).getAllByRole('listitem').map((item) => item.querySelector('.scene-item-name')?.textContent)).toEqual(['Rote Flaggen', 'Team-Wahl']);
+
+    await user.click(within(card).getByRole('button', { name: 'Team-Wahl ausblenden' }));
+    expect(actions.createOverlayView).toHaveBeenCalledWith({
+      name: 'Alle Elemente',
+      items: [
+        { id: 'i-1', counterId: 'red-flags', scale: 100 },
+        { id: 'i-2', counterId: 'teams', scale: 100, hidden: true }
+      ],
+      layout: 'vertical',
+      gap: 18,
+      horizontalAlign: 'center',
+      verticalAlign: 'center',
+      scale: 92
+    });
+    await vi.waitFor(() => expect(actions.setLiveScene).toHaveBeenCalledWith('v-test'));
   });
 
   it('explains scenes as Pro and keeps the Free live URL', async () => {

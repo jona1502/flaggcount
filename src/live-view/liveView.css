@@ -296,6 +296,31 @@
   gap: var(--fc-space-2);
 }
 
+/* Elements of a scene: hidden ones stay listed but dimmed. */
+.fc-app .scene-item-text {
+  display: grid;
+  min-width: 0;
+}
+
+.fc-app .scene-item-detail {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .scene-item.is-hidden .scene-item-text {
+  opacity: 0.55;
+}
+
+.fc-app .scene-item-tools {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.fc-app .ui-card .scene-items {
+  margin-top: var(--fc-space-1);
+}
+
 /* "Im Live" on the overview */
 .fc-app .live-scene-row {
   display: flex;

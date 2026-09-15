@@ -3,17 +3,18 @@ import {
   MAX_OVERLAY_VIEW_GAP,
   MAX_OVERLAY_VIEW_SCALE,
   MAX_SCENE_ITEMS,
-  MAX_SCENE_ITEM_SCALE,
   MIN_OVERLAY_VIEW_GAP,
   MIN_OVERLAY_VIEW_SCALE,
-  MIN_SCENE_ITEM_SCALE,
   OVERLAY_LAYOUTS,
   type CounterDefinition,
   type OverlayAlignment,
-  type OverlayLayout
+  type OverlayLayout,
+  type OverlaySceneItem
 } from '../../shared/profiles';
-import { Button, Callout, Field, IconButton, IconChevronDown, IconChevronUp, IconPlus, IconTrash, Input, Select, cx } from '../components/ui';
-import { nextItemId, type SceneDraft } from './sceneModel';
+import { Button, Callout, Field, IconPlus, Input, Select, cx } from '../components/ui';
+import { COUNTER_TYPE_LABELS } from '../counters/counterText';
+import { SceneItemList } from './SceneItemList';
+import { moveItem, nextItemId, toggleItem, type SceneDraft } from './sceneModel';
 
 const LAYOUT_LABELS: Record<OverlayLayout, string> = {
   auto: 'Automatisch',
@@ -45,13 +46,15 @@ type SceneEditorProps = {
   dirty: boolean;
   pending: boolean;
   onChange: (draft: SceneDraft) => void;
+  /** Set while the saved scene has no other unsaved changes: showing, hiding and order then apply at once. */
+  onQuickItems?: (items: OverlaySceneItem[]) => void;
   onSave: () => void;
   onDiscard: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
 };
 
-/** Entries, arrangement and size of one scene. Changes only reach the stream after saving. */
+/** Entries, arrangement and size of one scene. Names, sizes and layout reach the stream after saving. */
 export function SceneEditor({
   draft,
   counters,
@@ -59,6 +62,7 @@ export function SceneEditor({
   dirty,
   pending,
   onChange,
+  onQuickItems,
   onSave,
   onDiscard,
   onDuplicate,
@@ -67,20 +71,16 @@ export function SceneEditor({
   const fieldId = useId();
   const [adding, setAdding] = useState(counters[0]?.id ?? '');
   const update = (patch: Partial<SceneDraft>): void => onChange({ ...draft, ...patch });
-  const nameOf = (counterId: string): string => counters.find((counter) => counter.id === counterId)?.name ?? 'Unbekanntes Element';
+  // Showing, hiding and moving elements are live controls: they apply at once unless other changes wait.
+  const changeOrder = (items: OverlaySceneItem[]): void => (onQuickItems ? onQuickItems(items) : update({ items }));
+  const counterOf = (counterId: string): CounterDefinition | undefined => counters.find((counter) => counter.id === counterId);
   // Entries of the same counter get a running number, so their controls stay distinguishable.
   const labelOf = (index: number): string => {
     const item = draft.items[index];
     if (!item) return '';
+    const name = counterOf(item.counterId)?.name ?? 'Unbekanntes Element';
     const same = draft.items.filter((candidate) => candidate.counterId === item.counterId);
-    return same.length > 1 ? `${nameOf(item.counterId)} (${same.indexOf(item) + 1})` : nameOf(item.counterId);
-  };
-  const move = (index: number, offset: -1 | 1): void => {
-    const items = [...draft.items];
-    const target = index + offset;
-    if (target < 0 || target >= items.length) return;
-    [items[index], items[target]] = [items[target]!, items[index]!];
-    update({ items });
+    return same.length > 1 ? `${name} (${same.indexOf(item) + 1})` : name;
   };
   const nameError = draft.name.trim() ? null : 'Bitte gib der Szene einen Namen.';
   const full = draft.items.length >= MAX_SCENE_ITEMS;
@@ -120,50 +120,28 @@ export function SceneEditor({
 
       <fieldset className="scene-editor-group">
         <legend>Elemente</legend>
-        <ol className="scene-items">
-          {draft.items.map((item, index) => {
-            const label = labelOf(index);
-            return (
-              <li key={item.id} className="scene-item">
-                <span className="scene-item-name">{label}</span>
-                <div className="scene-item-tools">
-                  <IconButton size="sm" icon={IconChevronUp} label={`${label} nach oben`} disabled={index === 0} onClick={() => move(index, -1)} />
-                  <IconButton
-                    size="sm"
-                    icon={IconChevronDown}
-                    label={`${label} nach unten`}
-                    disabled={index === draft.items.length - 1}
-                    onClick={() => move(index, 1)}
-                  />
-                  <IconButton
-                    size="sm"
-                    variant="danger-outline"
-                    icon={IconTrash}
-                    label={`${label} entfernen`}
-                    disabled={draft.items.length === 1}
-                    onClick={() => update({ items: draft.items.filter((candidate) => candidate.id !== item.id) })}
-                  />
-                </div>
-                <label className="scene-item-size">
-                  <span className="visually-hidden">Größe von {label}</span>
-                  <input
-                    type="range"
-                    min={MIN_SCENE_ITEM_SCALE}
-                    max={MAX_SCENE_ITEM_SCALE}
-                    step={10}
-                    value={item.scale}
-                    onChange={(event) =>
-                      update({ items: draft.items.map((candidate) => (candidate.id === item.id ? { ...candidate, scale: Number(event.target.value) } : candidate)) })
-                    }
-                  />
-                  <span className="scene-range-value" aria-hidden="true">
-                    {item.scale} %
-                  </span>
-                </label>
-              </li>
-            );
+        <SceneItemList
+          rows={draft.items.map((item, index) => {
+            const counter = counterOf(item.counterId);
+            return {
+              id: item.id,
+              label: labelOf(index),
+              detail: counter ? COUNTER_TYPE_LABELS[counter.mode] : '',
+              hidden: item.hidden === true,
+              scale: item.scale
+            };
           })}
-        </ol>
+          disabled={pending}
+          onToggle={(id) => changeOrder(toggleItem(draft.items, id))}
+          onMove={(id, offset) => changeOrder(moveItem(draft.items, id, offset))}
+          onRemove={(id) => update({ items: draft.items.filter((item) => item.id !== id) })}
+          onScale={(id, scale) => update({ items: draft.items.map((item) => (item.id === id ? { ...item, scale } : item)) })}
+        />
+        <p className="ui-field-hint">
+          {onQuickItems
+            ? 'Ein- und Ausblenden und die Reihenfolge wirken sofort im Stream.'
+            : 'Ein- und Ausblenden und die Reihenfolge werden mit dem Speichern übernommen.'}
+        </p>
         <div className="scene-add">
           <Field id={`${fieldId}-add`} label="Element hinzufügen" hint="Dasselbe Element darf mehrmals vorkommen, zum Beispiel groß und klein.">
             <Select value={adding} onChange={(event) => setAdding(event.target.value)}>
