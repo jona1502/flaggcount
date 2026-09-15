@@ -6,10 +6,11 @@ import {
   IconOverlays,
   IconProfiles,
   IconSettings,
+  IconStage,
   type IconComponent
 } from '../components/ui';
 
-export type PageId = 'live' | 'counters' | 'overlays' | 'profiles' | 'history' | 'license' | 'settings';
+export type PageId = 'live' | 'stage' | 'counters' | 'overlays' | 'profiles' | 'history' | 'license' | 'settings';
 
 /**
  * A place inside the app. Optional details are deep links, e.g. from a callout straight into the
@@ -17,6 +18,7 @@ export type PageId = 'live' | 'counters' | 'overlays' | 'profiles' | 'history' |
  */
 export type Route =
   | { page: 'live' }
+  | { page: 'stage'; sceneId?: string }
   | { page: 'counters'; counterId?: string; create?: boolean }
   | { page: 'overlays'; target?: string }
   | { page: 'profiles' }
@@ -34,6 +36,7 @@ export type PageDescription = {
 
 export const PAGES: Record<PageId, PageDescription> = {
   live: { id: 'live', label: 'Übersicht', icon: IconLive },
+  stage: { id: 'stage', label: 'Live-Ansicht', icon: IconStage },
   counters: { id: 'counters', label: 'Zähler & Abstimmungen', icon: IconCounters },
   overlays: { id: 'overlays', label: 'Overlays', icon: IconOverlays },
   profiles: { id: 'profiles', label: 'Profile', icon: IconProfiles },
@@ -50,7 +53,7 @@ export type NavGroup = {
 
 /** Streaming comes first; setting up and the account stay apart, so the overview never drowns in forms. */
 export const NAV_GROUPS: readonly NavGroup[] = [
-  { id: 'stream', label: 'Stream', pages: ['live'] },
+  { id: 'stream', label: 'Stream', pages: ['live', 'stage'] },
   { id: 'setup', label: 'Einrichten', pages: ['counters', 'overlays', 'profiles'] },
   { id: 'account', label: 'Konto', pages: ['history', 'license', 'settings'] }
 ];

@@ -44,29 +44,13 @@ const editorTitle = () => document.getElementById('overlay-editor-title')?.textC
 const urlOf = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).value;
 
 describe('Overlays', () => {
-  it('creates a combined view from multiple elements with an accessible order and layout', async () => {
-    const { actions, user, openPage } = renderOverlays(proState());
+  it('leads scenes to the live view', async () => {
+    const { user, openPage } = renderOverlays(proState());
     await openPage('Overlays');
 
-    await user.click(screen.getByRole('button', { name: 'Neue Overlay-Ansicht' }));
-    const dialog = screen.getByRole('dialog', { name: 'Neue Overlay-Ansicht' });
-    await user.type(within(dialog).getByLabelText('Name'), 'Hauptszene');
-    await user.click(within(dialog).getByRole('checkbox', { name: /Team-Wahl/ }));
-    await user.selectOptions(within(dialog).getByLabelText('Layout'), 'horizontal');
-    await user.click(within(dialog).getByRole('button', { name: 'Ansicht erstellen' }));
+    await user.click(screen.getByRole('button', { name: 'Live-Ansicht öffnen' }));
 
-    expect(actions.createOverlayView).toHaveBeenCalledWith({
-      name: 'Hauptszene',
-      items: [
-        { id: 'i-1', counterId: 'red-flags', scale: 100 },
-        { id: 'i-2', counterId: 'teams', scale: 100 }
-      ],
-      layout: 'horizontal',
-      gap: 18,
-      horizontalAlign: 'center',
-      verticalAlign: 'center',
-      scale: 92
-    });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Live-Ansicht');
   });
 
   it('offers an overlay for every element and the combined view with matching URLs', async () => {

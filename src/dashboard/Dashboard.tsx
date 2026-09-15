@@ -9,6 +9,7 @@ import { CountersPage } from '../pages/CountersPage';
 import { HistoryPage } from '../pages/HistoryPage';
 import { LicensePage } from '../pages/LicensePage';
 import { LivePage } from '../pages/LivePage';
+import { LiveViewPage } from '../pages/LiveViewPage';
 import { OverlaysPage } from '../pages/OverlaysPage';
 import { ProfilesPage } from '../pages/ProfilesPage';
 import { SettingsPage } from '../pages/SettingsPage';
@@ -85,6 +86,8 @@ export function Dashboard({
     switch (props.route.page) {
       case 'live':
         return <LivePage {...props} />;
+      case 'stage':
+        return <LiveViewPage {...props} />;
       case 'counters':
         return <CountersPage {...props} />;
       case 'overlays':

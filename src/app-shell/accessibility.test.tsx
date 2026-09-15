@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AppState } from '../../shared/appState';
-import { createRedFlagCounter } from '../../shared/profiles';
+import { createRedFlagCounter, type Settings } from '../../shared/profiles';
 import { Dashboard } from '../dashboard/Dashboard';
 import { LICENSES, PUBLIC_OVERLAY_URL, createActions, createAppState, createSettings, historyRound, teamPoll } from '../test/appStateFixtures';
 
@@ -40,7 +40,27 @@ function expectAccessible(context: string): void {
   }
 }
 
-const PAGES = ['Übersicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
+/** A saved scene that shows the red flags twice, so the scene editor is part of the sweep. */
+function withScene(settings: Settings): Settings {
+  const scene = {
+    id: 'v-main',
+    name: 'Doppelt',
+    items: [
+      { id: 'i-1', counterId: 'red-flags', scale: 120 },
+      { id: 'i-2', counterId: 'red-flags', scale: 60 }
+    ],
+    layout: 'horizontal' as const,
+    gap: 24,
+    horizontalAlign: 'center' as const,
+    verticalAlign: 'end' as const,
+    scale: 70,
+    createdAt: '2026-09-15T00:00:00.000Z',
+    updatedAt: '2026-09-15T00:00:00.000Z'
+  };
+  return { ...settings, profiles: settings.profiles.map((profile) => ({ ...profile, overlayViews: [scene], liveSceneId: 'v-main' })) };
+}
+
+const PAGES = ['Übersicht', 'Live-Ansicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
 
 function renderApp(state: AppState, desktop = true) {
   render(
@@ -69,7 +89,7 @@ describe('Accessibility of every page', () => {
       'Pro with parallel elements and history',
       createAppState({
         license: LICENSES.pro,
-        settings: { ...createSettings([createRedFlagCounter(10), teamPoll()]), username: 'streamer' },
+        settings: withScene({ ...createSettings([createRedFlagCounter(10), teamPoll()]), username: 'streamer' }),
         publicOverlayUrl: PUBLIC_OVERLAY_URL,
         counterOverlayUrls: { teams: 'https://overlay.example.test/c/teams', all: 'https://overlay.example.test/c/all' },
         history: [historyRound()]

@@ -57,6 +57,13 @@ export const IconPoll = createIcon(
   </>
 );
 export const IconOverlays = createIcon('overlays', <path d="m12 2-10 5 10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5" />);
+export const IconStage = createIcon(
+  'stage',
+  <>
+    <rect x="2" y="4" width="20" height="13" rx="2" />
+    <path d="M8 21h8M12 17v4" />
+  </>
+);
 export const IconProfiles = createIcon(
   'profiles',
   <>

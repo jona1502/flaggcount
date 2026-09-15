@@ -9,7 +9,7 @@ import type { UpdaterController } from '../updater/useUpdater';
 
 afterEach(cleanup);
 
-const DESKTOP_PAGES = ['Übersicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
+const DESKTOP_PAGES = ['Übersicht', 'Live-Ansicht', 'Zähler & Abstimmungen', 'Overlays', 'Profile', 'Historie', 'Pro & Lizenz', 'Einstellungen'];
 
 function updaterWith(status: UpdaterController['status']): UpdaterController {
   return {

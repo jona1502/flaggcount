@@ -1,0 +1,307 @@
+/* Live view: stage, scenes and the scene editor. */
+.fc-app .live-view-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
+  align-items: start;
+  gap: var(--fc-space-5);
+}
+
+.fc-app .live-view-main {
+  display: grid;
+  gap: var(--fc-space-4);
+  min-width: 0;
+}
+
+.fc-app .live-view-side {
+  position: sticky;
+  top: 4.5rem;
+  min-width: 0;
+}
+
+/* Stage */
+.fc-app .live-stage {
+  display: grid;
+  gap: var(--fc-space-3);
+  padding: var(--fc-space-4);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+}
+
+.fc-app .live-stage[data-state='live'] {
+  border-color: color-mix(in srgb, var(--fc-success) 45%, var(--fc-border));
+}
+
+.fc-app .live-stage[data-state='hidden'] {
+  border-color: color-mix(in srgb, var(--fc-warning) 45%, var(--fc-border));
+}
+
+.fc-app .live-stage-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fc-space-3);
+}
+
+.fc-app .live-stage-eyebrow {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fc-app .live-stage-title {
+  font-size: var(--fc-text-xl);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .live-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .live-stage-frame {
+  border-radius: var(--fc-radius-md);
+}
+
+/* Scene strip */
+.fc-app .scene-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: var(--fc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .scene-card {
+  display: grid;
+  gap: var(--fc-space-2);
+  min-width: 0;
+  padding: var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface);
+}
+
+.fc-app .scene-card.is-selected {
+  border-color: color-mix(in srgb, var(--fc-accent) 60%, var(--fc-border));
+  background: linear-gradient(160deg, var(--fc-accent-soft), var(--fc-surface) 70%);
+}
+
+.fc-app .scene-card[data-live='true'] {
+  box-shadow: inset 3px 0 0 var(--fc-success);
+}
+
+.fc-app .scene-card-select {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fc-radius-sm);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fc-app .scene-card-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .scene-card-detail {
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+}
+
+.fc-app .scene-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Scene editor */
+.fc-app .scene-editor {
+  display: grid;
+  gap: var(--fc-space-4);
+  padding: var(--fc-space-4);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-lg);
+  background: var(--fc-surface);
+}
+
+.fc-app .scene-editor-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .scene-editor-title {
+  font-size: var(--fc-text-lg);
+  font-weight: 700;
+}
+
+.fc-app .scene-editor-tools,
+.fc-app .scene-editor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .scene-editor-footer {
+  justify-content: flex-end;
+  padding-top: var(--fc-space-3);
+  border-top: 1px solid var(--fc-border);
+}
+
+.fc-app .scene-editor-group {
+  display: grid;
+  gap: var(--fc-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--fc-space-2) var(--fc-space-3) var(--fc-space-3);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface-sunken);
+}
+
+.fc-app .scene-editor-group legend {
+  padding: 0 var(--fc-space-1);
+  color: var(--fc-text-muted);
+  font-size: var(--fc-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fc-app .scene-items {
+  display: grid;
+  gap: var(--fc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fc-app .scene-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--fc-space-1) var(--fc-space-2);
+  padding: var(--fc-space-2);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+}
+
+.fc-app .scene-item-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fc-app .scene-item-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.fc-app .scene-item-size {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .scene-item-size input,
+.fc-app .scene-range input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--fc-accent);
+}
+
+.fc-app .scene-range-value {
+  min-width: 3rem;
+  color: var(--fc-text-subtle);
+  font-size: var(--fc-text-xs);
+  text-align: right;
+}
+
+.fc-app .scene-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--fc-space-2);
+}
+
+.fc-app .scene-add .ui-field {
+  flex: 1 1 10rem;
+}
+
+.fc-app .scene-add > .ui-button {
+  margin-top: 1.55rem;
+}
+
+.fc-app .scene-position-field {
+  display: grid;
+  gap: var(--fc-space-1);
+}
+
+.fc-app .scene-position {
+  display: grid;
+  grid-template-columns: repeat(3, 2.5rem);
+  gap: 4px;
+}
+
+.fc-app .scene-position-cell {
+  display: grid;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid var(--fc-border-strong);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  cursor: pointer;
+}
+
+.fc-app .scene-position-cell span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  background: var(--fc-border-strong);
+}
+
+.fc-app .scene-position-cell.is-checked {
+  border-color: var(--fc-accent);
+  background: var(--fc-accent-soft);
+}
+
+.fc-app .scene-position-cell.is-checked span {
+  background: var(--fc-accent-text);
+}
+
+.fc-app .scene-range {
+  display: grid;
+  gap: var(--fc-space-1);
+  font-size: var(--fc-text-sm);
+  font-weight: 600;
+}
+
+.fc-app .scene-range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fc-space-2);
+}
+
+@media (max-width: 1100px) {
+  .fc-app .live-view-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fc-app .live-view-side {
+    position: static;
+  }
+}
