@@ -32,8 +32,9 @@
   gap: var(--fc-space-4);
 }
 
+/* A single element spans the page, aligned with the connection and setup cards above it. */
 .fc-app .live-grid[data-count='1'] {
-  grid-template-columns: minmax(0, 46rem);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .fc-app .live-card {
@@ -217,20 +218,25 @@
   transition: width var(--fc-duration) var(--fc-ease);
 }
 
+/* Chat chips on the left, +1 and −1 always side by side on the right. */
 .fc-app .live-option-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--fc-space-2);
 }
 
-.fc-app .live-option-actions .live-chat {
-  flex: 1 1 8rem;
+.fc-app .live-option-actions > .ui-button {
+  grid-row: 1;
+  min-width: 4.25rem;
 }
 
-.fc-app .live-option-actions .ui-button {
-  min-width: 4.25rem;
+.fc-app .live-option-actions > .ui-button:nth-last-child(2) {
+  grid-column: 2;
+}
+
+.fc-app .live-option-actions > .ui-button:last-child {
+  grid-column: 3;
 }
 
 .fc-app .live-card-tools {
