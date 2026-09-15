@@ -26,6 +26,8 @@
     "version:check": "node scripts/version.mjs --check",
     "version:set": "node scripts/version.mjs",
     "package:windows": "tauri build --bundles nsis",
+    "package:macos": "tauri build --bundles dmg",
+    "package:linux": "tauri build --bundles appimage,deb",
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p sidecar/tsconfig.json && tsc --noEmit -p sidecar/tsconfig.browser.json && tsc --noEmit -p shared/tsconfig.json && npm run typecheck -w @flagcount/web",
