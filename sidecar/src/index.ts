@@ -17,6 +17,7 @@ import { TwitchOAuthClient } from './twitch/oauth';
 import { TwitchAuthManager } from './twitch/TwitchAuthManager';
 import { TwitchLiveService } from './twitch/TwitchLiveService';
 import { createPlatformLiveService } from './live/PlatformLiveService';
+import { appPathsFromEnvironment } from './platformPaths';
 
 // stdout is reserved for protocol events; route all console output to stderr.
 const writeStdout = process.stdout.write.bind(process.stdout);
@@ -86,7 +87,8 @@ async function startRelay(app: SidecarApp): Promise<RunningRelays | null> {
 }
 
 async function main(): Promise<void> {
-  const historyStore = process.env['FLAGCOUNT_DATA_DIR'] ? new RoundHistoryStore(`${process.env['FLAGCOUNT_DATA_DIR']}\\round-history.json`) : null;
+  const paths = appPathsFromEnvironment();
+  const historyStore = paths ? new RoundHistoryStore(paths.history) : null;
   const history = historyStore ? await historyStore.load() : [];
   const twitchClientId = process.env['TWITCH_CLIENT_ID']?.trim();
   const twitchAuth = twitchClientId
@@ -130,7 +132,7 @@ async function main(): Promise<void> {
       subscribeOverlaySettings: (listener) => app.subscribeOverlaySettings(listener),
       getBoard: (scope) => app.getBoard(scope),
       subscribeBoard: (listener) => app.subscribeBoard(listener),
-      assetDirectory: process.env['FLAGCOUNT_DATA_DIR'] ? `${process.env['FLAGCOUNT_DATA_DIR']}\\overlay-assets` : undefined
+      assetDirectory: paths?.overlayAssets
     },
     DEFAULT_OVERLAY_PORT
   );
