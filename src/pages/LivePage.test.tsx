@@ -131,6 +131,34 @@ describe('Übersicht', () => {
     expect(screen.getByRole('dialog', { name: 'Neues Element' })).toBeTruthy();
   });
 
+  it('switches and hides the live scene from the overview', async () => {
+    const settings = createSettings([createRedFlagCounter(10), teamPoll()]);
+    const scene = {
+      id: 'v-main',
+      name: 'Hauptszene',
+      items: [{ id: 'i-1', counterId: 'teams', scale: 100 }],
+      layout: 'horizontal' as const,
+      gap: 24,
+      horizontalAlign: 'center' as const,
+      verticalAlign: 'end' as const,
+      scale: 70,
+      createdAt: '2026-09-15T00:00:00.000Z',
+      updatedAt: '2026-09-15T00:00:00.000Z'
+    };
+    const state = createAppState({
+      license: LICENSES.pro,
+      settings: { ...settings, profiles: settings.profiles.map((profile) => ({ ...profile, overlayViews: [scene] })) }
+    });
+    const { actions, user, open } = renderLive(state);
+    await open();
+
+    const card = screen.getByRole('region', { name: 'Im Live' });
+    await user.selectOptions(within(card).getByLabelText('Szene'), 'v-main');
+    expect(actions.setLiveScene).toHaveBeenCalledWith('v-main');
+    await user.click(within(card).getByRole('button', { name: 'Overlay ausblenden' }));
+    expect(actions.setLiveHidden).toHaveBeenCalledWith(true);
+  });
+
   it('offers to reconnect after the stream ended', async () => {
     const state = createAppState({ settings: { ...createSettings(), username: 'streamer' } });
     const { actions, user, open } = renderLive(state, { code: 'stream-ended', message: 'The stream ended' });

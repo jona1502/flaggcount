@@ -5,6 +5,7 @@ import { LiveConnection } from '../dashboard/LiveConnection';
 import { LiveCounterCard } from '../live/LiveCounterCard';
 import { liveCounters } from '../live/liveCounters';
 import { SetupStrip } from '../live/SetupStrip';
+import { LiveSceneCard } from '../live-view/LiveSceneCard';
 import type { PageProps } from './types';
 
 /**
@@ -88,6 +89,17 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
       )}
 
       {desktop && <SetupStrip model={model} onNavigate={navigate} />}
+
+      {/* Switching the live overlay mid-stream stays one click away once scenes exist or the overlay is hidden. */}
+      {desktop && (running.overlayViews.length > 0 || running.liveHidden) && (
+        <LiveSceneCard
+          model={model}
+          disabled={disabled}
+          onSwitch={(sceneId) => void actions.setLiveScene(sceneId)}
+          onToggleHidden={() => void actions.setLiveHidden(!running.liveHidden)}
+          onOpen={() => navigate({ page: 'stage' })}
+        />
+      )}
 
       {counters.length === 0 ? (
         <EmptyState
