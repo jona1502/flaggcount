@@ -130,6 +130,22 @@ describe('Overlays', () => {
     expect(screen.getByLabelText('Online-URL').getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('explains that showing elements together needs a second element', async () => {
+    const { user, openPage } = renderOverlays(createAppState({ license: LICENSES.pro }));
+    await openPage('Overlays');
+
+    const hint = screen.getByRole('note', { name: 'Für die gemeinsame Anzeige fehlt ein zweites Element' });
+    await user.click(within(hint).getByRole('button', { name: 'Neues Element' }));
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Zähler & Abstimmungen');
+    expect(screen.getByRole('dialog', { name: 'Neues Element' })).toBeTruthy();
+
+    cleanup();
+    const withTwo = renderOverlays(proState());
+    await withTwo.openPage('Overlays');
+    expect(screen.queryByRole('note', { name: 'Für die gemeinsame Anzeige fehlt ein zweites Element' })).toBeNull();
+  });
+
   it('keeps further overlays visible but locked on Free', async () => {
     const state = createAppState({ license: LICENSES.free, settings: createSettings([createRedFlagCounter(100), teamPoll()]) });
     const { user, openPage } = renderOverlays({ ...state, counters: [state.counters[0]!] });

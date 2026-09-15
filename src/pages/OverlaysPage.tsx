@@ -111,6 +111,21 @@ export function OverlaysPage({ model, route, pending, actions, navigate, onCopyT
               <div><h2 id="combined-overlays-title">Gemeinsame Ansichten</h2><p>Mehrere Elemente über eine einzige Browser-Source anzeigen.</p></div>
               <span>{running.overlayViews.length} von 4 eigenen Ansichten</span>
             </div>
+            {/* With a single element the combined views have nothing to put side by side. */}
+            {desktop && isPro && running.counters.length < 2 && (
+              <Callout
+                tone="info"
+                title="Für die gemeinsame Anzeige fehlt ein zweites Element"
+                actions={
+                  <Button size="sm" icon={IconPlus} onClick={() => navigate({ page: 'counters', create: true })}>
+                    Neues Element
+                  </Button>
+                }
+              >
+                Die Gesamtansicht und eigene Ansichten zeigen mehrere Zähler und Abstimmungen in einer Browser-Source. Das Profil „{running.name}“ hat
+                gerade nur ein Element.
+              </Callout>
+            )}
             <ul className="overlay-gallery" aria-label="Gemeinsame Overlay-Ansichten">
               {targets.filter((target) => target.kind !== 'counter').map((target) => (
                 <OverlayTargetCard
