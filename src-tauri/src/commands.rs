@@ -288,6 +288,37 @@ pub fn duplicate_overlay_view<R: Runtime>(
     Ok(id)
 }
 
+/// Switches the fixed live overlay to another scene; OBS keeps its browser source.
+#[tauri::command]
+pub fn set_live_scene<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    scene_id: String,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::set_live_scene(settings, license, &scene_id, &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)
+}
+
+#[tauri::command]
+pub fn set_live_hidden<R: Runtime>(
+    app: AppHandle<R>,
+    sidecar: State<'_, Sidecar>,
+    saver: State<'_, SettingsSaver>,
+    hidden: bool,
+) -> Result<(), AppError> {
+    let now = settings::now_timestamp();
+    let ((), settings) = sidecar.try_update_settings(&app, |settings, license| {
+        overlay_views::set_live_hidden(settings, license, hidden, &now)
+    })?;
+    saver.save(&settings);
+    sync_overlay_views(&sidecar, &settings)
+}
+
 #[tauri::command]
 pub fn create_profile<R: Runtime>(
     app: AppHandle<R>,

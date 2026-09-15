@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { OVERVIEW_SCOPE, isBoardScope, type BoardAccess } from '../../../shared/overlayBoard';
+import { LIVE_SCOPE } from '../../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../../shared/settings';
 import type { VoteSnapshot } from '../../../shared/voting';
 import { BOARD_CSS, BOARD_SCRIPT, renderBoardPage, renderOverlayNotice } from '../overlay/boardAssets';
@@ -20,14 +21,14 @@ export type OverlaySource = {
 
 export type OverlayHandler = (pathname: string, request: IncomingMessage, response: ServerResponse) => void;
 
-const BOARD_PATH = /^\/overlay\/(?:counter\/([^/]+)|view\/([^/]+)|(all))(\/events)?$/;
+const BOARD_PATH = /^\/overlay\/(?:counter\/([^/]+)|view\/([^/]+)|(all|live))(\/events)?$/;
 
 export function isOverlayPath(pathname: string): boolean {
   return pathname === '/overlay' || pathname.startsWith('/overlay/');
 }
 
 export function boardOverlayPath(scope: string): string {
-  return scope === OVERVIEW_SCOPE ? '/overlay/all' : scope.startsWith('v-') ? `/overlay/view/${scope}` : `/overlay/counter/${scope}`;
+  return scope === OVERVIEW_SCOPE || scope === LIVE_SCOPE ? `/overlay/${scope}` : scope.startsWith('v-') ? `/overlay/view/${scope}` : `/overlay/counter/${scope}`;
 }
 
 /** Serves the OBS overlay pages, their assets and the live event streams. Used by the local and the web server. */

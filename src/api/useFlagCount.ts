@@ -21,6 +21,8 @@ export type FlagCountActions = {
   updateOverlayView: (viewId: string, input: OverlayViewInput) => Promise<void>;
   deleteOverlayView: (viewId: string) => Promise<void>;
   duplicateOverlayView: (viewId: string) => Promise<string | null>;
+  setLiveScene: (sceneId: string) => Promise<void>;
+  setLiveHidden: (hidden: boolean) => Promise<void>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;
@@ -138,6 +140,8 @@ export function useFlagCount(api: FlagCountApi): FlagCountController {
         await run(async () => { id = await api.duplicateOverlayView(viewId); });
         return id;
       },
+      setLiveScene: (sceneId) => run(() => api.setLiveScene(sceneId)),
+      setLiveHidden: (hidden) => run(() => api.setLiveHidden(hidden)),
       importOverlayAsset: (kind, bytes) => api.importOverlayAsset(kind, bytes),
       clearHistory: () => run(() => api.clearHistory()),
       exportHistoryCsv: (csv) => api.exportHistoryCsv(csv),

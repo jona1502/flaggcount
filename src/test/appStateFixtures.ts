@@ -149,6 +149,8 @@ export function createActions() {
     updateOverlayView: vi.fn(async () => undefined),
     deleteOverlayView: vi.fn(async () => undefined),
     duplicateOverlayView: vi.fn(async () => 'v-copy'),
+    setLiveScene: vi.fn(async (_sceneId: string) => undefined),
+    setLiveHidden: vi.fn(async (_hidden: boolean) => undefined),
     importOverlayAsset: vi.fn(async () => '0123456789abcdef0123456789abcdef.png'),
     clearHistory: vi.fn(async () => undefined),
     exportHistoryCsv: vi.fn(async () => 'history.csv'),

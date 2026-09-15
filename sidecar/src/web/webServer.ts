@@ -432,7 +432,7 @@ export async function startWebServer(options: WebServerOptions): Promise<WebServ
       isBoardScope(scope) &&
       counters !== null &&
       layout !== null &&
-      (scope === 'all' || scope.startsWith('v-') || (counters.length <= 1 && counters.every((counter) => counter.counterId === scope)));
+      (scope === 'all' || scope === 'live' || scope.startsWith('v-') || (counters.length <= 1 && counters.every((counter) => counter.counterId === scope)));
     if (!validScope) {
       sendJson(response, 400, { error: 'invalid-update' });
       return;

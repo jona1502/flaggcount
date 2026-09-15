@@ -178,6 +178,30 @@ pub fn duplicate(
     Ok(id)
 }
 
+/// Chooses the scene shown under `/overlay/live`; the automatic scene is always allowed.
+pub fn set_live_scene(settings: &mut Settings, license: &LicenseState, scene_id: &str, now: &str) -> Result<(), AppError> {
+    let index = profile_index(settings, license)?;
+    if scene_id != AUTO_SCENE_ID {
+        require_pro(license)?;
+        if !settings.profiles[index].overlay_views.iter().any(|view| view.id == scene_id) {
+            return Err(invalid("The scene does not exist"));
+        }
+    }
+    let profile = &mut settings.profiles[index];
+    profile.live_scene_id = scene_id.into();
+    profile.updated_at = now.into();
+    Ok(())
+}
+
+/// Hides or shows the live overlay; it keeps its scene either way.
+pub fn set_live_hidden(settings: &mut Settings, license: &LicenseState, hidden: bool, now: &str) -> Result<(), AppError> {
+    let index = profile_index(settings, license)?;
+    let profile = &mut settings.profiles[index];
+    profile.live_hidden = hidden;
+    profile.updated_at = now.into();
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,6 +244,25 @@ mod tests {
 
         delete(&mut settings, &pro(), "v-main", NOW).unwrap();
         assert_eq!(settings.profiles[0].overlay_views[0].id, "v-copy");
+    }
+
+    #[test]
+    fn switches_and_hides_the_live_scene() {
+        let mut settings = Settings::default();
+        create(&mut settings, &pro(), input("Hauptszene"), "v-main".into(), NOW).unwrap();
+
+        set_live_scene(&mut settings, &pro(), "v-main", NOW).unwrap();
+        assert_eq!(settings.profiles[0].live_scene_id, "v-main");
+        assert_eq!(set_live_scene(&mut settings, &pro(), "v-gone", NOW).unwrap_err().code, "invalid-overlay-view");
+        assert_eq!(
+            set_live_scene(&mut settings, &LicenseState::default(), "v-main", NOW).unwrap_err().code,
+            "pro-required"
+        );
+        set_live_scene(&mut settings, &LicenseState::default(), AUTO_SCENE_ID, NOW).unwrap();
+        assert_eq!(settings.profiles[0].live_scene_id, AUTO_SCENE_ID);
+
+        set_live_hidden(&mut settings, &LicenseState::default(), true, NOW).unwrap();
+        assert!(settings.profiles[0].live_hidden);
     }
 
     #[test]

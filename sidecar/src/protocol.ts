@@ -46,7 +46,16 @@ export type SidecarCommand =
   /** Without a counter id, every counter starts a new round. */
   | { type: 'reset'; counterId?: string }
   /** The counters of the active profile; running rounds of counters that keep their id continue. */
-  | { type: 'configureCounters'; counters: CounterDefinition[]; overlayViews?: OverlayView[]; profileId?: string; profileName?: string }
+  | {
+      type: 'configureCounters';
+      counters: CounterDefinition[];
+      overlayViews?: OverlayView[];
+      profileId?: string;
+      profileName?: string;
+      /** Scene of the fixed live overlay: `all` or a view id. */
+      liveSceneId?: string;
+      liveHidden?: boolean;
+    }
   /** The stored license, sent once after every start. The secret only travels over this private pipe. */
   | { type: 'configureLicense'; installationId: string; credentials: LicenseCredentials | null; entitlement: unknown }
   | { type: 'activateLicense'; code: string; replaceInstallationId?: string }
@@ -142,12 +151,15 @@ export function parseCommand(line: string): SidecarCommand | null {
       if (overlayViews.some((view) => view === null)) return null;
       const profileId = typeof record['profileId'] === 'string' && ID_PATTERN.test(record['profileId']) ? record['profileId'] : undefined;
       const profileName = typeof record['profileName'] === 'string' && record['profileName'].trim() ? record['profileName'].slice(0, 60) : undefined;
+      const liveSceneId = typeof record['liveSceneId'] === 'string' && ID_PATTERN.test(record['liveSceneId']) ? record['liveSceneId'] : undefined;
       return {
         type: 'configureCounters',
         counters,
         ...(record['overlayViews'] !== undefined ? { overlayViews: overlayViews as OverlayView[] } : {}),
         ...(profileId ? { profileId } : {}),
-        ...(profileName ? { profileName } : {})
+        ...(profileName ? { profileName } : {}),
+        ...(liveSceneId ? { liveSceneId } : {}),
+        ...(typeof record['liveHidden'] === 'boolean' ? { liveHidden: record['liveHidden'] } : {})
       };
     }
     case 'addManualVote':

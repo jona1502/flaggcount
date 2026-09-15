@@ -85,6 +85,16 @@ describe('board overlay routes', () => {
     expect(page.body).toContain('&quot;layout&quot;:&quot;horizontal&quot;');
   });
 
+  it('serves the fixed live overlay with its own event stream', async () => {
+    const { port } = await start((scope) => (scope === 'live' ? { status: 'ok', counters: [view, view] } : { status: 'not-found' }));
+
+    const page = await get(port, '/overlay/live');
+    expect(page.status).toBe(200);
+    expect(page.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(page.body).toContain('data-events="/overlay/live/events"');
+    expect((await get(port, '/overlay/lives')).status).toBe(404);
+  });
+
   it('explains overlays that need Pro or do not exist', async () => {
     const { port } = await start((scope) => (scope === 'all' ? { status: 'pro-required' } : { status: 'not-found' }));
 

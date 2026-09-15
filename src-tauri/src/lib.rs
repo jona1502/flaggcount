@@ -34,6 +34,8 @@ pub fn with_commands<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R
             commands::update_overlay_view,
             commands::delete_overlay_view,
             commands::duplicate_overlay_view,
+            commands::set_live_scene,
+            commands::set_live_hidden,
             commands::import_overlay_asset,
             commands::clear_history,
             commands::export_history_csv,

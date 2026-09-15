@@ -172,6 +172,19 @@ fn saves_settings_even_while_the_sidecar_is_not_running() {
 }
 
 #[test]
+fn switches_and_hides_the_live_scene_through_ipc() {
+    let app = create_app();
+
+    assert_eq!(invoke(&app, "set_live_hidden", json!({ "hidden": true })), Ok(Value::Null));
+    assert_eq!(error_code(invoke(&app, "set_live_scene", json!({ "sceneId": "v-missing" }))), "pro-required");
+    assert_eq!(invoke(&app, "set_live_scene", json!({ "sceneId": "all" })), Ok(Value::Null));
+
+    let state = invoke(&app, "get_state", json!({})).unwrap();
+    assert_eq!(state["settings"]["profiles"][0]["liveHidden"], json!(true));
+    assert_eq!(state["settings"]["profiles"][0]["liveSceneId"], json!("all"));
+}
+
+#[test]
 fn reports_an_unavailable_sidecar_for_stream_actions() {
     let app = create_app();
 

@@ -19,6 +19,8 @@ fn main() {
             "update_overlay_view",
             "delete_overlay_view",
             "duplicate_overlay_view",
+            "set_live_scene",
+            "set_live_hidden",
             "import_overlay_asset",
             "clear_history",
             "export_history_csv",

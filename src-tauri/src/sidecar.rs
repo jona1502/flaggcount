@@ -75,6 +75,9 @@ pub enum SidecarCommand {
         overlay_views: Vec<OverlayView>,
         profile_id: String,
         profile_name: String,
+        /// Scene of the fixed live overlay: `all` or a view id.
+        live_scene_id: String,
+        live_hidden: bool,
     },
     /// The stored license, sent after every start. The secret only travels over the private stdin pipe.
     #[serde(rename_all = "camelCase")]
@@ -406,6 +409,8 @@ pub fn configure_counters(settings: &Settings, license: &LicenseState) -> Option
         overlay_views: profile.overlay_views.clone(),
         profile_id: profile.id.clone(),
         profile_name: profile.name.clone(),
+        live_scene_id: profile.live_scene_id.clone(),
+        live_hidden: profile.live_hidden,
     })
 }
 
@@ -888,10 +893,14 @@ mod tests {
                     overlay_views: vec![],
                     profile_id: "default".into(),
                     profile_name: "Standard".into(),
+                    live_scene_id: "all".into(),
+                    live_hidden: false,
                 },
                 json!({
                     "type": "configureCounters",
                     "overlayViews": [],
+                    "liveSceneId": "all",
+                    "liveHidden": false,
                     "profileId": "default",
                     "profileName": "Standard",
                     "counters": [{
@@ -1242,6 +1251,8 @@ mod tests {
                     overlay_views: vec![],
                     profile_id: "default".into(),
                     profile_name: "Standard".into(),
+                    live_scene_id: "all".into(),
+                    live_hidden: false,
                 },
                 SidecarCommand::ConfigureLicense {
                     installation_id: "inst-0123456789abcdef".into(),

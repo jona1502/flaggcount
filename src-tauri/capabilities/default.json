@@ -22,6 +22,8 @@
     "allow-update-overlay-view",
     "allow-delete-overlay-view",
     "allow-duplicate-overlay-view",
+    "allow-set-live-scene",
+    "allow-set-live-hidden",
     "allow-import-overlay-asset",
     "allow-clear-history",
     "allow-export-history-csv",

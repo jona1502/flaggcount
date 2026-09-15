@@ -305,4 +305,39 @@ describe('SidecarApp', () => {
     });
     expect(app.getBoardScopes()).toContain('v-main');
   });
+
+  it('shows the chosen live scene under the live scope, hides it and falls back to the automatic scene', async () => {
+    const { app } = createApp(PRO_ENTITLEMENTS);
+    const scene = {
+      id: 'v-main',
+      name: 'Nur Team-Wahl',
+      items: [
+        { id: 'big', counterId: 'teams', scale: 140 },
+        { id: 'small', counterId: 'teams', scale: 60 }
+      ],
+      layout: 'horizontal' as const,
+      gap: 24,
+      horizontalAlign: 'center' as const,
+      verticalAlign: 'end' as const,
+      scale: 80,
+      createdAt: '2026-09-15T00:00:00.000Z',
+      updatedAt: '2026-09-15T00:00:00.000Z'
+    };
+    const configure = (live: { liveSceneId?: string; liveHidden?: boolean }) =>
+      app.handleCommand({ type: 'configureCounters', counters: [createRedFlagCounter(10), teams], overlayViews: [scene], ...live });
+
+    await configure({ liveSceneId: 'v-main' });
+    expect(app.getBoard('live')).toMatchObject({ status: 'ok', counters: [{ counterId: 'teams' }, { counterId: 'teams' }], layout: { layout: 'horizontal' } });
+    expect(app.getBoardScopes()).toContain('live');
+
+    await configure({ liveSceneId: 'v-main', liveHidden: true });
+    expect(app.getBoard('live')).toMatchObject({ status: 'ok', counters: [] });
+
+    await configure({ liveSceneId: 'v-gone' });
+    expect(app.getBoard('live')).toMatchObject({ status: 'ok', counters: [{ counterId: 'red-flags' }, { counterId: 'teams' }] });
+
+    app.setEntitlements(FREE_ENTITLEMENTS);
+    await configure({ liveSceneId: 'v-main' });
+    expect(app.getBoard('live')).toMatchObject({ status: 'ok', counters: [{ counterId: 'red-flags' }] });
+  });
 });

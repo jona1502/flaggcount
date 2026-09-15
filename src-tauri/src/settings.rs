@@ -43,6 +43,8 @@ pub const MIN_SCENE_ITEM_SCALE: u8 = 40;
 pub const MAX_SCENE_ITEM_SCALE: u8 = 160;
 /// Scene id of the automatic scene with every running counter; also the default live scene.
 pub const AUTO_SCENE_ID: &str = "all";
+/// Reserved id of the fixed live overlay under `/overlay/live`.
+pub const LIVE_SCOPE: &str = "live";
 pub const MAX_OVERLAY_VIEW_GAP: u8 = 64;
 /// Counted in UTF-16 code units, like JavaScript's `length`.
 pub const MAX_TRIGGER_LENGTH: usize = 40;
@@ -477,6 +479,7 @@ impl OverlayView {
             });
         if !is_valid_id(&self.id)
             || self.id == AUTO_SCENE_ID
+            || self.id == LIVE_SCOPE
             || counters.contains(&self.id)
             || !timestamps_valid
             || !items_valid

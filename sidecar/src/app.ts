@@ -2,7 +2,7 @@ import type { ConnectionState } from '../../shared/appState';
 import { FREE_ENTITLEMENTS, canUse, checkCounters, effectiveCounters, limitFor, type Entitlements } from '../../shared/entitlements';
 import { FREE_LICENSE_STATE, type LicenseState } from '../../shared/licensing';
 import { DEFAULT_BOARD_LAYOUT, OVERVIEW_SCOPE, buildCounterViews, type BoardAccess } from '../../shared/overlayBoard';
-import { createRedFlagCounter, type CounterDefinition, type OverlayView } from '../../shared/profiles';
+import { AUTO_SCENE_ID, LIVE_SCOPE, createRedFlagCounter, type CounterDefinition, type OverlayView } from '../../shared/profiles';
 import { DEFAULT_OVERLAY_SETTINGS, type OverlaySettings } from '../../shared/settings';
 import { VotingEngine, toVoteSnapshot, type CounterSnapshot, type VoteSnapshot } from '../../shared/voting';
 import type { LicenseManager } from './license/licenseManager';
@@ -57,6 +57,8 @@ export class SidecarApp {
   private readonly manualVotes = new Map<string, number>();
   private profileId = 'active';
   private profileName = 'Aktives Profil';
+  private liveSceneId = AUTO_SCENE_ID;
+  private liveHidden = false;
 
   constructor(
     createLiveService: LiveChatServiceFactory,
@@ -158,6 +160,7 @@ export class SidecarApp {
    * counter and the overview of all counters.
    */
   getBoard(scope: string): BoardAccess {
+    if (scope === LIVE_SCOPE) return this.getLiveBoard();
     const views = buildCounterViews(this.engine.getSnapshots(), this.definitions);
     if (scope === OVERVIEW_SCOPE) {
       return canUse(this.entitlements, 'parallel-counters')
@@ -178,10 +181,24 @@ export class SidecarApp {
     return index < limitFor(this.entitlements, 'overlayUrls') ? { status: 'ok', counters: [view], layout: { ...DEFAULT_BOARD_LAYOUT } } : { status: 'pro-required' };
   }
 
-  /** Every overlay scope the plan allows right now: the running counters and, with Pro, the overview. */
+  /**
+   * The fixed live overlay shows the chosen scene. Hidden it stays connected but empty; Free shows its one
+   * overlay, and a scene that cannot run right now falls back to the automatic scene.
+   */
+  private getLiveBoard(): BoardAccess {
+    if (this.liveHidden) return { status: 'ok', counters: [], layout: { ...DEFAULT_BOARD_LAYOUT } };
+    if (!canUse(this.entitlements, 'parallel-counters')) {
+      const [first] = buildCounterViews(this.engine.getSnapshots(), this.definitions);
+      return { status: 'ok', counters: first ? [first] : [], layout: { ...DEFAULT_BOARD_LAYOUT } };
+    }
+    const scene = this.liveSceneId === AUTO_SCENE_ID ? null : this.getBoard(this.liveSceneId);
+    return scene?.status === 'ok' ? scene : this.getBoard(OVERVIEW_SCOPE);
+  }
+
+  /** Every overlay scope the plan allows right now: the running counters, the live overlay and, with Pro, the scenes. */
   getBoardScopes(): string[] {
     const scopes = this.definitions.map((definition) => definition.id);
-    return [...scopes, OVERVIEW_SCOPE, ...this.overlayViews.map((view) => view.id)].filter((scope) => this.getBoard(scope).status === 'ok');
+    return [...scopes, OVERVIEW_SCOPE, LIVE_SCOPE, ...this.overlayViews.map((view) => view.id)].filter((scope) => this.getBoard(scope).status === 'ok');
   }
 
   getSignedEntitlement() {
@@ -240,6 +257,8 @@ export class SidecarApp {
         this.profileId = command.profileId ?? this.profileId;
         this.profileName = command.profileName ?? this.profileName;
         this.overlayViews = command.overlayViews ?? [];
+        this.liveSceneId = command.liveSceneId ?? AUTO_SCENE_ID;
+        this.liveHidden = command.liveHidden ?? false;
         this.configure(command.counters);
         break;
       case 'configureLicense':

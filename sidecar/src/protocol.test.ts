@@ -17,6 +17,14 @@ describe('parseCommand', () => {
     ['{"type":"reset","counterId":"poll","optionId":"ignored"}', { type: 'reset', counterId: 'poll' }],
     [JSON.stringify({ type: 'configureCounters', counters: [counter] }), { type: 'configureCounters', counters: [counter] }],
     [
+      JSON.stringify({ type: 'configureCounters', counters: [counter], liveSceneId: 'v-main', liveHidden: true }),
+      { type: 'configureCounters', counters: [counter], liveSceneId: 'v-main', liveHidden: true }
+    ],
+    [
+      JSON.stringify({ type: 'configureCounters', counters: [counter], liveSceneId: '../secret', liveHidden: 'yes' }),
+      { type: 'configureCounters', counters: [counter] }
+    ],
+    [
       '{"type":"configureLicense","installationId":"inst-0123456789abcdef","credentials":{"licenseId":"license-1","secret":"s3cret"},"entitlement":{"version":1}}',
       {
         type: 'configureLicense',

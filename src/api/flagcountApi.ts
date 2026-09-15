@@ -29,6 +29,10 @@ export type FlagCountApi = {
   updateOverlayView: (viewId: string, input: OverlayViewInput) => Promise<void>;
   deleteOverlayView: (viewId: string) => Promise<void>;
   duplicateOverlayView: (viewId: string) => Promise<string>;
+  /** Chooses the scene of the fixed live overlay; `all` is the automatic scene. */
+  setLiveScene: (sceneId: string) => Promise<void>;
+  /** Hides or shows the live overlay without changing its scene. */
+  setLiveHidden: (hidden: boolean) => Promise<void>;
   importOverlayAsset: (kind: 'logo' | 'background', bytes: number[]) => Promise<string>;
   clearHistory: () => Promise<void>;
   exportHistoryCsv: (csv: string) => Promise<string>;

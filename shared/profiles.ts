@@ -20,6 +20,8 @@ export const MIN_SCENE_ITEM_SCALE = 40;
 export const MAX_SCENE_ITEM_SCALE = 160;
 /** Scene id of the automatic scene with every running counter; also the default live scene. */
 export const AUTO_SCENE_ID = 'all';
+/** Reserved id of the fixed live overlay under `/overlay/live`; the app decides which scene it shows. */
+export const LIVE_SCOPE = 'live';
 export const MIN_OVERLAY_VIEW_GAP = 0;
 export const MAX_OVERLAY_VIEW_GAP = 64;
 export const MIN_OVERLAY_VIEW_SCALE = 20;
@@ -289,6 +291,7 @@ export function parseOverlayView(value: unknown, counterIds?: ReadonlySet<string
   if (
     !isId(id) ||
     id === AUTO_SCENE_ID ||
+    id === LIVE_SCOPE ||
     counterIds?.has(id) === true ||
     name === null ||
     items === null ||
