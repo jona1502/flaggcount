@@ -11,6 +11,7 @@ type ConnectionPanelProps = {
   pending: boolean;
   initialPlatform?: LivePlatform;
   twitchAuth?: TwitchAuthState;
+  twitchAvailable?: boolean;
   onConnect: (username: string, platform?: LivePlatform) => void;
   onDisconnect: () => void;
   onStartTwitchAuth?: () => void;
@@ -53,6 +54,7 @@ export function ConnectionPanel({
   pending,
   initialPlatform = 'tiktok',
   twitchAuth = { status: 'signed-out' },
+  twitchAvailable = true,
   onConnect,
   onDisconnect,
   onStartTwitchAuth = () => undefined,
@@ -100,9 +102,10 @@ export function ConnectionPanel({
         <Field id="live-platform" label="Plattform">
           <Select value={platform} disabled={active} onChange={(event) => { setPlatform(event.target.value as LivePlatform); setValidation(null); }}>
             <option value="tiktok">TikTok</option>
-            <option value="twitch">Twitch</option>
+            <option value="twitch" disabled={!twitchAvailable}>Twitch{twitchAvailable ? '' : ' (nur Desktop-App)'}</option>
           </Select>
         </Field>
+        {!twitchAvailable && <p className="field-hint">Twitch ist derzeit ausschließlich in der Desktop-App verfügbar.</p>}
         {platform === 'tiktok' ? <Field id="username" label="TikTok-Benutzername" error={validation}>
           <Input
             value={username}
