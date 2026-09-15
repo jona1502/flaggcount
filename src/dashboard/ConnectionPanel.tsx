@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { ConnectionState } from '../../shared/appState';
-import { Button, Card, Field, IconLink, Input, StatusDot, type Tone } from '../components/ui';
+import type { LivePlatform, TwitchAuthState } from '../../shared/live';
+import { Button, Card, ConfirmDialog, Field, IconLink, Input, Select, StatusDot, type Tone } from '../components/ui';
 
 type ConnectionPanelProps = {
   connection: ConnectionState;
@@ -8,8 +9,12 @@ type ConnectionPanelProps = {
   savedUsername: string;
   sidecarRunning: boolean;
   pending: boolean;
-  onConnect: (username: string) => void;
+  initialPlatform?: LivePlatform;
+  twitchAuth?: TwitchAuthState;
+  onConnect: (username: string, platform?: LivePlatform) => void;
   onDisconnect: () => void;
+  onStartTwitchAuth?: () => void;
+  onDisconnectTwitchAccount?: () => void;
 };
 
 export function describeStatus(connection: ConnectionState, sidecarRunning: boolean): { key: string; text: string } {
@@ -46,11 +51,17 @@ export function ConnectionPanel({
   savedUsername,
   sidecarRunning,
   pending,
+  initialPlatform = 'tiktok',
+  twitchAuth = { status: 'signed-out' },
   onConnect,
-  onDisconnect
+  onDisconnect,
+  onStartTwitchAuth = () => undefined,
+  onDisconnectTwitchAccount = () => undefined
 }: ConnectionPanelProps): React.JSX.Element {
+  const [platform, setPlatform] = useState<LivePlatform>(connection.platform ?? initialPlatform);
   const [username, setUsername] = useState(connection.username ?? savedUsername);
   const [validation, setValidation] = useState<string | null>(null);
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
   const active = connection.status !== 'disconnected';
   const status = describeStatus(connection, sidecarRunning);
 
@@ -62,12 +73,17 @@ export function ConnectionPanel({
     }
 
     const trimmed = username.trim();
-    if (!trimmed) {
+    if (platform === 'tiktok' && !trimmed) {
       setValidation('Bitte gib einen TikTok-Benutzernamen ein.');
       return;
     }
     setValidation(null);
-    onConnect(trimmed);
+    if (platform === 'twitch' && twitchAuth.status !== 'signed-in') {
+      setValidation('Melde dich zuerst mit Twitch an.');
+      return;
+    }
+    if (platform === 'twitch') onConnect('', 'twitch');
+    else onConnect(trimmed);
   };
 
   let buttonLabel = 'Verbinden';
@@ -77,11 +93,17 @@ export function ConnectionPanel({
   return (
     <Card
       className="connection-card"
-      title="TikTok LIVE"
+      title="LIVE-Verbindung"
       description={active ? undefined : 'Verbinde dich, sobald dein LIVE läuft. Manuelle Stimmen funktionieren auch ohne Verbindung.'}
     >
       <form className="connection-form" onSubmit={submit} noValidate>
-        <Field id="username" label="TikTok-Benutzername" error={validation}>
+        <Field id="live-platform" label="Plattform">
+          <Select value={platform} disabled={active} onChange={(event) => { setPlatform(event.target.value as LivePlatform); setValidation(null); }}>
+            <option value="tiktok">TikTok</option>
+            <option value="twitch">Twitch</option>
+          </Select>
+        </Field>
+        {platform === 'tiktok' ? <Field id="username" label="TikTok-Benutzername" error={validation}>
           <Input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
@@ -91,9 +113,16 @@ export function ConnectionPanel({
             maxLength={100}
             disabled={active}
           />
-        </Field>
+        </Field> : <div className="twitch-auth" aria-live="polite">
+          {twitchAuth.status === 'signed-in' ? <>
+            <p>Angemeldet als <strong>{twitchAuth.displayName}</strong> (@{twitchAuth.login})</p>
+            <Button type="button" variant="ghost" size="sm" disabled={active || pending} onClick={() => setConfirmUnlink(true)}>Twitch-Konto trennen</Button>
+          </> : twitchAuth.status === 'authorizing' ? <p>Öffne <strong>{twitchAuth.verificationUri}</strong> und gib den Code <strong>{twitchAuth.userCode}</strong> ein.</p>
+            : <Button type="button" variant="secondary" disabled={pending} onClick={onStartTwitchAuth}>Mit Twitch anmelden</Button>}
+          {validation && <p className="field-error">{validation}</p>}
+        </div>}
         <Button type="submit" variant={active ? 'secondary' : 'primary'} icon={active ? undefined : IconLink} disabled={!sidecarRunning || pending}>
-          {buttonLabel}
+          {platform === 'twitch' && !active ? 'Eigenen Kanal verbinden' : buttonLabel}
         </Button>
       </form>
       {status.key !== 'disconnected' && (
@@ -102,6 +131,7 @@ export function ConnectionPanel({
           {status.text}
         </p>
       )}
+      <ConfirmDialog open={confirmUnlink} title="Twitch-Konto trennen?" message="Die lokale Twitch-Autorisierung wird gelöscht und bei Twitch widerrufen." confirmLabel="Konto trennen" onCancel={() => setConfirmUnlink(false)} onConfirm={() => { setConfirmUnlink(false); onDisconnectTwitchAccount(); }} />
     </Card>
   );
 }

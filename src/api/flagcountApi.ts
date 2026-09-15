@@ -1,6 +1,7 @@
 import type { AppError, AppState } from '../../shared/appState';
 import type { CounterDefinition, OverlayViewInput } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
+import type { LivePlatform } from '../../shared/live';
 
 /** Stops a subscription. */
 export type Unlisten = () => void;
@@ -12,7 +13,7 @@ export type Unlisten = () => void;
  */
 export type FlagCountApi = {
   getState: () => Promise<AppState>;
-  connect: (username: string) => Promise<void>;
+  connect: (username: string, platform?: LivePlatform) => Promise<void>;
   disconnect: () => Promise<void>;
   startTwitchAuth: () => Promise<void>;
   disconnectTwitchAccount: () => Promise<void>;

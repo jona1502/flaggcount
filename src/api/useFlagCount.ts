@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppError, AppState } from '../../shared/appState';
 import type { CounterDefinition, OverlayViewInput } from '../../shared/profiles';
 import type { OverlaySettings } from '../../shared/settings';
+import type { LivePlatform } from '../../shared/live';
 import { toAppError, type FlagCountApi, type Unlisten } from './flagcountApi';
 
 export type FlagCountActions = {
-  connect: (username: string) => Promise<void>;
+  connect: (username: string, platform?: LivePlatform) => Promise<void>;
   disconnect: () => Promise<void>;
   startTwitchAuth: () => Promise<void>;
   disconnectTwitchAccount: () => Promise<void>;
@@ -115,7 +116,7 @@ export function useFlagCount(api: FlagCountApi): FlagCountController {
 
   const actions = useMemo<FlagCountActions>(
     () => ({
-      connect: (username) => run(() => api.connect(username)),
+      connect: (username, platform) => run(() => platform ? api.connect(username, platform) : api.connect(username)),
       disconnect: () => run(() => api.disconnect()),
       startTwitchAuth: () => run(() => api.startTwitchAuth()),
       disconnectTwitchAccount: () => run(() => api.disconnectTwitchAccount()),

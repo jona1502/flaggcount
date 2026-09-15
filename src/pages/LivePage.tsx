@@ -109,8 +109,12 @@ export function LivePage({ model, pending, error, actions, navigate, desktop }: 
           savedUsername={state.settings.username}
           sidecarRunning={state.sidecarRunning}
           pending={pending}
-          onConnect={(username) => void actions.connect(username)}
+          initialPlatform={state.settings.liveSource?.platform}
+          twitchAuth={state.twitchAuth}
+          onConnect={(username, platform) => void actions.connect(username, platform)}
           onDisconnect={() => void actions.disconnect()}
+          onStartTwitchAuth={() => void actions.startTwitchAuth()}
+          onDisconnectTwitchAccount={() => void actions.disconnectTwitchAccount()}
         />
         {desktop && (
           <ProfileSwitcher

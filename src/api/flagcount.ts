@@ -14,7 +14,7 @@ export const APP_ERROR_EVENT = 'app-error';
 /** The dashboard API of the desktop app, backed by the Tauri commands and events. */
 export const flagcountApi: FlagCountApi = {
   getState: (): Promise<AppState> => invoke<AppState>('get_state'),
-  connect: (username: string): Promise<void> => invoke('connect', { username }),
+  connect: (username: string, platform = 'tiktok'): Promise<void> => invoke('connect', { username, platform }),
   disconnect: (): Promise<void> => invoke('disconnect'),
   startTwitchAuth: (): Promise<void> => invoke('start_twitch_auth'),
   disconnectTwitchAccount: (): Promise<void> => invoke('disconnect_twitch_account'),
