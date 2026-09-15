@@ -413,6 +413,9 @@ export const BOARD_SCRIPT = `(function () {
     sizing = layout.sizing === 'canvas' ? 'canvas' : 'fill';
     horizontalAlign = layout.horizontalAlign || 'center';
     verticalAlign = layout.verticalAlign || 'center';
+    // Side by side, cards of different heights line up along the chosen edge instead of stretching.
+    var edges = { start: 'flex-start', center: 'center', end: 'flex-end' };
+    root.style.alignItems = chosen === 'vertical' ? '' : edges[verticalAlign] || 'center';
     var percent = Number(layout.scale);
     if (percent >= 20 && percent <= 100) size = percent / 100;
   }

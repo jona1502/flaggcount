@@ -127,6 +127,16 @@ describe('board overlay', () => {
     expect(texts('.card-title')).toEqual(['Rote Flaggen']);
   });
 
+  it('lines up cards of different heights along the chosen edge', () => {
+    const layout = { layout: 'horizontal', gap: 24, horizontalAlign: 'center', verticalAlign: 'end', scale: 70, sizing: 'canvas' } as const;
+    const page = new DOMParser().parseFromString(renderBoardPage([poll, flags], { eventsUrl: '/overlay/live/events', scope: 'live', layout }), 'text/html');
+    document.body.innerHTML = page.body.innerHTML;
+    vi.stubGlobal('EventSource', FakeEventSource);
+    new Function(BOARD_SCRIPT)();
+
+    expect(document.getElementById('board')?.style.alignItems).toBe('flex-end');
+  });
+
   it('escapes notices', () => {
     expect(renderOverlayNotice('Pro <nötig>')).toContain('Pro &lt;nötig&gt;');
   });
