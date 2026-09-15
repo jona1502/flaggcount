@@ -67,9 +67,13 @@ Hinweise:
 
 Der Sidecar wird beim Build mit esbuild gebündelt und mit `@yao-pkg/pkg` in eine eigenständige `.exe` übersetzt, die Tauri mit ausliefert.
 
+## Unterstützte Desktop-Systeme
+
+Windows (x64), macOS (Intel und Apple Silicon) und Linux (x64, AppImage/deb) verwenden dieselbe Anwendung. Die verbindliche Matrix und Smoke-Tests stehen in [docs/DESKTOP_SUPPORT.md](docs/DESKTOP_SUPPORT.md).
+
 ## Voraussetzungen
 
-- Windows 10 oder 11 (x64)
+- Windows 10 22H2 oder neuer (x64), macOS 12 oder neuer beziehungsweise Ubuntu 22.04/glibc-kompatibles Linux (x64)
 - [Node.js](https://nodejs.org/) 22 oder neuer
 - [Rust](https://rustup.rs/) (stable, Toolchain `x86_64-pc-windows-msvc`)
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) mit der Workload „Desktopentwicklung mit C++“
@@ -95,11 +99,13 @@ npm run build       # Produktions-Build des Dashboards
 
 Die Integrationstests decken den kompletten Datenfluss ab: Chat → Voting → Tauri-Protokoll und Overlay-Stream, Reset, automatischen Reconnect, den echten Sidecar-Prozess sowie das Dashboard gegen gemockte Tauri-Commands und -Events.
 
-## Windows-Installer bauen
+## Desktop-Paket bauen
 
 ```bash
 npm install
 npm run package:windows
+# macOS: npm run package:macos
+# Linux: npm run package:linux
 ```
 
 Der Befehl

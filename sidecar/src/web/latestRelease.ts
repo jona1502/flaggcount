@@ -21,17 +21,18 @@ const REQUEST_TIMEOUT_MS = 5000;
 type GitHubAsset = { name?: unknown; browser_download_url?: unknown; size?: unknown };
 type GitHubRelease = { tag_name?: unknown; html_url?: unknown; published_at?: unknown; assets?: unknown };
 
-/** Picks the NSIS installer from a GitHub release; `null` if the release has none. */
+/** Picks a directly installable artifact from any supported desktop release. */
 export function parseRelease(data: unknown): ReleaseInfo | null {
   if (typeof data !== 'object' || data === null) {
     return null;
   }
   const release = data as GitHubRelease;
   const assets = Array.isArray(release.assets) ? (release.assets as GitHubAsset[]) : [];
-  const installer = assets.find(
-    (asset) =>
-      typeof asset.name === 'string' && asset.name.endsWith('-setup.exe') && typeof asset.browser_download_url === 'string'
-  );
+  const supported = assets.filter((asset) => typeof asset.name === 'string' && typeof asset.browser_download_url === 'string');
+  const installer = supported.sort((a, b) => {
+    const rank = (name: string) => name.endsWith('-setup.exe') ? 0 : name.endsWith('.dmg') ? 1 : name.endsWith('.AppImage') ? 2 : name.endsWith('.deb') ? 3 : 9;
+    return rank(String(a.name)) - rank(String(b.name));
+  }).find((asset) => rankAsset(asset) < 9);
   if (!installer || typeof release.tag_name !== 'string' || typeof release.html_url !== 'string') {
     return null;
   }
@@ -42,6 +43,11 @@ export function parseRelease(data: unknown): ReleaseInfo | null {
     publishedAt: typeof release.published_at === 'string' ? release.published_at : null,
     pageUrl: release.html_url
   };
+}
+
+function rankAsset(asset: GitHubAsset): number {
+  const name = String(asset.name ?? '');
+  return name.endsWith('-setup.exe') || name.endsWith('.dmg') || name.endsWith('.AppImage') || name.endsWith('.deb') ? 0 : 9;
 }
 
 /**
