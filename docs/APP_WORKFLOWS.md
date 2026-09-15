@@ -6,16 +6,21 @@ Dieses Dokument beschreibt die neu gestaltete Desktop-App unter `src/`: wo welch
 
 | Bereich | Inhalt | Primäraktion |
 | --- | --- | --- |
-| Übersicht | Einrichtungs-Checkliste (TikTok verbunden, Profil, Element, Overlay, Lizenzstatus); für wiederkehrende Streamer laufende Runden und Schnellaktionen | Verbinden |
-| Live-Steuerung | Verbindung, aktives Profil mit Wechsel, alle laufenden Elemente, manuelle Stimmen, Ziele, Reset je Element und für alle | Live-Aktion |
+| Cockpit | Startseite: LIVE-Verbindung solange getrennt, offene Einrichtungsschritte (Element, Overlay, Lizenzstatus), alle laufenden Elemente, manuelle Stimmen, Ziele, Reset je Element und für alle | Verbinden, Live-Aktion |
 | Zähler & Abstimmungen | Liste und Detailansicht der Elemente des laufenden Profils, Assistent „Neues Element“ | Neues Element |
 | Overlays | Overlay je Element und Gesamtansicht, Design, URLs, Einrichtungsanleitung | Overlay einrichten |
 | Profile | Profile anlegen, wechseln, umbenennen, duplizieren, löschen | Neues Profil |
 | Historie | Kennzahlen, Filter, Details, CSV-Export, Löschen | Exportieren |
-| Lizenz & Konto | Status, freigeschaltete Funktionen, Grenzen, Aktivierung, Abo, Support | Lizenz verwalten |
+| Pro & Lizenz | Status, freigeschaltete Funktionen, Grenzen, Aktivierung, Abo, Support | Lizenz verwalten |
 | Einstellungen | Version, Updateprüfung, Support | Nach Updates suchen |
 
-Callouts führen direkt an die passende Stelle, zum Beispiel „Abstimmung erstellen“ in den Assistenten oder „Overlay öffnen“ zum Overlay eines Elements. Das Browser-Dashboard zeigt bewusst nur Live-Steuerung, Overlays und Einstellungen und gestaltet nur das Overlay des ersten Elements.
+Die Seitenleiste gruppiert die Bereiche in Stream, Einrichten und Konto. Die Kopfleiste zeigt auf jeder Seite den Verbindungsstatus mit einem Verbindungs-Drawer, das laufende Profil mit Wechsel und den Tarif.
+
+Callouts führen direkt an die passende Stelle, zum Beispiel „Abstimmung erstellen“ in den Assistenten oder „Overlay öffnen“ zum Overlay eines Elements. Das Browser-Dashboard zeigt bewusst nur Cockpit, Overlays und Einstellungen und gestaltet nur das Overlay des ersten Elements.
+
+## Design
+
+Farben, Abstände und Radien kommen ausschließlich aus den Tokens in `src/components/ui/ui.css` (App und Web-Dashboard) und `src/styles.css` (Website, Web-Login, Admin). Die Markenfarben stammen aus dem Logo `assets/branding/audience-live-icon-master.png`: Indigo `#6246ea` für Primäraktionen und aktive Navigation, der Verlauf Cyan → Indigo → Violett für Logo, Fortschritt und Pro. Rot ist Fehlern und destruktiven Aktionen vorbehalten. Die Standardfarbe neuer Overlays bleibt unverändert.
 
 ## Lizenzzustände
 
@@ -47,7 +52,7 @@ Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für
 ## Automatisierte Abdeckung
 
 - `src/components/ui/ui.test.tsx` – Tastatur, Fokus und Rollen der UI-Primitives
-- `src/app-shell/AppShell.test.tsx`, `src/pages/setupSteps.test.ts` – Navigation, Statusleiste, Einrichtung
+- `src/app-shell/AppShell.test.tsx`, `src/pages/setupSteps.test.ts` – Navigation, Kopfleiste, Cockpit-Einrichtung
 - `src/dashboard/proDiscovery.test.tsx` – gemeldetes Auffindbarkeitsproblem und Lizenzdiagnose
 - `src/counters/CreateCounterWizard.test.tsx`, `src/pages/CountersPage.test.tsx` – Assistent, Validierung, Speichern, Sortieren, Downgrade
 - `src/live/liveCounters.test.ts`, `src/pages/LivePage.test.tsx` – bis zu vier Elemente, Führung, Resets, Profilwechsel
@@ -60,7 +65,7 @@ Designs werden mit `set_counter_overlay_settings(counterId, overlay)` genau für
 
 Diese Schritte brauchen die echte App, einen TikTok-LIVE bzw. Testevents und eine echte oder lokal signierte Pro-Testlizenz. Sie sind vor dem Erhöhen der Version und dem Tag durchzuführen.
 
-- [ ] App ohne Lizenz frisch starten; die Übersicht zeigt die Einrichtungs-Checkliste.
+- [ ] App ohne Lizenz frisch starten; das Cockpit zeigt die Verbindung und die offenen Einrichtungsschritte.
 - [ ] Free-Zähler verbinden, Overlay-URL kopieren, in OBS einbinden und eine Runde durchführen.
 - [ ] Pro-Lizenz aktivieren; Navigation und Aktionen sind ohne Neustart freigeschaltet.
 - [ ] Profil „A/B Test“ erstellen und dorthin wechseln.

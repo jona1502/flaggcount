@@ -9,7 +9,7 @@ export const revalidate = 300;
 
 export const metadata = pageMetadata({
   title: 'Audience Live – Zuschauerreaktionen im Livestream zählen',
-  description: 'Kostenlose Windows-App, die rote Flaggen im TikTok-Live-Chat zählt und als Overlay in OBS oder TikTok LIVE Studio zeigt.',
+  description: 'Kostenlose App, die Reaktionen und Abstimmungen im Live-Chat zählt und als Overlay in OBS oder TikTok LIVE Studio zeigt.',
   path: '/'
 });
 
@@ -18,7 +18,7 @@ export default function HomePage() {
     <PageShell>
       <section className="landing-hero">
         <div>
-          <h1 className="landing-title">Flaggen im TikTok-Live zählen</h1>
+          <h1 className="landing-title">Dein Publikum live abstimmen lassen</h1>
           <p className="lead">
             Audience Live zählt Zuschauerreaktionen im Chat deines Lives, jede Person einmal pro Runde, und zeigt den Stand als Overlay in OBS oder TikTok LIVE
             Studio.

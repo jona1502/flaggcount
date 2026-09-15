@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     default: SITE_NAME,
     template: `%s · ${SITE_NAME}`
   },
-  description: 'Zählt rote Flaggen im TikTok-Live-Chat und zeigt sie als Overlay im Stream.',
+  description: 'Live-Zuschauerinteraktion, Abstimmungen und Overlays für TikTok- und Twitch-Streams.',
   openGraph: { siteName: SITE_NAME, locale: 'de_DE', type: 'website' },
   ...(indexingEnabled() ? {} : { robots: { index: false, follow: false } })
 };

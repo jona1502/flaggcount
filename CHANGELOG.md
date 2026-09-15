@@ -3,12 +3,13 @@
 ## Noch nicht veröffentlicht
 
 - Twitch ist in der Desktop-App als zweite, exklusive LIVE-Quelle verfügbar: Device-Code-Anmeldung mit `user:read:chat`, nativer Token-Speicher, EventSub-Chat, Deduplizierung, Reconnect und Streamende-Erkennung. Das Browser-Dashboard kennzeichnet Twitch bis zur mandantenfähigen Web-OAuth-Umsetzung als Desktop-Funktion.
-- Die Desktop-App ist neu gestaltet: Eine Seitenleiste führt zu Übersicht, Live-Steuerung, Zähler & Abstimmungen, Overlays, Profile, Historie, Lizenz & Konto und Einstellungen. Eine Statusleiste zeigt Verbindung, laufendes Profil, Tarif und Version.
-- Die Übersicht führt beim ersten Start durch die Einrichtung und zeigt danach laufende Runden und Schnellaktionen.
+- Neues Design im Stil des Audience-Live-Logos: Indigo, Cyan und Violett ersetzen das FlagCount-Rot in App, Web-Dashboard und Website; Rot steht nur noch für Fehler und Löschen. Das Logo ersetzt die rote Flagge in Seitenleiste, Web-Login und Admin-Bereich.
+- Die Desktop-App ist neu gestaltet: Die Seitenleiste gruppiert Cockpit, Zähler & Abstimmungen, Overlays, Profile, Historie, Pro & Lizenz und Einstellungen in Stream, Einrichten und Konto. Eine Kopfleiste zeigt auf jeder Seite LIVE-Verbindung, laufendes Profil mit Wechsel und Tarif.
+- Das Cockpit ist die Startseite: Verbinden, offene Einrichtungsschritte und alle laufenden Runden auf einer Seite. Hinweise auf Pro-Funktionen sind kompakter.
 - Zähler und Abstimmungen entstehen mit dem Assistenten „Neues Element“ in höchstens sechs Schritten. Elemente lassen sich duplizieren, sortieren und löschen und werden ausdrücklich gespeichert; ungespeicherte Änderungen gehen beim Verlassen nicht unbemerkt verloren.
-- Die Live-Steuerung zeigt bis zu vier Zähler und Abstimmungen nebeneinander, mit Führung, Anteilen, Zielen und großen Plus-/Minus-Schaltflächen. Reset und Profilwechsel werden in einem Dialog bestätigt; die bisherige Rückfrage, die sich nach fünf Sekunden selbst abbrach, entfällt.
+- Das Cockpit zeigt bis zu vier Zähler und Abstimmungen nebeneinander, mit Führung, Anteilen, Zielen und großen Plus-/Minus-Schaltflächen. Chat-Auslöser erscheinen als Chips, das Stimmenziel öffnet sich über „Ziel ändern“. Reset und Profilwechsel werden in einem Dialog bestätigt; die bisherige Rückfrage, die sich nach fünf Sekunden selbst abbrach, entfällt.
 - Jedes Element hat ein eigenes Overlay mit eigenem Design, lokaler und Online-URL sowie einer Einrichtungsanleitung für OBS und TikTok LIVE Studio. Die Gesamtansicht zeigt alle Elemente mit ihren eigenen Designs. Bestehende Overlay-URLs bleiben gültig.
-- Profile, Historie (mit Kennzahlen, Filter, Details und Rückmeldung zum CSV-Export) und Lizenz & Konto (mit freigeschalteten Funktionen, Grenzen und einer Diagnose, falls Pro-Funktionen fehlen) sind neu gestaltet.
+- Profile, Historie (mit Kennzahlen, Filter, Details und Rückmeldung zum CSV-Export) und Pro & Lizenz (mit freigeschalteten Funktionen, Grenzen und einer Diagnose, falls Pro-Funktionen fehlen) sind neu gestaltet.
 - Nach der Aktivierung ist Pro ohne Neustart freigeschaltet. Nicht verfügbare Pro-Funktionen bleiben sichtbar und erklären, was fehlt.
 - Das Fenster startet größer und hat eine Mindestgröße von 800 × 600 Pixeln. Alle Bereiche sind per Tastatur bedienbar und respektieren reduzierte Bewegung.
 - Audience Live Pro wird über Stripe verkauft: Checkout, Kundenportal für Rechnungen, Zahlungsmethode und Kündigung sowie Lizenzwiederherstellung per E-Mail. Ein Audience-Live-Konto ist weiterhin nicht nötig.
