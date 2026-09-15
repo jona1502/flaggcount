@@ -1212,7 +1212,7 @@ checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flagcount"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "keyring",
  "log",
