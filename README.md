@@ -1,6 +1,6 @@
 # Audience Live
 
-Audience Live ist eine lokale Windows-App, die rote Flaggen (`🚩`) im Chat eines TikTok-Livestreams zählt. Jeder Zuschauer hat pro Runde genau eine Stimme und kann sie mit einer weißen Flagge (`🏳️`) wieder zurücknehmen; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Streaming-Overlay.
+Audience Live zählt Reaktionen und Abstimmungen im Chat von TikTok- und Twitch-Livestreams. Jeder Zuschauer hat pro Runde genau eine Stimme und kann sie mit einer weißen Flagge (`🏳️`) wieder zurücknehmen; ein Reset startet eine neue Runde. Der Zählerstand erscheint im Dashboard und als transparentes Streaming-Overlay.
 
 ## Bedienung
 
@@ -19,7 +19,7 @@ Alle Bereiche erreichst du über die Seitenleiste. Die Statusleiste am unteren R
 
 ### Stream starten
 
-1. Audience Live starten. Auf der **Übersicht** oder in der **Live-Steuerung** im Feld **TikTok-Benutzername** den Namen des Streamers eingeben – `name`, `@name` oder die Profil-/Live-URL – und **Verbinden** klicken. Der Stream muss gerade live sein.
+1. Audience Live starten und unter **Live-Steuerung** TikTok oder Twitch wählen. Für TikTok den Namen beziehungsweise die Profil-/Live-URL eingeben. Für Twitch zuerst **Mit Twitch anmelden**, den Gerätecode bestätigen und danach **Eigenen Kanal verbinden** wählen. Der Stream muss gerade live sein.
 2. Zuschauer stimmen ab, indem sie eine Chatnachricht mit `🚩` schreiben. `🚩`, `🚩🚩` und `Bitte 🚩` zählen jeweils genau eine Stimme; jede Person zählt pro Runde nur einmal, egal wie viele Nachrichten sie schreibt. Mit `🏳️` nimmt sie ihre Stimme zurück und kann danach wieder neu abstimmen.
 3. Falls eine Chat-Stimme nicht erkannt wurde, fügt **Flagge hinzufügen** in der **Live-Steuerung** genau eine Stimme hinzu; **Flagge abziehen** korrigiert um eine Stimme nach unten. Laufen mehrere Elemente, heißen die Schaltflächen „Stimme für … hinzufügen“ bzw. „… abziehen“. Beides funktioniert auch ohne aktive TikTok-Verbindung und aktualisiert Dashboard sowie Overlay sofort.
 4. Das **Stimmenziel** des ersten Elements trägst du direkt in der Live-Steuerung ein und speicherst es mit **Übernehmen**; die Ziele weiterer Elemente unter **Zähler & Abstimmungen**. Ist das Ziel erreicht, wird der Fortschrittsbalken grün.
@@ -62,7 +62,7 @@ Hinweise:
 | --- | --- | --- |
 | `src/` | React, TypeScript, Vite | Dashboard |
 | `src-tauri/` | Tauri 2, Rust | Fenster, sichere Commands, Einstellungen, Start und Neustart des Sidecars |
-| `sidecar/` | Node.js, `tiktok-live-connector` | TikTok-Verbindung, Voting, lokaler Overlay-Server |
+| `sidecar/` | Node.js, TikTok Connector, Twitch EventSub | Live-Verbindungen, Voting, lokaler Overlay-Server |
 | `shared/` | TypeScript | Plattformunabhängige Voting-Logik und gemeinsame Typen |
 
 Der Sidecar wird beim Build mit esbuild gebündelt und mit `@yao-pkg/pkg` in eine eigenständige `.exe` übersetzt, die Tauri mit ausliefert.
@@ -122,4 +122,4 @@ Der Installer installiert Audience Live für den aktuellen Benutzer, ohne Admini
 | Einstellungen (Benutzername, Stimmenziel, Overlay) | `%APPDATA%\com.jona1502.flagcount\settings.json` |
 | Logdatei | `%LOCALAPPDATA%\com.jona1502.flagcount\logs\FlagCount.log` |
 
-Die Logdatei enthält keine Benutzernamen, Chatinhalte oder Zugangsdaten. Audience Live benötigt keine TikTok-Anmeldung.
+Die Logdatei enthält keine Benutzernamen, Chatinhalte oder Zugangsdaten. TikTok benötigt keine Anmeldung. Twitch fordert ausschließlich `user:read:chat`; Access- und Refresh-Token liegen im nativen Secret Store und werden beim Trennen des Kontos lokal gelöscht sowie bei Twitch widerrufen. Audience Live ist kein offizielles Produkt und steht weder mit TikTok noch mit Twitch in einer Partnerschaft. Details stehen in [docs/TWITCH.md](docs/TWITCH.md).
