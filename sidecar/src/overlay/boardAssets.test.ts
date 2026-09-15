@@ -103,6 +103,30 @@ describe('board overlay', () => {
     expect(texts('.option-label')[0]).toBe('<b>Rot</b>');
   });
 
+  it('shows the emoji of a single counter and the size of each scene entry', () => {
+    mount([
+      { ...flags, icon: '🔥', itemId: 'big', itemScale: 140 },
+      { ...flags, icon: '🔥', itemId: 'small', itemScale: 60 }
+    ]);
+
+    expect(texts('.card-icon')).toEqual(['🔥', '🔥']);
+    const cards = [...document.querySelectorAll<HTMLElement>('.card')];
+    expect(cards.map((card) => card.style.getPropertyValue('--item-scale'))).toEqual(['1.4', '0.6']);
+  });
+
+  it('renders unsaved scenes sent by the app in preview mode, only from the app origin', () => {
+    const page = new DOMParser().parseFromString(renderBoardPage([], { scope: 'preview', preview: true }), 'text/html');
+    document.body.innerHTML = page.body.innerHTML;
+    vi.stubGlobal('EventSource', FakeEventSource);
+    new Function(BOARD_SCRIPT)();
+
+    expect(FakeEventSource.instances).toHaveLength(0);
+    window.dispatchEvent(new MessageEvent('message', { origin: 'https://evil.example', data: { type: 'audience-live-preview', counters: [flags] } }));
+    expect(texts('.card-title')).toEqual([]);
+    window.dispatchEvent(new MessageEvent('message', { origin: 'http://tauri.localhost', data: { type: 'audience-live-preview', counters: [flags] } }));
+    expect(texts('.card-title')).toEqual(['Rote Flaggen']);
+  });
+
   it('escapes notices', () => {
     expect(renderOverlayNotice('Pro <nötig>')).toContain('Pro &lt;nötig&gt;');
   });

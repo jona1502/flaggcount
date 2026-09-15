@@ -300,8 +300,11 @@ describe('SidecarApp', () => {
 
     expect(app.getBoard('v-main')).toMatchObject({
       status: 'ok',
-      counters: [{ counterId: 'teams' }, { counterId: 'red-flags' }],
-      layout: { layout: 'horizontal', gap: 24, verticalAlign: 'end', scale: 80 }
+      counters: [
+        { counterId: 'teams', itemId: 'i-1', itemScale: 100 },
+        { counterId: 'red-flags', itemId: 'i-2', itemScale: 100, icon: '🚩' }
+      ],
+      layout: { layout: 'horizontal', gap: 24, verticalAlign: 'end', scale: 80, sizing: 'canvas' }
     });
     expect(app.getBoardScopes()).toContain('v-main');
   });

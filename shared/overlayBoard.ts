@@ -2,10 +2,12 @@ import {
   MAX_NAME_LENGTH,
   MAX_POLL_OPTIONS,
   MAX_SCENE_ITEMS,
+  MAX_SCENE_ITEM_SCALE,
   MAX_OVERLAY_VIEW_GAP,
   MAX_OVERLAY_VIEW_SCALE,
   MIN_OVERLAY_VIEW_GAP,
   MIN_OVERLAY_VIEW_SCALE,
+  MIN_SCENE_ITEM_SCALE,
   OVERLAY_ALIGNMENTS,
   OVERLAY_LAYOUTS,
   type CounterDefinition,
@@ -22,6 +24,8 @@ import type { CounterSnapshot } from './voting/VotingEngine';
 export const OVERVIEW_SCOPE = 'all';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+/** Emoji sequences are short; the limit only keeps relay updates small. */
+const MAX_ICON_LENGTH = 40;
 const MAX_COUNT = 1_000_000_000;
 
 export type BoardOption = {
@@ -41,9 +45,18 @@ export type CounterView = {
   target: number | null;
   targetReached: boolean;
   overlay: OverlaySettings;
+  /** Entry of the scene this view belongs to; tells two entries of the same counter apart. */
+  itemId?: string;
+  /** Size of the scene entry in percent. */
+  itemScale?: number;
+  /** Emoji of a single counter, shown before its count. */
+  icon?: string;
 };
 
-export type BoardLayout = Pick<OverlayView, 'layout' | 'gap' | 'horizontalAlign' | 'verticalAlign' | 'scale'>;
+/** `fill` scales the content to the browser source; `canvas` sizes it for a 1280 × 720 stream, like the app preview. */
+export type BoardSizing = 'fill' | 'canvas';
+
+export type BoardLayout = Pick<OverlayView, 'layout' | 'gap' | 'horizontalAlign' | 'verticalAlign' | 'scale'> & { sizing?: BoardSizing };
 
 export const DEFAULT_BOARD_LAYOUT: Readonly<BoardLayout> = Object.freeze({
   layout: 'auto',
@@ -67,6 +80,7 @@ export function buildCounterViews(snapshots: readonly CounterSnapshot[], definit
   return snapshots.map((snapshot) => {
     const definition = definitions.find((candidate) => candidate.id === snapshot.counterId);
     const overlay = definition?.overlay ?? DEFAULT_OVERLAY_SETTINGS;
+    const icon = snapshot.mode === 'single' ? definition?.options[0]?.triggers.find((trigger) => trigger.kind === 'emoji')?.value : undefined;
     return {
       counterId: snapshot.counterId,
       name: snapshot.name,
@@ -80,7 +94,8 @@ export function buildCounterViews(snapshots: readonly CounterSnapshot[], definit
       totalCount: snapshot.totalCount,
       target: snapshot.target,
       targetReached: snapshot.targetReached,
-      overlay: { ...overlay }
+      overlay: { ...overlay },
+      ...(icon ? { icon } : {})
     };
   });
 }
@@ -121,7 +136,23 @@ function parseView(value: unknown): CounterView | null {
     if (!parsed) return null;
     parsedOptions.push(parsed);
   }
-  return { counterId, name, mode, options: parsedOptions, totalCount, target, targetReached, overlay };
+  const extras: Pick<CounterView, 'itemId' | 'itemScale' | 'icon'> = {};
+  const { itemId, itemScale, icon } = record;
+  if (itemId !== undefined) {
+    if (!isBoardScope(itemId)) return null;
+    extras.itemId = itemId;
+  }
+  if (itemScale !== undefined) {
+    if (typeof itemScale !== 'number' || !Number.isInteger(itemScale) || itemScale < MIN_SCENE_ITEM_SCALE || itemScale > MAX_SCENE_ITEM_SCALE) {
+      return null;
+    }
+    extras.itemScale = itemScale;
+  }
+  if (icon !== undefined) {
+    if (typeof icon !== 'string' || icon.length === 0 || icon.length > MAX_ICON_LENGTH) return null;
+    extras.icon = icon;
+  }
+  return { counterId, name, mode, options: parsedOptions, totalCount, target, targetReached, overlay, ...extras };
 }
 
 /** Reads counter views from untrusted input, e.g. a relay update. An empty list clears an overlay. */
@@ -152,11 +183,14 @@ export function parseBoardLayout(value: unknown): BoardLayout | null {
     scale < MIN_OVERLAY_VIEW_SCALE ||
     scale > MAX_OVERLAY_VIEW_SCALE
   ) return null;
+  const sizing = (value as Record<string, unknown>)['sizing'];
+  if (sizing !== undefined && sizing !== 'fill' && sizing !== 'canvas') return null;
   return {
     layout: layout as OverlayLayout,
     gap,
     horizontalAlign: horizontalAlign as OverlayAlignment,
     verticalAlign: verticalAlign as OverlayAlignment,
-    scale
+    scale,
+    ...(sizing ? { sizing: sizing as BoardSizing } : {})
   };
 }

@@ -49,6 +49,13 @@ describe('buildCounterViews', () => {
     expect(views[1]?.options[0]?.color).toBe(DEFAULT_OVERLAY_SETTINGS.accentColor);
     expect(JSON.stringify(views)).not.toContain('roundId');
   });
+
+  it('passes the emoji of a single counter on as its icon', () => {
+    const flag = { ...snapshots[1]!, counterId: 'red-flags' };
+
+    expect(buildCounterViews([flag], [createRedFlagCounter()])[0]?.icon).toBe('🚩');
+    expect(buildCounterViews(snapshots, [poll])[0]).not.toHaveProperty('icon');
+  });
 });
 
 describe('parseCounterViews', () => {
@@ -65,6 +72,12 @@ describe('parseCounterViews', () => {
     expect(parseCounterViews(Array(MAX_SCENE_ITEMS).fill(view))).toHaveLength(MAX_SCENE_ITEMS);
   });
 
+  it('keeps scene entries and icons from relay updates', () => {
+    const view = { ...buildCounterViews(snapshots, [poll])[0], itemId: 'big', itemScale: 140, icon: '🔥' };
+
+    expect(parseCounterViews([view])).toEqual([view]);
+  });
+
   it.each([
     null,
     'views',
@@ -74,6 +87,9 @@ describe('parseCounterViews', () => {
     [{ ...buildCounterViews(snapshots, [poll])[0], totalCount: -1 }],
     [{ ...buildCounterViews(snapshots, [poll])[0], options: [] }],
     [{ ...buildCounterViews(snapshots, [poll])[0], options: [{ optionId: 'a', label: 'A', count: 1, color: 'red' }] }],
+    [{ ...buildCounterViews(snapshots, [poll])[0], itemScale: 200 }],
+    [{ ...buildCounterViews(snapshots, [poll])[0], itemId: '../x' }],
+    [{ ...buildCounterViews(snapshots, [poll])[0], icon: 'x'.repeat(41) }],
     [{ ...buildCounterViews(snapshots, [poll])[0], overlay: { size: 5 } }]
   ])('rejects %j', (value) => {
     expect(parseCounterViews(value)).toBeNull();

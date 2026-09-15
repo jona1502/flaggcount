@@ -119,6 +119,12 @@ export function createOverlayHandler(source: OverlaySource, heartbeatMs = HEARTB
           { 'Content-Security-Policy': OVERLAY_CSP }
         );
         return;
+      case '/overlay/preview':
+        // An empty board the app fills with unsaved scenes via postMessage; it serves no data itself.
+        send(response, 200, 'text/html; charset=utf-8', renderBoardPage([], { scope: 'preview', preview: true }), {
+          'Content-Security-Policy': OVERLAY_CSP
+        });
+        return;
       case '/overlay/overlay.css':
         send(response, 200, 'text/css; charset=utf-8', OVERLAY_CSS);
         return;

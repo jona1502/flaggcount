@@ -13,7 +13,10 @@ const HEAD = `<meta charset="utf-8">
  * Overlay for one counter or all running counters. The initial state travels as JSON in a data
  * attribute, because the CSP forbids inline scripts; the script only ever writes it as text.
  */
-export function renderBoardPage(counters: CounterView[], options: { eventsUrl: string; scope: string; layout?: BoardLayout }): string {
+export function renderBoardPage(
+  counters: CounterView[],
+  options: { eventsUrl?: string; scope: string; layout?: BoardLayout; preview?: boolean }
+): string {
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -21,7 +24,7 @@ ${HEAD}
 <script src="/overlay/board.js" defer></script>
 </head>
 <body>
-<div class="board" id="board" data-scope="${escapeAttribute(options.scope)}" data-events="${escapeAttribute(options.eventsUrl)}" data-initial="${escapeAttribute(JSON.stringify({ counters, layout: options.layout ?? DEFAULT_BOARD_LAYOUT }))}" data-connected="true"></div>
+<div class="board" id="board" data-scope="${escapeAttribute(options.scope)}" data-events="${escapeAttribute(options.eventsUrl ?? '')}"${options.preview ? ' data-preview="true"' : ''} data-initial="${escapeAttribute(JSON.stringify({ counters, layout: options.layout ?? DEFAULT_BOARD_LAYOUT }))}" data-connected="true"></div>
 </body>
 </html>
 `;
@@ -95,6 +98,79 @@ body {
 .card[data-font='space-grotesk'] { font-family: 'Space Grotesk', 'Segoe UI', sans-serif; }
 .card[data-font='roboto-slab'] { font-family: 'Roboto Slab', Georgia, serif; }
 .brand-logo { display: block; max-width: 180px; max-height: 90px; margin: 0 0 12px auto; object-fit: contain; }
+
+/* Scene entries have their own size; zoom keeps the layout around them correct. */
+.card {
+  zoom: var(--item-scale, 1);
+}
+
+/* The emoji of a single counter, animated like the flag of the classic overlay. */
+.card-icon {
+  display: inline-block;
+  align-self: center;
+  font-size: 80px;
+  transform-origin: 30% 90%;
+}
+
+.card[data-flag-animation='wave'] .card-icon {
+  animation: icon-wave 1.6s ease-in-out infinite;
+}
+
+.card-icon.vote-bounce {
+  animation: icon-bounce 0.6s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.card-icon.vote-pulse {
+  animation: icon-pulse 0.5s ease-out;
+}
+
+/* A short cross-fade when the live overlay switches to another scene. */
+.board.is-switching {
+  animation: board-switch 0.2s ease-out;
+}
+
+@keyframes icon-wave {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(7deg) skewY(-4deg);
+  }
+}
+
+@keyframes icon-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-38%) scale(1.08);
+  }
+  65% {
+    transform: translateY(6%) scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes icon-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes board-switch {
+  from {
+    opacity: 0;
+  }
+}
 
 .card-title {
   margin: 0 0 12px;
@@ -191,6 +267,11 @@ body {
   .bar-fill {
     transition: none;
   }
+
+  .board,
+  .card-icon {
+    animation: none !important;
+  }
 }
 `;
 
@@ -203,6 +284,11 @@ export const BOARD_SCRIPT = `(function () {
   var position = 'center';
   var horizontalAlign = 'center';
   var verticalAlign = 'center';
+  var sizing = 'fill';
+  var lastKey = null;
+  var lastCounts = {};
+  // Only the app itself may fill the preview page with unsaved scenes.
+  var PREVIEW_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'http://localhost:1420'];
 
   function rgba(hex, alpha) {
     var value = parseInt(hex.slice(1), 16);
@@ -224,6 +310,10 @@ export const BOARD_SCRIPT = `(function () {
     var viewWidth = window.innerWidth;
     var viewHeight = window.innerHeight;
     var scale = Math.min((viewWidth * size) / width, (viewHeight * size) / height);
+    if (sizing === 'canvas') {
+      // Scenes are sized for a 1280 x 720 stream, so the preview in the app matches every browser source.
+      scale = Math.min(scale, Math.min(viewWidth / 1280, viewHeight / 720) * size);
+    }
     var scaledHeight = height * scale;
     var gap = viewHeight * EDGE_GAP;
     var y = (viewHeight - scaledHeight) / 2;
@@ -242,6 +332,7 @@ export const BOARD_SCRIPT = `(function () {
     card.setAttribute('data-progress', overlay.showProgress ? 'true' : 'false');
     card.setAttribute('data-theme', String(overlay.theme || 'standard'));
     card.setAttribute('data-font', String(overlay.font || 'system'));
+    card.setAttribute('data-flag-animation', String(overlay.flagAnimation || 'none'));
     if (overlay.backgroundAsset) card.style.backgroundImage = 'url(/overlay/assets/' + encodeURIComponent(overlay.backgroundAsset) + ')';
     if (HEX_COLOR.test(overlay.accentColor)) card.style.setProperty('--accent', overlay.accentColor);
     if (HEX_COLOR.test(overlay.textColor)) card.style.setProperty('--text', overlay.textColor);
@@ -261,7 +352,12 @@ export const BOARD_SCRIPT = `(function () {
   }
 
   function renderCounter(view) {
+    var id = view.itemId || view.counterId;
+    var previous = lastCounts[id];
+    lastCounts[id] = Number(view.totalCount) || 0;
     var card = element('section', 'card');
+    var itemScale = Number(view.itemScale);
+    if (itemScale >= 40 && itemScale <= 160) card.style.setProperty('--item-scale', String(itemScale / 100));
     applyDesign(card, view.overlay);
     if (view.overlay && view.overlay.logoAsset) {
       var logo = element('img', 'brand-logo');
@@ -290,6 +386,15 @@ export const BOARD_SCRIPT = `(function () {
     }
 
     var totalRow = element('div', 'card-total');
+    if (view.icon) {
+      var icon = element('span', 'card-icon', String(view.icon));
+      icon.setAttribute('aria-hidden', 'true');
+      var animation = view.overlay && view.overlay.flagAnimation;
+      if (previous !== undefined && lastCounts[id] > previous && (animation === 'bounce' || animation === 'pulse')) {
+        icon.classList.add('vote-' + animation);
+      }
+      totalRow.appendChild(icon);
+    }
     totalRow.appendChild(element('span', 'card-count', format.format(view.totalCount)));
     if (view.target) totalRow.appendChild(element('span', 'card-target', '/ ' + format.format(view.target)));
     card.appendChild(totalRow);
@@ -305,6 +410,7 @@ export const BOARD_SCRIPT = `(function () {
     root.style.flexDirection = chosen === 'horizontal' ? 'row' : 'column';
     root.style.gridTemplateColumns = chosen === 'grid' ? 'repeat(2, max-content)' : '';
     root.style.gap = String(Number.isInteger(layout.gap) ? layout.gap : 18) + 'px';
+    sizing = layout.sizing === 'canvas' ? 'canvas' : 'fill';
     horizontalAlign = layout.horizontalAlign || 'center';
     verticalAlign = layout.verticalAlign || 'center';
     var percent = Number(layout.scale);
@@ -313,6 +419,13 @@ export const BOARD_SCRIPT = `(function () {
 
   function render(counters, layout) {
     root.textContent = '';
+    var key = (counters || []).map(function (view) { return view.itemId || view.counterId; }).join('|');
+    if (lastKey !== null && key !== lastKey) {
+      root.classList.remove('is-switching');
+      void root.offsetWidth;
+      root.classList.add('is-switching');
+    }
+    lastKey = key;
     if (!counters || !counters.length) return;
     applyLayout(layout, counters.length);
     var design = counters[0].overlay;
@@ -335,6 +448,17 @@ export const BOARD_SCRIPT = `(function () {
     render(initial.counters, initial.layout);
   } catch (error) {
     // Start empty and wait for the event stream.
+  }
+
+  if (root.getAttribute('data-preview') === 'true') {
+    window.addEventListener('message', function (event) {
+      var data = event.data;
+      if (PREVIEW_ORIGINS.indexOf(event.origin) < 0 || !data || data.type !== 'audience-live-preview') return;
+      render(data.counters, data.layout);
+    });
+    // Tell the app the preview is ready; the message itself carries no data.
+    if (window.parent !== window) window.parent.postMessage({ type: 'audience-live-preview-ready' }, '*');
+    return;
   }
 
   var source = new EventSource(root.getAttribute('data-events'));

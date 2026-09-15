@@ -170,10 +170,13 @@ export class SidecarApp {
     const custom = this.overlayViews.find((view) => view.id === scope);
     if (custom) {
       if (!canUse(this.entitlements, 'parallel-counters')) return { status: 'pro-required' };
-      const selected = custom.items.map((item) => views.find((view) => view.counterId === item.counterId)).filter((view): view is NonNullable<typeof view> => Boolean(view));
+      const selected = custom.items.flatMap((item) => {
+        const view = views.find((candidate) => candidate.counterId === item.counterId);
+        return view ? [{ ...view, itemId: item.id, itemScale: item.scale }] : [];
+      });
       if (selected.length === 0) return { status: 'not-found' };
       const { layout, gap, horizontalAlign, verticalAlign, scale } = custom;
-      return { status: 'ok', counters: selected, layout: { layout, gap, horizontalAlign, verticalAlign, scale } };
+      return { status: 'ok', counters: selected, layout: { layout, gap, horizontalAlign, verticalAlign, scale, sizing: 'canvas' } };
     }
     const index = views.findIndex((view) => view.counterId === scope);
     const view = views[index];
@@ -186,13 +189,16 @@ export class SidecarApp {
    * overlay, and a scene that cannot run right now falls back to the automatic scene.
    */
   private getLiveBoard(): BoardAccess {
-    if (this.liveHidden) return { status: 'ok', counters: [], layout: { ...DEFAULT_BOARD_LAYOUT } };
+    const canvas = { ...DEFAULT_BOARD_LAYOUT, sizing: 'canvas' as const };
+    if (this.liveHidden) return { status: 'ok', counters: [], layout: canvas };
     if (!canUse(this.entitlements, 'parallel-counters')) {
       const [first] = buildCounterViews(this.engine.getSnapshots(), this.definitions);
-      return { status: 'ok', counters: first ? [first] : [], layout: { ...DEFAULT_BOARD_LAYOUT } };
+      return { status: 'ok', counters: first ? [first] : [], layout: canvas };
     }
     const scene = this.liveSceneId === AUTO_SCENE_ID ? null : this.getBoard(this.liveSceneId);
-    return scene?.status === 'ok' ? scene : this.getBoard(OVERVIEW_SCOPE);
+    if (scene?.status === 'ok') return scene;
+    const automatic = this.getBoard(OVERVIEW_SCOPE);
+    return automatic.status === 'ok' ? { ...automatic, layout: { ...(automatic.layout ?? DEFAULT_BOARD_LAYOUT), sizing: 'canvas' } } : automatic;
   }
 
   /** Every overlay scope the plan allows right now: the running counters, the live overlay and, with Pro, the scenes. */

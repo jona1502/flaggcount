@@ -95,6 +95,17 @@ describe('board overlay routes', () => {
     expect((await get(port, '/overlay/lives')).status).toBe(404);
   });
 
+  it('serves an empty preview board that the app fills itself', async () => {
+    const getBoard = vi.fn((): BoardAccess => ({ status: 'not-found' }));
+    const { port } = await start(getBoard);
+
+    const page = await get(port, '/overlay/preview');
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('data-preview="true"');
+    expect(page.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(getBoard).not.toHaveBeenCalled();
+  });
+
   it('explains overlays that need Pro or do not exist', async () => {
     const { port } = await start((scope) => (scope === 'all' ? { status: 'pro-required' } : { status: 'not-found' }));
 
