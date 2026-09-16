@@ -11,7 +11,7 @@ const pkgCli = createRequire(import.meta.url).resolve('@yao-pkg/pkg/lib-es5/bin.
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(projectRoot);
 
-const SIDECAR_NAME = 'flagcount-sidecar';
+const SIDECAR_NAME = 'audience-live-sidecar';
 const NODE_TARGET = 'node24';
 
 const bundlePath = join(projectRoot, 'sidecar', 'dist', 'index.cjs');

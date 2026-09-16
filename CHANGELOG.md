@@ -2,6 +2,7 @@
 
 ## Noch nicht veröffentlicht
 
+- Windows: Nach dem Update von FlagCount legt der Installer die Startmenü-Verknüpfung „Audience Live“ an, sodass die App in der Windows-Suche erscheint. Die alte FlagCount-Installation mit Verknüpfung und Eintrag unter „Apps“ wird entfernt; Einstellungen und Lizenz bleiben erhalten. Programm und Hintergrunddienst heißen jetzt `audience-live.exe` und `audience-live-sidecar.exe`.
 - Twitch ist in der Desktop-App als zweite, exklusive LIVE-Quelle verfügbar: Device-Code-Anmeldung mit `user:read:chat`, nativer Token-Speicher, EventSub-Chat, Deduplizierung, Reconnect und Streamende-Erkennung. Das Browser-Dashboard kennzeichnet Twitch bis zur mandantenfähigen Web-OAuth-Umsetzung als Desktop-Funktion.
 - Neues Design im Stil des Audience-Live-Logos: Indigo, Cyan und Violett ersetzen das FlagCount-Rot in App, Web-Dashboard und Website; Rot steht nur noch für Fehler und Löschen. Das Logo ersetzt die rote Flagge in Seitenleiste, Web-Login und Admin-Bereich.
 - Die Desktop-App ist neu gestaltet: Die Seitenleiste gruppiert Übersicht, Zähler & Abstimmungen, Overlays, Profile, Historie, Pro & Lizenz und Einstellungen in Stream, Einrichten und Konto. Eine Kopfleiste zeigt auf jeder Seite LIVE-Verbindung, laufendes Profil mit Wechsel und Tarif.
