@@ -95,7 +95,7 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: Audience Live v__VERSION__
           releaseBody: |
-            Live-Ansicht: jedes Element einzeln ein- und ausblenden und die Reihenfolge direkt im Stream ändern. Einstellungen, Profile und Lizenzen bleiben erhalten.
+            Windows: Audience Live erscheint nach dem Update wieder in der Windows-Suche, und die alte FlagCount-Installation wird entfernt. Einstellungen, Profile und Lizenzen bleiben erhalten.
             Weitere Änderungen stehen im Update-Hinweis der App.
           releaseDraft: false
           prerelease: false
