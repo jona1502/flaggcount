@@ -21,7 +21,7 @@ use crate::twitch::{TwitchCredentials, TwitchVault};
 pub const PROTOCOL_VERSION: u32 = 7;
 
 /// Name of the bundled Node.js sidecar (see `bundle.externalBin`).
-pub const SIDECAR_NAME: &str = "flagcount-sidecar";
+pub const SIDECAR_NAME: &str = "audience-live-sidecar";
 /// Tells the sidecar where to keep its files, such as the key of the online overlay.
 pub const DATA_DIR_ENV: &str = "FLAGCOUNT_DATA_DIR";
 pub const TWITCH_CLIENT_ID_ENV: &str = "TWITCH_CLIENT_ID";

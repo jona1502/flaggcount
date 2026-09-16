@@ -120,7 +120,7 @@ npm run package:windows
 
 Der Befehl
 
-1. bündelt den Sidecar und erzeugt `src-tauri/binaries/flagcount-sidecar-x86_64-pc-windows-msvc.exe`,
+1. bündelt den Sidecar und erzeugt `src-tauri/binaries/audience-live-sidecar-x86_64-pc-windows-msvc.exe`,
 2. baut das Dashboard,
 3. kompiliert die App im Release-Modus und
 4. erstellt den NSIS-Installer.
